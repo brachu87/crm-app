@@ -210,7 +210,7 @@ export default function Reports() {
               {data.topClients.length === 0 ? (
                 <p style={{ color: '#9ca3af' }}>Sin pagos registrados</p>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>#</th>
@@ -227,7 +227,7 @@ export default function Reports() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
             </div>
           </div>
@@ -236,7 +236,7 @@ export default function Reports() {
           {data.employees.length > 0 && (
             <div className="card">
               <h3 style={{ marginBottom: 16 }}>Nómina de empleados activos</h3>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr>
                     <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Empleado</th>
@@ -259,7 +259,7 @@ export default function Reports() {
                     <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 700, color: '#6366f1' }}>{fmt(data.totalSalaries)}</td>
                   </tr>
                 </tbody>
-              </table>
+              </table></div>
             </div>
           )}
         </>

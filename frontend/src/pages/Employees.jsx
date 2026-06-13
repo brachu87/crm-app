@@ -69,7 +69,7 @@ export default function Employees() {
         </div>
       ) : (
         <div className="card">
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Nombre</th>
@@ -111,7 +111,7 @@ export default function Employees() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 

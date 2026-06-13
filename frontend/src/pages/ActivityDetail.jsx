@@ -79,7 +79,7 @@ export default function ActivityDetail() {
             </button>
           </div>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Cliente</th>
@@ -111,7 +111,7 @@ export default function ActivityDetail() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 

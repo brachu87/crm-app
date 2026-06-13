@@ -139,7 +139,7 @@ export default function Dashboard() {
             <p>Cuando inscribas clientes con fecha de vencimiento, los vas a ver acá.</p>
           </div>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Cliente</th>
@@ -160,7 +160,7 @@ export default function Dashboard() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

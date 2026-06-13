@@ -86,7 +86,7 @@ export default function Suppliers() {
           {filtered.length === 0 ? (
             <p style={{ color: '#9ca3af', padding: 8 }}>Sin resultados para "{search}"</p>
           ) : (
-            <table className="table">
+            <div className="table-wrap"><table className="table">
               <thead>
                 <tr>
                   <th>Nombre</th>
@@ -118,7 +118,7 @@ export default function Suppliers() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}

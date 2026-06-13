@@ -86,7 +86,7 @@ export default function Expenses() {
         </div>
       ) : (
         <div className="card">
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Fecha</th>
@@ -128,7 +128,7 @@ export default function Expenses() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 

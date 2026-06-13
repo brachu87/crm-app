@@ -94,7 +94,7 @@ export default function ClientDetail() {
         </div>
       ) : (
         <div className="card" style={{ marginBottom: 24 }}>
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Actividad</th>
@@ -119,7 +119,7 @@ export default function ClientDetail() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
@@ -146,7 +146,7 @@ export default function ClientDetail() {
                   <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{allPayments.length}</p>
                 </div>
               </div>
-              <table className="table">
+              <div className="table-wrap"><table className="table">
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -165,7 +165,7 @@ export default function ClientDetail() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </>
           );
         })()}

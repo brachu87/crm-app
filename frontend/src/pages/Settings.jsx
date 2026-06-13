@@ -64,7 +64,7 @@ export default function Settings() {
         ) : users.length === 0 ? (
           <p style={{ color: 'var(--ink-soft)' }}>No hay usuarios.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Nombre</th>
@@ -107,7 +107,7 @@ export default function Settings() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 

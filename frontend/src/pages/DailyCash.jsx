@@ -45,7 +45,7 @@ function HistorialTab() {
                 </span>
               </div>
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '4px 0', color: '#6b7280', fontWeight: 500 }}>Fecha</th>
@@ -71,7 +71,7 @@ function HistorialTab() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           </div>
         );
       })}
@@ -191,7 +191,7 @@ export default function DailyCash() {
               {data.payments.length === 0 ? (
                 <p style={{ color: '#9ca3af', fontSize: 14 }}>Sin cobros registrados hoy</p>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Cliente</th>
@@ -212,7 +212,7 @@ export default function DailyCash() {
                       <td style={{ padding: '7px 0', textAlign: 'right', fontWeight: 700, color: '#10b981' }}>{fmt(data.totalIncome)}</td>
                     </tr>
                   </tbody>
-                </table>
+                </table></div>
               )}
             </div>
 
@@ -222,7 +222,7 @@ export default function DailyCash() {
               {data.expenses.length === 0 ? (
                 <p style={{ color: '#9ca3af', fontSize: 14 }}>Sin gastos registrados hoy</p>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Descripción</th>
@@ -243,7 +243,7 @@ export default function DailyCash() {
                       <td style={{ padding: '7px 0', textAlign: 'right', fontWeight: 700, color: '#ef4444' }}>{fmt(data.totalExpenses)}</td>
                     </tr>
                   </tbody>
-                </table>
+                </table></div>
               )}
             </div>
           </div>

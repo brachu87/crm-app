@@ -247,7 +247,7 @@ export default function Collections() {
             <p>No hay inscripciones con este estado.</p>
           </div>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Cliente</th>
@@ -292,7 +292,7 @@ export default function Collections() {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
