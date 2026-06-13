@@ -75,7 +75,7 @@ model Enrollment {
   client        Client    @relation(fields: [clientId], references: [id])
   activityId    String
   activity      Activity  @relation(fields: [activityId], references: [id])
-  paymentStatus String    @default("pending") // paid, pending, overdue
+  paymentStatus String    @default("pending")
   amountDue     Float
   discount      Float     @default(0)
   dueDate       DateTime?
@@ -120,7 +120,11 @@ model Note {
   content    String?
   dueDate    DateTime?
   completed  Boolean   @default(false)
-  priority   String    @default("normal") // low, normal, high
+  priority   String    @default("normal")
+  startAt    DateTime?
+  endAt      DateTime?
+  allDay     Boolean   @default(true)
+  color      String    @default("blue")
   businessId String
   business   Business  @relation(fields: [businessId], references: [id])
   createdAt  DateTime  @default(now())
