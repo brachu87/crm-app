@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import api from '../api';
+import api from '../api/client';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const COLORS = {
