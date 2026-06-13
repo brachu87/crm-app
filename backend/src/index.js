@@ -43,7 +43,7 @@ app.get('/api/health', (req, res) => {
 const frontendDist = path.join(__dirname, '../../frontend/dist');
 if (fs.existsSync(frontendDist)) {
   app.use(express.static(frontendDist));
-  app.get('*', (req, res) => {
+  app.get(/(.*)/, (req, res) => {
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
 }
@@ -52,4 +52,4 @@ const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+}
