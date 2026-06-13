@@ -1,0 +1,94 @@
+const express = require('express');
+const prisma = require('../prisma');
+const authMiddleware = require('../middleware/auth');
+const { scopedWhere } = require('../middleware/tenant');
+
+const router = express.Router();
+router.use(authMiddleware);
+
+// GET /api/employees
+router.get('/', async (req, res) => {
+  try {
+    const employees = await prisma.employee.findMany({
+      where: scopedWhere(req),
+      orderBy: { name: 'asc' },
+    });
+    res.json(employees);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener empleados' });
+  }
+});
+
+// POST /api/employees
+router.post('/', async (req, res) => {
+  try {
+    const { name, role, phone, email, salary, startDate, notes } = req.body;
+    if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    if (!role) return res.status(400).json({ error: 'El rol es obligatorio' });
+
+    const employee = await prisma.employee.create({
+      data: {
+        name,
+        role,
+        phone: phone || null,
+        email: email || null,
+        salary: salary ? parseFloat(salary) : null,
+        startDate: startDate ? new Date(startDate) : new Date(),
+        notes: notes || null,
+        businessId: req.user.businessId,
+      },
+    });
+    res.status(201).json(employee);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear empleado' });
+  }
+});
+
+// PUT /api/employees/:id
+router.put('/:id', async (req, res) => {
+  try {
+    const existing = await prisma.employee.findFirst({
+      where: scopedWhere(req, { id: req.params.id }),
+    });
+    if (!existing) return res.status(404).json({ error: 'Empleado no encontrado' });
+
+    const { name, role, phone, email, salary, startDate, notes, active } = req.body;
+    const employee = await prisma.employee.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        role,
+        phone: phone || null,
+        email: email || null,
+        salary: salary ? parseFloat(salary) : null,
+        startDate: startDate ? new Date(startDate) : undefined,
+        notes: notes || null,
+        active: active !== undefined ? active : existing.active,
+      },
+    });
+    res.json(employee);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al editar empleado' });
+  }
+});
+
+// DELETE /api/employees/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    const existing = await prisma.employee.findFirst({
+      where: scopedWhere(req, { id: req.params.id }),
+    });
+    if (!existing) return res.status(404).json({ error: 'Empleado no encontrado' });
+
+    await prisma.employee.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar empleado' });
+  }
+});
+
+module.exports = router;

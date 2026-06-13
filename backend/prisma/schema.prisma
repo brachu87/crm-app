@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  category  String
+  phone     String?
+  createdAt DateTime @default(now())
+
+  users      User[]
+  clients    Client[]
+  activities Activity[]
+  employees  Employee[]
+  expenses   Expense[]
+  suppliers  Supplier[]
+  notes      Note[]
+  dailyCash  DailyCash[]
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String
+  name       String
+  role       String   @default("owner")
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+model Client {
+  id               String       @id @default(cuid())
+  name             String
+  phone            String?
+  email            String?
+  notes            String?
+  birthday         DateTime?
+  emergencyContact String?
+  emergencyPhone   String?
+  medicalNotes     String?
+  businessId       String
+  business         Business     @relation(fields: [businessId], references: [id])
+  enrollments      Enrollment[]
+  createdAt        DateTime     @default(now())
+
+  @@index([businessId])
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  capacity    Int?
+  schedule    String?
+  active      Boolean      @default(true)
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id])
+  enrollments Enrollment[]
+  createdAt   DateTime     @default(now())
+
+  @@index([businessId])
+}
+
+model Enrollment {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id])
+  activityId    String
+  activity      Activity  @relation(fields: [activityId], references: [id])
+  paymentStatus String    @default("pending") // paid, pending, overdue
+  amountDue     Float
+  discount      Float     @default(0)
+  dueDate       DateTime?
+  startDate     DateTime  @default(now())
+  active        Boolean   @default(true)
+
+  payments Payment[]
+
+  @@unique([clientId, activityId])
+  @@index([activityId])
+  @@index([clientId])
+}
+
+model Payment {
+  id           String     @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id])
+  amount       Float
+  date         DateTime   @default(now())
+  method       String?
+}
+
+model Supplier {
+  id         String   @id @default(cuid())
+  name       String
+  contact    String?
+  phone      String?
+  email      String?
+  cuit       String?
+  category   String?
+  notes      String?
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model Note {
+  id         String    @id @default(cuid())
+  title      String
+  content    String?
+  dueDate    DateTime?
+  completed  Boolean   @default(false)
+  priority   String    @default("normal") // low, normal, high
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  @@index([businessId])
+}
+
+model DailyCash {
+  id             String   @id @default(cuid())
+  date           DateTime @default(now())
+  openingBalance Float    @default(0)
+  closingBalance Float?
+  notes          String?
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([businessId])
+  @@index([date])
+}
+
+model Employee {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  phone     String?
+  email     String?
+  salary    Float?
+  startDate DateTime @default(now())
+  active    Boolean  @default(true)
+  notes     String?
+  businessId String
+  business  Business @relation(fields: [businessId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  amount        Float
+  date          DateTime @default(now())
+  category      String
+  description   String?
+  paymentMethod String?
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([businessId])
+}
