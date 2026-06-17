@@ -9,6 +9,7 @@ const filters = [
   { value: 'pending', label: 'Pendientes' },
   { value: 'overdue', label: 'Vencidos' },
   { value: 'paid', label: 'Pagados' },
+  { value: 'proximas', label: '⏰ Próximas a vencer' },
 ];
 
 export const DEFAULT_TEMPLATES = [
@@ -161,6 +162,7 @@ function TemplateModal({ enrollment, onClose }) {
 export default function Collections() {
   const [enrollments, setEnrollments] = useState([]);
   const [status, setStatus] = useState('pending');
+  const [dias, setDias] = useState(7);
   const [loading, setLoading] = useState(true);
   const [renewing, setRenewing] = useState(false);
   const [renewMsg, setRenewMsg] = useState('');
@@ -169,7 +171,8 @@ export default function Collections() {
 
   function load() {
     setLoading(true);
-    const query = status ? `?status=${status}` : '';
+    const apiStatus = status === 'proximas' ? 'pending' : status;
+    const query = apiStatus ? `?status=${apiStatus}` : '';
     api.get(`/enrollments${query}`).then((res) => setEnrollments(res.data)).finally(() => setLoading(false));
   }
 
@@ -189,6 +192,18 @@ export default function Collections() {
       setRenewing(false);
     }
   }
+
+  // Filter for proximas a vencer
+  const displayEnrollments = status === 'proximas'
+    ? enrollments.filter((e) => {
+        if (!e.dueDate) return false;
+        const due = new Date(e.dueDate);
+        const now = new Date();
+        const limit = new Date();
+        limit.setDate(limit.getDate() + dias);
+        return due >= now && due <= limit;
+      })
+    : enrollments;
 
   const totalDeuda = enrollments
     .filter((e) => e.paymentStatus !== 'paid')
@@ -235,6 +250,20 @@ export default function Collections() {
             {f.label}
           </button>
         ))}
+        {status === 'proximas' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+            <span style={{ fontSize: 13, color: '#6b7280' }}>Vencen en</span>
+            {[7, 14, 30].map((d) => (
+              <button
+                key={d}
+                className={`btn btn-sm ${dias === d ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setDias(d)}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        )}
         {totalDeuda > 0 && (
           <span style={{ marginLeft: 'auto', fontSize: 14, color: '#dc2626', fontWeight: 600 }}>
             Total a cobrar: {formatMoney(totalDeuda)}
@@ -245,10 +274,10 @@ export default function Collections() {
       <div className="card">
         {loading ? (
           <p>Cargando...</p>
-        ) : enrollments.length === 0 ? (
+        ) : displayEnrollments.length === 0 ? (
           <div className="empty-state">
             <h3>Nada por aquí</h3>
-            <p>No hay inscripciones con este estado.</p>
+            <p>{status === 'proximas' ? `No hay cuotas que venzan en los próximos ${dias} días.` : 'No hay inscripciones con este estado.'}</p>
           </div>
         ) : (
           <div className="table-wrap"><table className="table">
@@ -265,7 +294,7 @@ export default function Collections() {
               </tr>
             </thead>
             <tbody>
-              {enrollments.map((e) => {
+              {displayEnrollments.map((e) => {
                 const net = Math.max(0, e.amountDue - (e.discount || 0));
                 const phone = e.client.phone;
                 return (

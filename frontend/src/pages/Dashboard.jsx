@@ -98,15 +98,22 @@ export default function Dashboard() {
   if (loading) return <p>Cargando...</p>;
   if (!data) return <p>No se pudo cargar el resumen.</p>;
 
+  // Proximas a vencer: pending enrollments with dueDate in next 7 days
+  const proximas7 = (data.upcomingDueDates || []).filter((e) => {
+    if (!e.dueDate || e.paymentStatus === 'paid') return false;
+    const due = new Date(e.dueDate);
+    const limit = new Date();
+    limit.setDate(limit.getDate() + 7);
+    return due >= new Date() && due <= limit;
+  });
+
   // Derive paid count from total enrollments (approximation: total - pending - overdue)
-  // Dashboard doesn't return paid count directly, so we use upcomingDueDates statuses
   const statusCounts = { paid: 0, pending: 0, overdue: 0 };
   if (data.upcomingDueDates) {
     data.upcomingDueDates.forEach((e) => {
       if (statusCounts[e.paymentStatus] !== undefined) statusCounts[e.paymentStatus]++;
     });
   }
-  // Use pending/overdue from dashboard totals for the donut
   const donutPaid = Math.max(0, (data.clientsCount || 0) - (data.pending?.count || 0) - (data.overdue?.count || 0));
 
   return (
@@ -119,11 +126,20 @@ export default function Dashboard() {
       </div>
 
       {data.overdue.count > 0 && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 18px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ color: '#991b1b', fontSize: 14 }}>
             🔴 <strong>{data.overdue.count}</strong> {data.overdue.count === 1 ? 'cuota vencida' : 'cuotas vencidas'} — {formatMoney(data.overdue.total)} sin cobrar
           </span>
           <Link to="/cobranza" className="btn btn-secondary btn-sm">Ver cobranza</Link>
+        </div>
+      )}
+
+      {proximas7.length > 0 && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ color: '#92400e', fontSize: 14 }}>
+            ⏰ <strong>{proximas7.length}</strong> {proximas7.length === 1 ? 'cuota vence' : 'cuotas vencen'} en los próximos 7 días
+          </span>
+          <Link to="/cobranza" className="btn btn-secondary btn-sm">Ver próximas</Link>
         </div>
       )}
 
