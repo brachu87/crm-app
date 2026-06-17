@@ -25,6 +25,7 @@ export default function ClientDetail() {
   const [payModal, setPayModal] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
+  const [bonModal, setBonModal] = useState(null);
   const [error, setError] = useState('');
   const [photoTs, setPhotoTs] = useState(Date.now());
 
@@ -138,6 +139,21 @@ export default function ClientDetail() {
                 <tr key={e.id}>
                   <td><Link to={`/actividades/${e.activityId}`}>{e.activity.name}</Link></td>
                   <td>{formatMoney(e.amountDue)}</td>
+                  <td>
+                    {e.bonificada ? (
+                      <span
+                        onClick={() => setBonModal(e)}
+                        title="Editar bonificación"
+                        style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, background: '#dcfce7', color: '#15803d', fontSize: 12, fontWeight: 600 }}
+                      >
+                        ✓ Bonificado
+                        {e.bonificadaHasta && <span style={{ fontWeight: 400, opacity: 0.8 }}>· hasta {formatDate(e.bonificadaHasta)}</span>}
+                        {!e.bonificadaHasta && <span style={{ fontWeight: 400, opacity: 0.8 }}>· sin límite</span>}
+                      </span>
+                    ) : (
+                      <button onClick={() => setBonModal(e)} className="btn btn-secondary btn-sm" style={{ fontSize: 11 }}>+ Bonificar</button>
+                    )}
+                  </td>
                   <td>{formatDate(e.dueDate)}</td>
                   <td><span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span></td>
                   <td>
@@ -205,6 +221,13 @@ export default function ClientDetail() {
           enrollment={payModal}
           onClose={() => setPayModal(null)}
           onConfirm={registerPayment}
+        />
+      )}
+      {bonModal && (
+        <BonificacionModal
+          enrollment={bonModal}
+          onClose={() => setBonModal(null)}
+          onSaved={() => { setBonModal(null); load(); }}
         />
       )}
       {showEdit && (
@@ -406,6 +429,96 @@ function PayModal({ enrollment, onClose, onConfirm }) {
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Confirmar pago'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function BonificacionModal({ enrollment, onClose, onSaved }) {
+  const [bonificada, setBonificada] = useState(!!enrollment.bonificada);
+  const [sinLimite, setSinLimite] = useState(!enrollment.bonificadaHasta);
+  const [hasta, setHasta] = useState(
+    enrollment.bonificadaHasta
+      ? new Date(enrollment.bonificadaHasta).toISOString().slice(0, 10)
+      : ''
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await import('../api/client').then(({ default: api }) =>
+        api.patch(`/enrollments/${enrollment.id}`, {
+          bonificada,
+          bonificadaHasta: bonificada && !sinLimite && hasta ? hasta : null,
+        })
+      );
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ marginBottom: 4 }}>Bonificación — {enrollment.activity.name}</h2>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 20 }}>
+          Indicá si esta actividad está bonificada para <strong>{enrollment.client?.name || 'este cliente'}</strong>.
+        </p>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer', padding: '12px 14px', borderRadius: 10, border: `2px solid ${bonificada ? '#10b981' : 'var(--border)'}`, background: bonificada ? '#f0fdf4' : 'var(--surface)', transition: 'all .15s' }}>
+            <input
+              type="checkbox"
+              checked={bonificada}
+              onChange={(e) => setBonificada(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: '#10b981', cursor: 'pointer' }}
+            />
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Actividad bonificada</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>El cliente no paga o paga un monto reducido</p>
+            </div>
+          </label>
+
+          {bonificada && (
+            <div style={{ paddingLeft: 4 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, cursor: 'pointer', fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={sinLimite}
+                  onChange={(e) => setSinLimite(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: '#6366f1' }}
+                />
+                Sin tiempo determinado
+              </label>
+
+              {!sinLimite && (
+                <div className="field">
+                  <label>Bonificado hasta</label>
+                  <input
+                    type="date"
+                    value={hasta}
+                    onChange={(e) => setHasta(e.target.value)}
+                    required={!sinLimite}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
           </div>
         </form>
       </div>

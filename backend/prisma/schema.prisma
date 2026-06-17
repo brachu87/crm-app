@@ -81,7 +81,9 @@ model Enrollment {
   discount      Float     @default(0)
   dueDate       DateTime?
   startDate     DateTime  @default(now())
-  active        Boolean   @default(true)
+  active          Boolean   @default(true)
+  bonificada      Boolean   @default(false)
+  bonificadaHasta DateTime?
 
   payments Payment[]
 

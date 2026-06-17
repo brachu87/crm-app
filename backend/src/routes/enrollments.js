@@ -84,7 +84,7 @@ router.patch('/:id', async (req, res) => {
     });
     if (!existing) return res.status(404).json({ error: 'Inscripción no encontrada' });
 
-    const { paymentStatus, amountDue, dueDate, active, discount } = req.body;
+    const { paymentStatus, amountDue, dueDate, active, discount, bonificada, bonificadaHasta } = req.body;
 
     const enrollment = await prisma.enrollment.update({
       where: { id: req.params.id },
@@ -94,6 +94,8 @@ router.patch('/:id', async (req, res) => {
         ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}),
         ...(active !== undefined ? { active } : {}),
         ...(discount !== undefined ? { discount: parseFloat(discount) } : {}),
+        ...(bonificada !== undefined ? { bonificada } : {}),
+        ...(bonificadaHasta !== undefined ? { bonificadaHasta: bonificadaHasta ? new Date(bonificadaHasta) : null } : {}),
       },
       include: { client: true, activity: true },
     });
