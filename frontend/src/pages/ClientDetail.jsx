@@ -251,7 +251,7 @@ function AccountStatement({ client, onClose }) {
   const totalPaid = allPayments.reduce((s, p) => s + p.amount, 0);
   const totalPending = client.enrollments
     .filter((e) => e.paymentStatus !== 'paid')
-    .reduce((s, e) => s + (e.amountDue - (e.discount || 0)), 0);
+    .reduce((s, e) => s + Math.max(0, e.amountDue - (e.discount || 0)), 0);
   const today = new Date().toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
 
   function handlePrint() {
@@ -312,7 +312,7 @@ function AccountStatement({ client, onClose }) {
                 </thead>
                 <tbody>
                   {client.enrollments.map((e) => {
-                    const net = e.amountDue - (e.discount || 0);
+                    const net = Math.max(0, e.amountDue - (e.discount || 0));
                     const statusColor = { paid: '#16a34a', pending: '#b45309', overdue: '#dc2626' };
                     const statusText = { paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido' };
                     return (
@@ -444,6 +444,9 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
       ? new Date(enrollment.bonificadaHasta).toISOString().slice(0, 10)
       : ''
   );
+  const [montoGratis, setMontoGratis] = useState(
+    enrollment.bonificada && enrollment.amountDue === 0
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -456,6 +459,7 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
         api.patch(`/enrollments/${enrollment.id}`, {
           bonificada,
           bonificadaHasta: bonificada && !sinLimite && hasta ? hasta : null,
+          ...(bonificada && montoGratis ? { amountDue: 0, discount: 0 } : {}),
         })
       );
       onSaved();
@@ -490,6 +494,15 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
 
           {bonificada && (
             <div style={{ paddingLeft: 4 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={montoGratis}
+                  onChange={(e) => setMontoGratis(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: '#10b981' }}
+                />
+                Pone el monto a $0 (beca total)
+              </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, cursor: 'pointer', fontSize: 14 }}>
                 <input
                   type="checkbox"

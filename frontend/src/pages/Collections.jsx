@@ -73,7 +73,7 @@ function formatDate(value) {
 function TemplateModal({ enrollment, onClose }) {
   const templates = getTemplates();
   const [selectedId, setSelectedId] = useState(templates[0]?.id);
-  const net = enrollment.amountDue - (enrollment.discount || 0);
+  const net = Math.max(0, enrollment.amountDue - (enrollment.discount || 0));
 
   const vars = {
     nombre: enrollment.client.name,
@@ -192,7 +192,7 @@ export default function Collections() {
 
   const totalDeuda = enrollments
     .filter((e) => e.paymentStatus !== 'paid')
-    .reduce((s, e) => s + (e.amountDue - (e.discount || 0)), 0);
+    .reduce((s, e) => s + Math.max(0, e.amountDue - (e.discount || 0)), 0);
 
   return (
     <div>
@@ -266,7 +266,7 @@ export default function Collections() {
             </thead>
             <tbody>
               {enrollments.map((e) => {
-                const net = e.amountDue - (e.discount || 0);
+                const net = Math.max(0, e.amountDue - (e.discount || 0));
                 const phone = e.client.phone;
                 return (
                   <tr key={e.id}>
