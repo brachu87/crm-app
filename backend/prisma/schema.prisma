@@ -45,6 +45,7 @@ model Client {
   emergencyContact String?
   emergencyPhone   String?
   medicalNotes     String?
+  active           Boolean      @default(true)
   businessId       String
   business         Business     @relation(fields: [businessId], references: [id])
   enrollments      Enrollment[]

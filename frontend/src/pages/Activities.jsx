@@ -16,6 +16,16 @@ export default function Activities() {
     api.get('/activities').then((res) => setActivities(res.data)).finally(() => setLoading(false));
   }
 
+  async function handleDeactivate(activity) {
+    if (!window.confirm(`¿Dar de baja la actividad "${activity.name}"? Va a dejar de aparecer en la lista.`)) return;
+    try {
+      await api.put(`/activities/${activity.id}`, { ...activity, active: false });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al dar de baja');
+    }
+  }
+
   useEffect(load, []);
 
   return (
@@ -62,6 +72,7 @@ export default function Activities() {
                   <td style={{ display: 'flex', gap: 6 }}>
                     <Link to={`/actividades/${a.id}`} className="btn btn-secondary btn-sm">Ver</Link>
                     <button className="btn btn-secondary btn-sm" onClick={() => setEditActivity(a)}>Editar</button>
+                    <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444' }} onClick={() => handleDeactivate(a)}>Dar de baja</button>
                   </td>
                 </tr>
               ))}

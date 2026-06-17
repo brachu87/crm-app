@@ -27,6 +27,16 @@ export default function Clients() {
     api.get('/clients').then((res) => setClients(res.data)).finally(() => setLoading(false));
   }
 
+  async function handleDeactivate(client) {
+    if (!window.confirm(`¿Dar de baja a ${client.name}? Va a dejar de aparecer en la lista de clientes activos.`)) return;
+    try {
+      await api.put(`/clients/${client.id}`, { ...client, active: false });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al dar de baja');
+    }
+  }
+
   useEffect(load, []);
 
   const filtered = clients.filter((c) =>
@@ -94,7 +104,11 @@ export default function Clients() {
                     <td><Link to={`/clientes/${c.id}`}>{c.name}</Link></td>
                     <td>{c.phone || '-'}</td>
                     <td>{c.email || '-'}</td>
-                    <td><Link to={`/clientes/${c.id}`} className="btn btn-secondary btn-sm">Ver</Link></td>
+                    <td style={{ display: 'flex', gap: 6 }}>
+                    <Link to={`/clientes/${c.id}`} className="btn btn-secondary btn-sm">Ver</Link>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(c); setShowModal(true); }}>Editar</button>
+                    <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444' }} onClick={() => handleDeactivate(c)}>Dar de baja</button>
+                  </td>
                   </tr>
                 ))}
               </tbody>

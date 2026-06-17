@@ -11,7 +11,7 @@ router.use(authMiddleware);
 router.get('/', async (req, res) => {
   try {
     const clients = await prisma.client.findMany({
-      where: scopedWhere(req),
+      where: scopedWhere(req, { active: true }),
       orderBy: { name: 'asc' },
     });
     res.json(clients);
@@ -48,7 +48,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/clients - crear cliente
 router.post('/', async (req, res) => {
   try {
-    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes } = req.body;
+    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const client = await prisma.client.create({
       data: {
@@ -104,7 +104,7 @@ router.put('/:id', async (req, res) => {
       where: scopedWhere(req, { id: req.params.id }),
     });
     if (!existing) return res.status(404).json({ error: 'Cliente no encontrado' });
-    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes } = req.body;
+    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active } = req.body;
     const client = await prisma.client.update({
       where: { id: req.params.id },
       data: {

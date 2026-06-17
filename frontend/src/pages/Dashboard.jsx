@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import api from '../api/client';
 
 const statusLabels = {
@@ -17,20 +17,97 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('es-AR');
 }
 
+function shortMonth(monthStr) {
+  // monthStr = "2026-01"
+  const [y, m] = monthStr.split('-');
+  const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return names[parseInt(m, 10) - 1] || m;
+}
+
+function BarChart({ months }) {
+  if (!months || months.length === 0) return <p style={{ color: '#9ca3af', fontSize: 13 }}>Sin datos</p>;
+  const maxVal = Math.max(...months.map((m) => Math.max(m.income || 0, m.expenses || 0)), 1);
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 130, paddingBottom: 24, position: 'relative' }}>
+      {months.map((m, i) => {
+        const incH = Math.round(((m.income || 0) / maxVal) * 100);
+        const expH = Math.round(((m.expenses || 0) / maxVal) * 100);
+        return (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, height: '100%', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, width: '100%', justifyContent: 'center', flex: 1 }}>
+              <div
+                title={`Ingresos: ${formatMoney(m.income)}`}
+                style={{ width: '40%', height: `${incH}%`, minHeight: incH > 0 ? 3 : 0, background: '#10b981', borderRadius: '3px 3px 0 0', transition: 'height .3s' }}
+              />
+              <div
+                title={`Gastos: ${formatMoney(m.expenses)}`}
+                style={{ width: '40%', height: `${expH}%`, minHeight: expH > 0 ? 3 : 0, background: '#ef4444', borderRadius: '3px 3px 0 0', transition: 'height .3s' }}
+              />
+            </div>
+            <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>{shortMonth(m.month)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DonutChart({ paid, pending, overdue }) {
+  const total = paid + pending + overdue;
+  if (total === 0) return <p style={{ color: '#9ca3af', fontSize: 13 }}>Sin inscripciones</p>;
+  const paidPct = (paid / total) * 100;
+  const pendingPct = (pending / total) * 100;
+  const overduePct = (overdue / total) * 100;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <div style={{
+        width: 90, height: 90, borderRadius: '50%',
+        background: `conic-gradient(#10b981 0% ${paidPct}%, #f59e0b ${paidPct}% ${paidPct + pendingPct}%, #ef4444 ${paidPct + pendingPct}% 100%)`,
+        position: 'relative',
+      }}>
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+          width: 52, height: 52, borderRadius: '50%', background: 'white',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, fontWeight: 700, color: '#374151',
+        }}>{total}</div>
+      </div>
+      <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
+        <span style={{ color: '#10b981', fontWeight: 600 }}>● {paid} pagados</span>
+        <span style={{ color: '#f59e0b', fontWeight: 600 }}>● {pending} pend.</span>
+        <span style={{ color: '#ef4444', fontWeight: 600 }}>● {overdue} venc.</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cashData, setCashData] = useState(null);
   const [notes, setNotes] = useState([]);
+  const [summary, setSummary] = useState(null);
 
   useEffect(() => {
     api.get('/dashboard').then((res) => setData(res.data)).finally(() => setLoading(false));
     api.get('/daily-cash/today').then((res) => setCashData(res.data)).catch(() => {});
     api.get('/notes').then((res) => setNotes(res.data.filter((n) => !n.completed))).catch(() => {});
+    api.get('/reports/summary?months=6').then((res) => setSummary(res.data)).catch(() => {});
   }, []);
 
   if (loading) return <p>Cargando...</p>;
   if (!data) return <p>No se pudo cargar el resumen.</p>;
+
+  // Derive paid count from total enrollments (approximation: total - pending - overdue)
+  // Dashboard doesn't return paid count directly, so we use upcomingDueDates statuses
+  const statusCounts = { paid: 0, pending: 0, overdue: 0 };
+  if (data.upcomingDueDates) {
+    data.upcomingDueDates.forEach((e) => {
+      if (statusCounts[e.paymentStatus] !== undefined) statusCounts[e.paymentStatus]++;
+    });
+  }
+  // Use pending/overdue from dashboard totals for the donut
+  const donutPaid = Math.max(0, (data.clientsCount || 0) - (data.pending?.count || 0) - (data.overdue?.count || 0));
 
   return (
     <div>
@@ -68,6 +145,37 @@ export default function Dashboard() {
           <div className="stat-label">Pagos vencidos</div>
           <div className="stat-value accent">{data.overdue.count}</div>
           <div className="page-subtitle">{formatMoney(data.overdue.total)}</div>
+        </div>
+      </div>
+
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, marginBottom: 20 }}>
+        {/* Bar chart */}
+        <div className="card" style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h2 style={{ fontSize: 15, margin: 0 }}>Ingresos vs Gastos</h2>
+            <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
+              <span style={{ color: '#10b981', fontWeight: 600 }}>● Ingresos</span>
+              <span style={{ color: '#ef4444', fontWeight: 600 }}>● Gastos</span>
+            </div>
+          </div>
+          <BarChart months={summary?.months || []} />
+          {summary?.months && summary.months.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6b7280', borderTop: '1px solid #f3f4f6', paddingTop: 10 }}>
+              <span>Total ingresos: <strong style={{ color: '#10b981' }}>{formatMoney(summary.months.reduce((a, m) => a + (m.income || 0), 0))}</strong></span>
+              <span>Total gastos: <strong style={{ color: '#ef4444' }}>{formatMoney(summary.months.reduce((a, m) => a + (m.expenses || 0), 0))}</strong></span>
+            </div>
+          )}
+        </div>
+
+        {/* Donut chart */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 200 }}>
+          <h2 style={{ fontSize: 15, margin: '0 0 16px' }}>Inscripciones</h2>
+          <DonutChart
+            paid={donutPaid}
+            pending={data.pending.count}
+            overdue={data.overdue.count}
+          />
         </div>
       </div>
 
