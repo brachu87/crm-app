@@ -165,6 +165,7 @@ export default function Collections() {
   const [renewing, setRenewing] = useState(false);
   const [renewMsg, setRenewMsg] = useState('');
   const [waModal, setWaModal] = useState(null);
+  const [showNew, setShowNew] = useState(false);
 
   function load() {
     setLoading(true);
@@ -200,14 +201,17 @@ export default function Collections() {
           <h1>Cobranza</h1>
           <p className="page-subtitle">Quién te debe y quién está al día</p>
         </div>
-        <button
-          className="btn btn-secondary"
-          onClick={handleRenewMonth}
-          disabled={renewing}
-          title="Marca todas las cuotas pagadas como pendientes para el mes siguiente"
-        >
-          {renewing ? 'Renovando...' : '↻ Renovar mes'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-primary" onClick={() => setShowNew(true)}>+ Nueva cobranza</button>
+          <button
+            className="btn btn-secondary"
+            onClick={handleRenewMonth}
+            disabled={renewing}
+            title="Marca todas las cuotas pagadas como pendientes para el mes siguiente"
+          >
+            {renewing ? 'Renovando...' : '↻ Renovar mes'}
+          </button>
+        </div>
       </div>
 
       {renewMsg && (
@@ -299,6 +303,139 @@ export default function Collections() {
       {waModal && (
         <TemplateModal enrollment={waModal} onClose={() => setWaModal(null)} />
       )}
+      {showNew && (
+        <NewEnrollmentModal
+          onClose={() => setShowNew(false)}
+          onSaved={() => { setShowNew(false); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function NewEnrollmentModal({ onClose, onSaved }) {
+  const [clients, setClients] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [form, setForm] = useState({
+    clientId: '',
+    activityId: '',
+    amountDue: '',
+    discount: '',
+    dueDate: '',
+    paymentStatus: 'pending',
+  });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/clients').then((r) => setClients(r.data)).catch(() => {});
+    api.get('/activities').then((r) => setActivities(r.data)).catch(() => {});
+  }, []);
+
+  // Auto-fill price when activity is selected
+  function handleActivityChange(actId) {
+    const act = activities.find((a) => a.id === actId);
+    setForm((f) => ({ ...f, activityId: actId, amountDue: act ? String(act.price) : f.amountDue }));
+  }
+
+  function set(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    if (!form.clientId || !form.activityId || !form.amountDue) {
+      return setError('Cliente, actividad y monto son obligatorios');
+    }
+    setSaving(true);
+    try {
+      await api.post('/enrollments', {
+        clientId: form.clientId,
+        activityId: form.activityId,
+        amountDue: parseFloat(form.amountDue),
+        discount: form.discount ? parseFloat(form.discount) : 0,
+        dueDate: form.dueDate || null,
+        paymentStatus: form.paymentStatus,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al crear la cobranza');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+        <h2>Nueva cobranza</h2>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Cliente *</label>
+            <select value={form.clientId} onChange={(e) => set('clientId', e.target.value)} required>
+              <option value="">Seleccioná un cliente...</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Actividad *</label>
+            <select value={form.activityId} onChange={(e) => handleActivityChange(e.target.value)} required>
+              <option value="">Seleccioná una actividad...</option>
+              {activities.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Monto *</label>
+              <input
+                type="number" min="0" step="0.01"
+                value={form.amountDue}
+                onChange={(e) => set('amountDue', e.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label>Descuento</label>
+              <input
+                type="number" min="0" step="0.01"
+                value={form.discount}
+                onChange={(e) => set('discount', e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Vencimiento</label>
+              <input
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => set('dueDate', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>Estado</label>
+              <select value={form.paymentStatus} onChange={(e) => set('paymentStatus', e.target.value)}>
+                <option value="pending">Pendiente</option>
+                <option value="paid">Pagado</option>
+                <option value="overdue">Vencido</option>
+              </select>
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando...' : 'Crear cobranza'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
