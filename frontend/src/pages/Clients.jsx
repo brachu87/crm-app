@@ -22,9 +22,11 @@ export default function Clients() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
 
   function load() {
-    api.get('/clients').then((res) => setClients(res.data)).finally(() => setLoading(false));
+    const url = showInactive ? '/clients?includeInactive=true' : '/clients';
+    api.get(url).then((res) => setClients(res.data)).finally(() => setLoading(false));
   }
 
   async function handleDeactivate(client) {
@@ -37,7 +39,16 @@ export default function Clients() {
     }
   }
 
-  useEffect(load, []);
+  async function handleReactivate(client) {
+    try {
+      await api.put(`/clients/${client.id}`, { ...client, active: true });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al reactivar');
+    }
+  }
+
+  useEffect(load, [showInactive]);
 
   const filtered = clients.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -54,6 +65,9 @@ export default function Clients() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar CSV</button>
+          <button className="btn btn-secondary" onClick={() => setShowInactive(!showInactive)} style={{ color: showInactive ? 'var(--primary)' : undefined }}>
+            {showInactive ? 'Ver activos' : 'Ver dados de baja'}
+          </button>
           {clients.length > 0 && (
             <button className="btn btn-secondary" onClick={() => exportCSV(clients)}>↓ Exportar CSV</button>
           )}
@@ -100,14 +114,33 @@ export default function Clients() {
               </thead>
               <tbody>
                 {filtered.map((c) => (
-                  <tr key={c.id}>
-                    <td><Link to={`/clientes/${c.id}`}>{c.name}</Link></td>
+                  <tr key={c.id} style={{ opacity: c.active === false ? 0.5 : 1 }}>
+                    <td>
+                      <Link to={`/clientes/${c.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#6366f1' }}>
+                          <img
+                            src={`/api/clients/${c.id}/photo`}
+                            alt=""
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                          />
+                          <span style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>{c.name.charAt(0).toUpperCase()}</span>
+                        </span>
+                        {c.name}
+                      </Link>
+                    </td>
                     <td>{c.phone || '-'}</td>
                     <td>{c.email || '-'}</td>
                     <td style={{ display: 'flex', gap: 6 }}>
-                    <Link to={`/clientes/${c.id}`} className="btn btn-secondary btn-sm">Ver</Link>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(c); setShowModal(true); }}>Editar</button>
-                    <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444' }} onClick={() => handleDeactivate(c)}>Dar de baja</button>
+                    {c.active !== false ? (
+                      <>
+                        <Link to={`/clientes/${c.id}`} className="btn btn-secondary btn-sm">Ver</Link>
+                        <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(c); setShowModal(true); }}>Editar</button>
+                        <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444' }} onClick={() => handleDeactivate(c)}>Dar de baja</button>
+                      </>
+                    ) : (
+                      <button className="btn btn-secondary btn-sm" style={{ color: '#10b981' }} onClick={() => handleReactivate(c)}>Reactivar</button>
+                    )}
                   </td>
                   </tr>
                 ))}

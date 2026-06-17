@@ -11,9 +11,11 @@ export default function Activities() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editActivity, setEditActivity] = useState(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   function load() {
-    api.get('/activities').then((res) => setActivities(res.data)).finally(() => setLoading(false));
+    const url = showInactive ? '/activities?includeInactive=true' : '/activities';
+    api.get(url).then((res) => setActivities(res.data)).finally(() => setLoading(false));
   }
 
   async function handleDeactivate(activity) {
@@ -26,7 +28,16 @@ export default function Activities() {
     }
   }
 
-  useEffect(load, []);
+  async function handleReactivate(activity) {
+    try {
+      await api.put(`/activities/${activity.id}`, { ...activity, active: true });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al reactivar');
+    }
+  }
+
+  useEffect(load, [showInactive]);
 
   return (
     <div>
@@ -35,7 +46,12 @@ export default function Activities() {
           <h1>Actividades</h1>
           <p className="page-subtitle">Clases, servicios y horarios de tu negocio</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Nueva actividad</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => setShowInactive(!showInactive)} style={{ color: showInactive ? 'var(--primary)' : undefined }}>
+            {showInactive ? 'Ver activas' : 'Ver dadas de baja'}
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Nueva actividad</button>
+        </div>
       </div>
 
       {loading ? (
@@ -64,15 +80,21 @@ export default function Activities() {
             </thead>
             <tbody>
               {activities.map((a) => (
-                <tr key={a.id}>
+                <tr key={a.id} style={{ opacity: a.active === false ? 0.5 : 1 }}>
                   <td><Link to={`/actividades/${a.id}`}>{a.name}</Link></td>
                   <td>{a.schedule || '-'}</td>
                   <td>{formatMoney(a.price)}</td>
                   <td>{a._count?.enrollments ?? 0}{a.capacity ? ` / ${a.capacity}` : ''}</td>
                   <td style={{ display: 'flex', gap: 6 }}>
-                    <Link to={`/actividades/${a.id}`} className="btn btn-secondary btn-sm">Ver</Link>
-                    <button className="btn btn-secondary btn-sm" onClick={() => setEditActivity(a)}>Editar</button>
-                    <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444' }} onClick={() => handleDeactivate(a)}>Dar de baja</button>
+                    {a.active !== false ? (
+                      <>
+                        <Link to={`/actividades/${a.id}`} className="btn btn-secondary btn-sm">Ver</Link>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setEditActivity(a)}>Editar</button>
+                        <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444' }} onClick={() => handleDeactivate(a)}>Dar de baja</button>
+                      </>
+                    ) : (
+                      <button className="btn btn-secondary btn-sm" style={{ color: '#10b981' }} onClick={() => handleReactivate(a)}>Reactivar</button>
+                    )}
                   </td>
                 </tr>
               ))}

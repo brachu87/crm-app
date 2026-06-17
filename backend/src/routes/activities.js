@@ -10,8 +10,9 @@ router.use(authMiddleware);
 // GET /api/activities - lista actividades con cantidad de inscriptos
 router.get('/', async (req, res) => {
   try {
+    const includeInactive = req.query.includeInactive === 'true';
     const activities = await prisma.activity.findMany({
-      where: scopedWhere(req),
+      where: scopedWhere(req, includeInactive ? {} : { active: true }),
       include: {
         _count: { select: { enrollments: true } },
       },

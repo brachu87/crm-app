@@ -10,8 +10,9 @@ router.use(authMiddleware);
 // GET /api/clients - lista todos los clientes del negocio
 router.get('/', async (req, res) => {
   try {
+    const includeInactive = req.query.includeInactive === 'true';
     const clients = await prisma.client.findMany({
-      where: scopedWhere(req, { active: true }),
+      where: scopedWhere(req, includeInactive ? {} : { active: true }),
       orderBy: { name: 'asc' },
     });
     res.json(clients);

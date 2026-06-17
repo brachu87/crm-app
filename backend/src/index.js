@@ -16,6 +16,8 @@ const notesRoutes = require('./routes/notes');
 const dailyCashRoutes = require('./routes/dailyCash');
 const reportsRoutes = require('./routes/reports');
 const usersRoutes = require('./routes/users');
+const searchRoutes = require('./routes/search');
+const photosRoutes = require('./routes/photos');
 
 const app = express();
 
@@ -34,6 +36,8 @@ app.use('/api/notes', notesRoutes);
 app.use('/api/daily-cash', dailyCashRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/clients', photosRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

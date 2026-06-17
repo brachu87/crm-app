@@ -26,12 +26,24 @@ export default function ClientDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
   const [error, setError] = useState('');
+  const [photoTs, setPhotoTs] = useState(Date.now());
 
   function load() {
     api.get(`/clients/${id}`).then((res) => setClient(res.data)).finally(() => setLoading(false));
   }
 
   useEffect(load, [id]);
+
+  async function uploadPhoto(file) {
+    const fd = new FormData();
+    fd.append('photo', file);
+    try {
+      await api.post(`/clients/${id}/photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setPhotoTs(Date.now());
+    } catch (err) {
+      alert('No se pudo subir la foto');
+    }
+  }
 
   async function registerPayment(enrollmentId, amount, method) {
     try {
@@ -49,11 +61,28 @@ export default function ClientDetail() {
   return (
     <div>
       <div className="page-header">
-        <div>
-          <h1>{client.name}</h1>
-          <p className="page-subtitle">
-            {client.phone || 'Sin teléfono'} {client.email ? `· ${client.email}` : ''}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <label style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Cambiar foto">
+            <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: '#9ca3af', border: '2px solid #e5e7eb' }}>
+              <img
+                src={`/api/clients/${id}/photo?t=${photoTs}`}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+              />
+              <span style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: '#6366f1', color: 'white', borderRadius: '50%' }}>
+                {client.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white' }}>+</div>
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0])} />
+          </label>
+          <div>
+            <h1>{client.name}</h1>
+            <p className="page-subtitle">
+              {client.phone || 'Sin teléfono'} {client.email ? `· ${client.email}` : ''}
+            </p>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => setShowStatement(true)}>📄 Estado de cuenta</button>
