@@ -180,7 +180,7 @@ function SupplierModal({ supplier, onClose, onSaved }) {
             <label>Nombre / Razón social *</label>
             <input value={form.name} onChange={(e) => update('name', e.target.value)} required />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Persona de contacto</label>
               <input value={form.contact} onChange={(e) => update('contact', e.target.value)} />
@@ -190,7 +190,7 @@ function SupplierModal({ supplier, onClose, onSaved }) {
               <input value={form.phone} onChange={(e) => update('phone', e.target.value)} />
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Email</label>
               <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} />

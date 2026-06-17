@@ -448,7 +448,7 @@ function NewEnrollmentModal({ onClose, onSaved }) {
               ))}
             </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Monto *</label>
               <input
@@ -468,7 +468,7 @@ function NewEnrollmentModal({ onClose, onSaved }) {
               />
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Inicio de membresía</label>
               <input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
@@ -565,7 +565,7 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
         </p>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Cuota ($)</label>
               <input type="number" min="0" step="0.01" value={form.amountDue} onChange={(e) => set('amountDue', e.target.value)} required />
@@ -580,7 +580,7 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
               A cobrar: <strong>${net.toLocaleString('es-AR')}</strong>
             </p>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Inicio de membresía</label>
               <input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />

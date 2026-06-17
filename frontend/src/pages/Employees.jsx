@@ -196,7 +196,7 @@ function EmployeeModal({ employee, onClose, onSaved }) {
               {ROLES_SUGERIDOS.map((r) => <option key={r} value={r} />)}
             </datalist>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Teléfono</label>
               <input value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="Ej: 11 5555 5555" />
@@ -206,7 +206,7 @@ function EmployeeModal({ employee, onClose, onSaved }) {
               <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} />
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Sueldo mensual ($)</label>
               <input type="number" min="0" step="0.01" value={form.salary} onChange={(e) => update('salary', e.target.value)} placeholder="0" />

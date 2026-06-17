@@ -126,7 +126,7 @@ export default function Dashboard() {
       </div>
 
       {data.overdue.count > 0 && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 18px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 18px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ color: '#991b1b', fontSize: 14 }}>
             🔴 <strong>{data.overdue.count}</strong> {data.overdue.count === 1 ? 'cuota vencida' : 'cuotas vencidas'} — {formatMoney(data.overdue.total)} sin cobrar
           </span>
@@ -135,7 +135,7 @@ export default function Dashboard() {
       )}
 
       {proximas7.length > 0 && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ color: '#92400e', fontSize: 14 }}>
             ⏰ <strong>{proximas7.length}</strong> {proximas7.length === 1 ? 'cuota vence' : 'cuotas vencen'} en los próximos 7 días
           </span>
@@ -165,7 +165,7 @@ export default function Dashboard() {
       </div>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, marginBottom: 20 }}>
+      <div className="chart-grid">
         {/* Bar chart */}
         <div className="card" style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -185,7 +185,7 @@ export default function Dashboard() {
         </div>
 
         {/* Donut chart */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 200 }}>
+        <div className="card donut-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 200 }}>
           <h2 style={{ fontSize: 15, margin: '0 0 16px' }}>Inscripciones</h2>
           <DonutChart
             paid={donutPaid}

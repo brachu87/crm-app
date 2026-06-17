@@ -596,6 +596,34 @@ input, select, textarea { font-family: var(--font-body); }
   }
 }
 
+
+/* ─── Responsive utility grids ───────────────────────── */
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+  .chart-grid .donut-card {
+    min-width: unset !important;
+    width: 100%;
+  }
+  .two-col-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Print ───────────────────────────────────────────── */
 
 @media print {

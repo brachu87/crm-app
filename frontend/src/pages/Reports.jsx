@@ -193,7 +193,7 @@ export default function Reports() {
             <BarChart data={data.monthlyData} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+          <div className="two-col-grid" style={{ gap: 20, marginBottom: 20 }}>
             {/* Expenses by category */}
             <div className="card">
               <h3 style={{ marginBottom: 16 }}>Gastos por categoría</h3>

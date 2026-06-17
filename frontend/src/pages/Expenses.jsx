@@ -190,7 +190,7 @@ function ExpenseModal({ expense, onClose, onSaved }) {
         <h2>{isEdit ? 'Editar gasto' : 'Nuevo gasto'}</h2>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Monto ($) *</label>
               <input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => update('amount', e.target.value)} placeholder="0.00" required />

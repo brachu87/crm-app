@@ -264,7 +264,7 @@ export default function ClientDetail() {
                   {account.balance > 0 ? `Debe ${formatMoney(account.balance)}` : account.balance < 0 ? `A favor ${formatMoney(Math.abs(account.balance))}` : 'Al día ✓'}
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <div>
                   <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Cargado</p>
                   <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{formatMoney(account.totalCharged + account.manualCargos)}</p>
@@ -391,7 +391,7 @@ function AccountStatement({ client, onClose }) {
         {/* Header acciones - oculto al imprimir */}
         <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ margin: 0 }}>Estado de cuenta</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={handlePrint}>🖨 Imprimir / Guardar PDF</button>
             <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
           </div>
@@ -408,7 +408,7 @@ function AccountStatement({ client, onClose }) {
           {/* Datos del cliente */}
           <div style={{ marginBottom: 20 }}>
             <h3 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid #e5e7eb', paddingBottom: 6 }}>Datos del cliente</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px', fontSize: 14 }}>
+            <div className="two-col-grid" style={{ gap: '6px 20px', fontSize: 14 }}>
               <div><span style={{ color: '#666' }}>Nombre:</span> <strong>{client.name}</strong></div>
               {client.phone && <div><span style={{ color: '#666' }}>Teléfono:</span> {client.phone}</div>}
               {client.email && <div><span style={{ color: '#666' }}>Email:</span> {client.email}</div>}
@@ -697,7 +697,7 @@ function MovimientoModal({ clientId, onClose, onSaved }) {
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Monto ($)</label>
               <input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => set('amount', e.target.value)} required autoFocus />
