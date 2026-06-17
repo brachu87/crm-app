@@ -46,12 +46,24 @@ model Client {
   emergencyPhone   String?
   medicalNotes     String?
   active           Boolean      @default(true)
+  dni              String?
   businessId       String
   business         Business     @relation(fields: [businessId], references: [id])
   enrollments      Enrollment[]
+  clientNotes      ClientNote[]
   createdAt        DateTime     @default(now())
 
   @@index([businessId])
+}
+
+model ClientNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
 }
 
 model Activity {

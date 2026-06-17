@@ -168,6 +168,7 @@ export default function Collections() {
   const [renewMsg, setRenewMsg] = useState('');
   const [waModal, setWaModal] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const [editModal, setEditModal] = useState(null);
 
   function load() {
     setLoading(true);
@@ -306,7 +307,7 @@ export default function Collections() {
                     <td style={{ fontWeight: 600 }}>{formatMoney(net)}</td>
                     <td style={{ color: e.paymentStatus === 'overdue' ? '#dc2626' : 'inherit' }}>{formatDate(e.dueDate)}</td>
                     <td><span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span></td>
-                    <td>
+                    <td style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       {phone && e.paymentStatus !== 'paid' && (
                         <button
                           onClick={() => setWaModal(e)}
@@ -320,6 +321,13 @@ export default function Collections() {
                           💬 WA
                         </button>
                       )}
+                      <button
+                        onClick={() => setEditModal(e)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 12 }}
+                      >
+                        Editar
+                      </button>
                     </td>
                   </tr>
                 );
@@ -336,6 +344,13 @@ export default function Collections() {
         <NewEnrollmentModal
           onClose={() => setShowNew(false)}
           onSaved={() => { setShowNew(false); load(); }}
+        />
+      )}
+      {editModal && (
+        <EditEnrollmentModal
+          enrollment={editModal}
+          onClose={() => setEditModal(null)}
+          onSaved={() => { setEditModal(null); load(); }}
         />
       )}
     </div>
@@ -489,6 +504,89 @@ function NewEnrollmentModal({ onClose, onSaved }) {
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Guardando...' : 'Crear cobranza'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    amountDue: enrollment.amountDue ?? '',
+    discount: enrollment.discount ?? 0,
+    dueDate: enrollment.dueDate ? enrollment.dueDate.slice(0, 10) : '',
+    paymentStatus: enrollment.paymentStatus || 'pending',
+  });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await api.patch(`/enrollments/${enrollment.id}`, {
+        amountDue: Number(form.amountDue),
+        discount: Number(form.discount) || 0,
+        dueDate: form.dueDate || undefined,
+        paymentStatus: form.paymentStatus,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const net = Math.max(0, Number(form.amountDue) - Number(form.discount || 0));
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+        <h2>Editar cuota</h2>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+          <strong>{enrollment.client?.name}</strong> — {enrollment.activity?.name}
+        </p>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Cuota ($)</label>
+              <input type="number" min="0" step="0.01" value={form.amountDue} onChange={(e) => set('amountDue', e.target.value)} required />
+            </div>
+            <div className="field">
+              <label>Descuento ($)</label>
+              <input type="number" min="0" step="0.01" value={form.discount} onChange={(e) => set('discount', e.target.value)} />
+            </div>
+          </div>
+          {Number(form.discount) > 0 && (
+            <p style={{ fontSize: 13, color: '#6366f1', marginBottom: 10 }}>
+              A cobrar: <strong>${net.toLocaleString('es-AR')}</strong>
+            </p>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Vencimiento</label>
+              <input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Estado</label>
+              <select value={form.paymentStatus} onChange={(e) => set('paymentStatus', e.target.value)}>
+                <option value="pending">Pendiente</option>
+                <option value="paid">Pagado</option>
+                <option value="overdue">Vencido</option>
+              </select>
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar cambios'}
             </button>
           </div>
         </form>

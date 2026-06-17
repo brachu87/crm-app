@@ -7,6 +7,7 @@ export default function ClientModal({ client, onClose, onSaved }) {
     name: client?.name || '',
     phone: client?.phone || '',
     email: client?.email || '',
+    dni: client?.dni || '',
     notes: client?.notes || '',
     birthday: client?.birthday ? client.birthday.slice(0, 10) : '',
     emergencyContact: client?.emergencyContact || '',
@@ -32,6 +33,7 @@ export default function ClientModal({ client, onClose, onSaved }) {
         name: form.name,
         phone: form.phone || undefined,
         email: form.email || undefined,
+        dni: form.dni || undefined,
         notes: form.notes || undefined,
         birthday: form.birthday || undefined,
         emergencyContact: form.emergencyContact || undefined,
@@ -71,9 +73,15 @@ export default function ClientModal({ client, onClose, onSaved }) {
               <input type="date" value={form.birthday} onChange={(e) => update('birthday', e.target.value)} />
             </div>
           </div>
-          <div className="field">
-            <label>Email</label>
-            <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Email</label>
+              <input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>DNI</label>
+              <input value={form.dni} onChange={(e) => update('dni', e.target.value)} placeholder="Ej: 12345678" />
+            </div>
           </div>
           <div className="field">
             <label>Notas</label>
