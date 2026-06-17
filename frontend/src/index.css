@@ -14,8 +14,8 @@
   --border: #E7E2D9;
 
   --radius: 10px;
-  --font-display: 'Fraunces', serif;
-  --font-body: 'Inter', sans-serif;
+  --font-display: Arial, sans-serif;
+  --font-body: Arial, sans-serif;
 
   --sidebar-w: 220px;
   --mobile-header-h: 56px;
@@ -1253,4 +1253,13 @@ input, select, textarea { font-family: var(--font-body); }
   height: 300px;
   color: var(--muted);
   font-size: 16px;
+}
+
+.cal-save-error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin-bottom: 4px;
 }

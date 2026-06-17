@@ -49,6 +49,13 @@ function fmtTime(dt) {
   return `${h}:${m}`;
 }
 
+function localDateStr(d) {
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function fmtDate(dt) {
   if (!dt) return '';
   const d = new Date(dt);
@@ -93,7 +100,7 @@ function emptyForm(date) {
     title: '',
     content: '',
     allDay: true,
-    dueDate: fmtDate(base),
+    dueDate: localDateStr(base),
     startAt: toDatetimeLocal(base),
     endAt: toDatetimeLocal(end),
     color: 'blue',
@@ -105,6 +112,7 @@ function emptyForm(date) {
 // ─── EventModal ───────────────────────────────────────────────────────────────
 function EventModal({ event, defaultDate, onSave, onDelete, onClose }) {
   const isNew = !event?.id;
+  const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState(() =>
     event?.id
       ? {
@@ -124,7 +132,8 @@ function EventModal({ event, defaultDate, onSave, onDelete, onClose }) {
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
   async function handleSave() {
-    if (!form.title.trim()) return;
+    if (!form.title.trim()) { setSaveError('El titulo es obligatorio'); return; }
+    setSaveError('');
     const payload = {
       title: form.title.trim(),
       content: form.content || null,
@@ -134,12 +143,16 @@ function EventModal({ event, defaultDate, onSave, onDelete, onClose }) {
       completed: form.completed,
       dueDate: form.allDay ? form.dueDate : null,
       startAt: form.allDay
-        ? (form.dueDate ? new Date(form.dueDate).toISOString() : null)
+        ? (form.dueDate ? form.dueDate + 'T12:00:00.000Z' : null)
         : (form.startAt ? new Date(form.startAt).toISOString() : null),
       endAt: form.allDay ? null : (form.endAt ? new Date(form.endAt).toISOString() : null),
     };
-    await onSave(payload, event?.id);
-    onClose();
+    try {
+      await onSave(payload, event?.id);
+      onClose();
+    } catch (e) {
+      setSaveError('No se pudo guardar. Intenta de nuevo.');
+    }
   }
 
   return (
@@ -157,6 +170,7 @@ function EventModal({ event, defaultDate, onSave, onDelete, onClose }) {
         </div>
 
         <div className="cal-modal-body">
+          {saveError && <div className="cal-save-error">{saveError}</div>}
           {/* Color picker */}
           <div className="cal-modal-row">
             <label className="cal-modal-label">Color</label>

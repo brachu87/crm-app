@@ -15,7 +15,7 @@ function formatMoney(value) {
 
 function formatDate(value) {
   if (!value) return '-';
-  return new Date(value).toLocaleDateString('es-AR');
+  return new Date(value).toLocaleDateString('es-AR', { timeZone: 'UTC' });
 }
 
 export default function ClientDetail() {
