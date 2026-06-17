@@ -323,6 +323,9 @@ function NewEnrollmentModal({ onClose, onSaved }) {
     discount: '',
     dueDate: '',
     paymentStatus: 'pending',
+    bonificada: false,
+    sinLimite: true,
+    bonHasta: '',
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -357,6 +360,8 @@ function NewEnrollmentModal({ onClose, onSaved }) {
         discount: form.discount ? parseFloat(form.discount) : 0,
         dueDate: form.dueDate || null,
         paymentStatus: form.paymentStatus,
+        bonificada: form.bonificada,
+        bonificadaHasta: form.bonificada && !form.sinLimite && form.bonHasta ? form.bonHasta : null,
       });
       onSaved();
     } catch (err) {
@@ -427,6 +432,29 @@ function NewEnrollmentModal({ onClose, onSaved }) {
                 <option value="overdue">Vencido</option>
               </select>
             </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 12px', borderRadius: 10, border: `2px solid ${form.bonificada ? '#10b981' : 'var(--border)'}`, background: form.bonificada ? '#f0fdf4' : 'var(--surface)', transition: 'all .15s' }}>
+              <input type="checkbox" checked={form.bonificada} onChange={(e) => set('bonificada', e.target.checked)} style={{ width: 16, height: 16, accentColor: '#10b981' }} />
+              <div>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Beca / Bonificación</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#9ca3af' }}>Actividad sin costo o con precio reducido</p>
+              </div>
+            </label>
+            {form.bonificada && (
+              <div style={{ marginTop: 10, paddingLeft: 4 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 14 }}>
+                  <input type="checkbox" checked={form.sinLimite} onChange={(e) => set('sinLimite', e.target.checked)} style={{ width: 15, height: 15, accentColor: '#6366f1' }} />
+                  Sin tiempo determinado
+                </label>
+                {!form.sinLimite && (
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label>Beca hasta</label>
+                    <input type="date" value={form.bonHasta} onChange={(e) => set('bonHasta', e.target.value)} required={!form.sinLimite} />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>

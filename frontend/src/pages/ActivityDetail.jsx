@@ -131,6 +131,9 @@ function EnrollModal({ activity, onClose, onCreated }) {
   const [clientId, setClientId] = useState('');
   const [amountDue, setAmountDue] = useState(activity.price);
   const [dueDate, setDueDate] = useState('');
+  const [bonificada, setBonificada] = useState(false);
+  const [sinLimite, setSinLimite] = useState(true);
+  const [bonHasta, setBonHasta] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -153,6 +156,8 @@ function EnrollModal({ activity, onClose, onCreated }) {
         activityId: activity.id,
         amountDue: Number(amountDue),
         dueDate: dueDate || undefined,
+        bonificada,
+        bonificadaHasta: bonificada && !sinLimite && bonHasta ? bonHasta : null,
       });
       onCreated();
     } catch (err) {
@@ -190,6 +195,29 @@ function EnrollModal({ activity, onClose, onCreated }) {
             <div className="field">
               <label>Fecha de vencimiento (opcional)</label>
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 12px', borderRadius: 10, border: `2px solid ${bonificada ? '#10b981' : 'var(--border)'}`, background: bonificada ? '#f0fdf4' : 'var(--surface)', transition: 'all .15s' }}>
+                <input type="checkbox" checked={bonificada} onChange={(e) => setBonificada(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#10b981' }} />
+                <div>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Beca / Bonificación</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>Actividad sin costo o con precio reducido</p>
+                </div>
+              </label>
+              {bonificada && (
+                <div style={{ marginTop: 10, paddingLeft: 4 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 14 }}>
+                    <input type="checkbox" checked={sinLimite} onChange={(e) => setSinLimite(e.target.checked)} style={{ width: 15, height: 15, accentColor: '#6366f1' }} />
+                    Sin tiempo determinado
+                  </label>
+                  {!sinLimite && (
+                    <div className="field" style={{ marginBottom: 0 }}>
+                      <label>Beca hasta</label>
+                      <input type="date" value={bonHasta} onChange={(e) => setBonHasta(e.target.value)} required={!sinLimite} />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="modal-actions">
               <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>

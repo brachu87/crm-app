@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
 // POST /api/enrollments - inscribir cliente a una actividad
 router.post('/', async (req, res) => {
   try {
-    const { clientId, activityId, amountDue, dueDate, paymentStatus } = req.body;
+    const { clientId, activityId, amountDue, dueDate, paymentStatus, bonificada, bonificadaHasta } = req.body;
 
     if (!clientId || !activityId || amountDue === undefined) {
       return res.status(400).json({ error: 'clientId, activityId y amountDue son obligatorios' });
@@ -62,6 +62,8 @@ router.post('/', async (req, res) => {
         discount: req.body.discount ? parseFloat(req.body.discount) : 0,
         dueDate: dueDate ? new Date(dueDate) : null,
         paymentStatus: paymentStatus || 'pending',
+        bonificada: bonificada || false,
+        bonificadaHasta: bonificadaHasta ? new Date(bonificadaHasta) : null,
       },
       include: { client: true, activity: true },
     });
