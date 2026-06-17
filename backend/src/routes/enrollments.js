@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
 // POST /api/enrollments - inscribir cliente a una actividad
 router.post('/', async (req, res) => {
   try {
-    const { clientId, activityId, amountDue, dueDate, paymentStatus, bonificada, bonificadaHasta } = req.body;
+    const { clientId, activityId, amountDue, dueDate, startDate, paymentStatus, bonificada, bonificadaHasta } = req.body;
 
     if (!clientId || !activityId || amountDue === undefined) {
       return res.status(400).json({ error: 'clientId, activityId y amountDue son obligatorios' });
@@ -60,6 +60,7 @@ router.post('/', async (req, res) => {
         activityId,
         amountDue,
         discount: req.body.discount ? parseFloat(req.body.discount) : 0,
+        startDate: startDate ? new Date(startDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : null,
         paymentStatus: paymentStatus || 'pending',
         bonificada: bonificada || false,
@@ -86,7 +87,7 @@ router.patch('/:id', async (req, res) => {
     });
     if (!existing) return res.status(404).json({ error: 'Inscripción no encontrada' });
 
-    const { paymentStatus, amountDue, dueDate, active, discount, bonificada, bonificadaHasta } = req.body;
+    const { paymentStatus, amountDue, dueDate, startDate, active, discount, bonificada, bonificadaHasta } = req.body;
 
     const enrollment = await prisma.enrollment.update({
       where: { id: req.params.id },
@@ -94,6 +95,7 @@ router.patch('/:id', async (req, res) => {
         ...(paymentStatus !== undefined ? { paymentStatus } : {}),
         ...(amountDue !== undefined ? { amountDue } : {}),
         ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}),
+        ...(startDate !== undefined ? { startDate: startDate ? new Date(startDate) : null } : {}),
         ...(active !== undefined ? { active } : {}),
         ...(discount !== undefined ? { discount: parseFloat(discount) } : {}),
         ...(bonificada !== undefined ? { bonificada } : {}),

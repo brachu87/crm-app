@@ -31,6 +31,8 @@ export default function ClientDetail() {
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [account, setAccount] = useState(null);
+  const [movModal, setMovModal] = useState(false);
 
   function load() {
     api.get(`/clients/${id}`).then((res) => setClient(res.data)).finally(() => setLoading(false));
@@ -40,7 +42,11 @@ export default function ClientDetail() {
     api.get(`/clients/${id}/notes`).then((res) => setNotes(res.data));
   }
 
-  useEffect(() => { load(); loadNotes(); }, [id]);
+  function loadAccount() {
+    api.get(`/clients/${id}/account`).then((res) => setAccount(res.data)).catch(() => {});
+  }
+
+  useEffect(() => { load(); loadNotes(); loadAccount(); }, [id]);
 
   async function addNote(e) {
     e.preventDefault();
@@ -156,7 +162,7 @@ export default function ClientDetail() {
               <tr>
                 <th>Actividad</th>
                 <th>Monto</th>
-                <th>Vence</th>
+                <th>Vigencia</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -167,21 +173,24 @@ export default function ClientDetail() {
                   <td><Link to={`/actividades/${e.activityId}`}>{e.activity.name}</Link></td>
                   <td>{formatMoney(e.amountDue)}</td>
                   <td>
+                    <div style={{ fontSize: 12 }}>
+                      {e.startDate && <span style={{ color: 'var(--ink-soft)' }}>{formatDate(e.startDate)}</span>}
+                      {e.startDate && e.dueDate && <span style={{ color: 'var(--ink-soft)', margin: '0 4px' }}>→</span>}
+                      {e.dueDate && (
+                        <span style={{ color: new Date(e.dueDate) < new Date() && e.paymentStatus !== 'paid' ? '#dc2626' : 'inherit', fontWeight: new Date(e.dueDate) < new Date() ? 600 : 400 }}>
+                          {formatDate(e.dueDate)}
+                        </span>
+                      )}
+                      {!e.dueDate && <span style={{ color: 'var(--ink-soft)' }}>—</span>}
+                    </div>
                     {e.bonificada ? (
-                      <span
-                        onClick={() => setBonModal(e)}
-                        title="Editar bonificación"
-                        style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, background: '#dcfce7', color: '#15803d', fontSize: 12, fontWeight: 600 }}
-                      >
-                        ✓ Bonificado
-                        {e.bonificadaHasta && <span style={{ fontWeight: 400, opacity: 0.8 }}>· hasta {formatDate(e.bonificadaHasta)}</span>}
-                        {!e.bonificadaHasta && <span style={{ fontWeight: 400, opacity: 0.8 }}>· sin límite</span>}
+                      <span onClick={() => setBonModal(e)} title="Editar bonificación" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 8, background: '#dcfce7', color: '#15803d', fontSize: 11, fontWeight: 600, marginTop: 3 }}>
+                        ✓ Beca {e.bonificadaHasta ? `· hasta ${formatDate(e.bonificadaHasta)}` : '· sin límite'}
                       </span>
                     ) : (
-                      <button onClick={() => setBonModal(e)} className="btn btn-secondary btn-sm" style={{ fontSize: 11 }}>+ Bonificar</button>
+                      <button onClick={() => setBonModal(e)} className="btn btn-secondary btn-sm" style={{ fontSize: 10, marginTop: 3, padding: '1px 6px' }}>+ Bonificar</button>
                     )}
                   </td>
-                  <td>{formatDate(e.dueDate)}</td>
                   <td><span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span></td>
                   <td>
                     {e.paymentStatus !== 'paid' && (
@@ -243,6 +252,52 @@ export default function ClientDetail() {
         })()}
       </div>
 
+      {/* Cuenta Corriente */}
+      <h2 style={{ fontSize: 18, marginBottom: 12, marginTop: 24 }}>Cuenta corriente</h2>
+      <div className="card" style={{ marginBottom: 24 }}>
+        {account && (
+          <>
+            <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: 120 }}>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Saldo</p>
+                <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: account.balance > 0 ? '#dc2626' : '#10b981' }}>
+                  {account.balance > 0 ? `Debe ${formatMoney(account.balance)}` : account.balance < 0 ? `A favor ${formatMoney(Math.abs(account.balance))}` : 'Al día ✓'}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Cargado</p>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{formatMoney(account.totalCharged + account.manualCargos)}</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Pagado</p>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#10b981' }}>{formatMoney(account.totalPaid + account.manualAbonos)}</p>
+                </div>
+              </div>
+              <button className="btn btn-secondary" style={{ fontSize: 13 }} onClick={() => setMovModal(true)}>+ Movimiento</button>
+            </div>
+            {account.movements.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                <p style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Movimientos manuales</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {account.movements.map((m) => (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 8, fontWeight: 600, background: m.type === 'cargo' ? '#fee2e2' : '#dcfce7', color: m.type === 'cargo' ? '#dc2626' : '#15803d' }}>
+                        {m.type === 'cargo' ? '↑ Cargo' : '↓ Abono'}
+                      </span>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{formatMoney(m.amount)}</span>
+                      {m.description && <span style={{ fontSize: 13, color: 'var(--ink-soft)', flex: 1 }}>{m.description}</span>}
+                      <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{formatDate(m.date)}</span>
+                      <button onClick={async () => { await api.delete(`/clients/${id}/account/${m.id}`); loadAccount(); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 16, padding: '0 2px' }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Notas del cliente */}
       <h2 style={{ fontSize: 18, marginBottom: 12, marginTop: 24 }}>Notas</h2>
       <div className="card" style={{ marginBottom: 24 }}>
@@ -288,6 +343,13 @@ export default function ClientDetail() {
           enrollment={bonModal}
           onClose={() => setBonModal(null)}
           onSaved={() => { setBonModal(null); load(); }}
+        />
+      )}
+      {movModal && (
+        <MovimientoModal
+          clientId={id}
+          onClose={() => setMovModal(false)}
+          onSaved={() => { setMovModal(false); loadAccount(); }}
         />
       )}
       {showEdit && (
@@ -592,6 +654,66 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Guardando...' : 'Guardar'}
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function MovimientoModal({ clientId, onClose, onSaved }) {
+  const [form, setForm] = useState({ type: 'cargo', amount: '', description: '', date: new Date().toISOString().slice(0, 10) });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.amount || Number(form.amount) <= 0) return setError('Monto inválido');
+    setSaving(true);
+    try {
+      await api.post(`/clients/${clientId}/account`, { type: form.type, amount: Number(form.amount), description: form.description || undefined, date: form.date });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al guardar');
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+        <h2>Nuevo movimiento</h2>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Tipo</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[['cargo', '↑ Cargo (debe)'], ['abono', '↓ Abono (pagó)']].map(([val, label]) => (
+                <label key={val} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, border: `2px solid ${form.type === val ? (val === 'cargo' ? '#dc2626' : '#10b981') : 'var(--border)'}`, background: form.type === val ? (val === 'cargo' ? '#fee2e2' : '#dcfce7') : 'var(--surface)', cursor: 'pointer', fontSize: 13, fontWeight: 600, transition: 'all .15s' }}>
+                  <input type="radio" name="type" value={val} checked={form.type === val} onChange={() => set('type', val)} style={{ display: 'none' }} />
+                  <span style={{ color: form.type === val ? (val === 'cargo' ? '#dc2626' : '#15803d') : 'var(--ink)' }}>{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Monto ($)</label>
+              <input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => set('amount', e.target.value)} required autoFocus />
+            </div>
+            <div className="field">
+              <label>Fecha</label>
+              <input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} />
+            </div>
+          </div>
+          <div className="field">
+            <label>Descripción (opcional)</label>
+            <input value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="Ej: Pago parcial, ajuste de cuota..." />
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</button>
           </div>
         </form>
       </div>

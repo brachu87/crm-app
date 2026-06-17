@@ -365,7 +365,8 @@ function NewEnrollmentModal({ onClose, onSaved }) {
     activityId: '',
     amountDue: '',
     discount: '',
-    dueDate: '',
+    startDate: new Date().toISOString().slice(0, 10),
+    dueDate: (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })(),
     paymentStatus: 'pending',
     bonificada: false,
     sinLimite: true,
@@ -386,7 +387,14 @@ function NewEnrollmentModal({ onClose, onSaved }) {
   }
 
   function set(field, value) {
-    setForm((f) => ({ ...f, [field]: value }));
+    if (field === 'startDate' && value) {
+      const d = new Date(value + 'T12:00:00');
+      d.setMonth(d.getMonth() + 1);
+      d.setDate(d.getDate() - 1);
+      setForm((f) => ({ ...f, startDate: value, dueDate: d.toISOString().slice(0, 10) }));
+    } else {
+      setForm((f) => ({ ...f, [field]: value }));
+    }
   }
 
   async function handleSubmit(e) {
@@ -402,6 +410,7 @@ function NewEnrollmentModal({ onClose, onSaved }) {
         activityId: form.activityId,
         amountDue: parseFloat(form.amountDue),
         discount: form.discount ? parseFloat(form.discount) : 0,
+        startDate: form.startDate || null,
         dueDate: form.dueDate || null,
         paymentStatus: form.paymentStatus,
         bonificada: form.bonificada,
@@ -461,21 +470,21 @@ function NewEnrollmentModal({ onClose, onSaved }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="field">
-              <label>Vencimiento</label>
-              <input
-                type="date"
-                value={form.dueDate}
-                onChange={(e) => set('dueDate', e.target.value)}
-              />
+              <label>Inicio de membresía</label>
+              <input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
             </div>
             <div className="field">
-              <label>Estado</label>
-              <select value={form.paymentStatus} onChange={(e) => set('paymentStatus', e.target.value)}>
-                <option value="pending">Pendiente</option>
-                <option value="paid">Pagado</option>
-                <option value="overdue">Vencido</option>
-              </select>
+              <label>Vencimiento</label>
+              <input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
             </div>
+          </div>
+          <div className="field">
+            <label>Estado</label>
+            <select value={form.paymentStatus} onChange={(e) => set('paymentStatus', e.target.value)}>
+              <option value="pending">Pendiente</option>
+              <option value="paid">Pagado</option>
+              <option value="overdue">Vencido</option>
+            </select>
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 12px', borderRadius: 10, border: `2px solid ${form.bonificada ? '#10b981' : 'var(--border)'}`, background: form.bonificada ? '#f0fdf4' : 'var(--surface)', transition: 'all .15s' }}>
@@ -516,6 +525,7 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
   const [form, setForm] = useState({
     amountDue: enrollment.amountDue ?? '',
     discount: enrollment.discount ?? 0,
+    startDate: enrollment.startDate ? enrollment.startDate.slice(0, 10) : '',
     dueDate: enrollment.dueDate ? enrollment.dueDate.slice(0, 10) : '',
     paymentStatus: enrollment.paymentStatus || 'pending',
   });
@@ -532,6 +542,7 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
       await api.patch(`/enrollments/${enrollment.id}`, {
         amountDue: Number(form.amountDue),
         discount: Number(form.discount) || 0,
+        startDate: form.startDate || undefined,
         dueDate: form.dueDate || undefined,
         paymentStatus: form.paymentStatus,
       });
@@ -571,17 +582,21 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="field">
+              <label>Inicio de membresía</label>
+              <input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
+            </div>
+            <div className="field">
               <label>Vencimiento</label>
               <input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
             </div>
-            <div className="field">
-              <label>Estado</label>
-              <select value={form.paymentStatus} onChange={(e) => set('paymentStatus', e.target.value)}>
-                <option value="pending">Pendiente</option>
-                <option value="paid">Pagado</option>
-                <option value="overdue">Vencido</option>
-              </select>
-            </div>
+          </div>
+          <div className="field">
+            <label>Estado</label>
+            <select value={form.paymentStatus} onChange={(e) => set('paymentStatus', e.target.value)}>
+              <option value="pending">Pendiente</option>
+              <option value="paid">Pagado</option>
+              <option value="overdue">Vencido</option>
+            </select>
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>

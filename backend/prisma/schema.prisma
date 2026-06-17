@@ -20,8 +20,9 @@ model Business {
   employees  Employee[]
   expenses   Expense[]
   suppliers  Supplier[]
-  notes      Note[]
-  dailyCash  DailyCash[]
+  notes            Note[]
+  dailyCash        DailyCash[]
+  accountMovements AccountMovement[]
 }
 
 model User {
@@ -51,6 +52,7 @@ model Client {
   business         Business     @relation(fields: [businessId], references: [id])
   enrollments      Enrollment[]
   clientNotes      ClientNote[]
+  accountMovements AccountMovement[]
   createdAt        DateTime     @default(now())
 
   @@index([businessId])
@@ -189,5 +191,20 @@ model Expense {
   business      Business @relation(fields: [businessId], references: [id])
   createdAt     DateTime @default(now())
 
+  @@index([businessId])
+}
+
+model AccountMovement {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type        String   // 'cargo' | 'abono'
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  businessId  String
+
+  @@index([clientId])
   @@index([businessId])
 }

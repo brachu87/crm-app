@@ -17,6 +17,7 @@ const dailyCashRoutes = require('./routes/dailyCash');
 const reportsRoutes = require('./routes/reports');
 const usersRoutes = require('./routes/users');
 const searchRoutes = require('./routes/search');
+const accountMovementsRoutes = require('./routes/account-movements');
 const photosRoutes = require('./routes/photos');
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/clients', photosRoutes);
+app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -53,6 +55,20 @@ if (fs.existsSync(frontendDist)) {
 }
 
 const PORT = process.env.PORT || 4000;
+
+// Auto-mark overdue enrollments daily
+async function markOverdueEnrollments() {
+  try {
+    const now = new Date();
+    const result = await prisma.enrollment.updateMany({
+      where: { paymentStatus: 'pending', dueDate: { lt: now } },
+      data: { paymentStatus: 'overdue' },
+    });
+    if (result.count > 0) console.log(`[auto-expiry] Marcadas ${result.count} cuotas como vencidas`);
+  } catch (err) { console.error('[auto-expiry] Error:', err.message); }
+}
+markOverdueEnrollments();
+setInterval(markOverdueEnrollments, 1000 * 60 * 60 * 24); // cada 24h
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
