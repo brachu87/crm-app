@@ -408,13 +408,86 @@ function ReciboModal({ recibo, business, onClose }) {
   const nroRecibo = `${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${recibo.id?.slice(-5).toUpperCase()}`;
   const token = localStorage.getItem('token');
 
+  function handlePrint() {
+    const logoUrl = `${window.location.origin}/api/business/logo?token=${token}`;
+    const fecha = fmtD(new Date().toISOString().slice(0,10));
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Recibo N° ${nroRecibo}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 14px; color: #111; background: white; padding: 32px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .logo-block { display: flex; align-items: center; gap: 12px; }
+  .logo { max-height: 56px; max-width: 120px; object-fit: contain; }
+  .biz-name { font-size: 18px; font-weight: 700; }
+  .biz-sub { font-size: 13px; color: #555; margin-top: 2px; }
+  .recibo-title { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: #111; }
+  .recibo-nro { font-size: 13px; color: #555; margin-top: 4px; }
+  .recibo-date { font-size: 13px; color: #555; margin-top: 2px; }
+  hr { border: none; border-top: 2px solid #e5e7eb; margin: 18px 0; }
+  .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+  .row .label { color: #6b7280; }
+  .row .value { font-weight: 600; text-align: right; max-width: 60%; }
+  .total-row { display: flex; justify-content: space-between; padding: 12px 0; font-size: 17px; font-weight: 800; margin-top: 4px; }
+  .firmas { display: flex; gap: 40px; margin-top: 48px; }
+  .firma-box { flex: 1; text-align: center; }
+  .firma-line { border-top: 1px solid #9ca3af; margin-bottom: 6px; }
+  .firma-label { font-size: 12px; color: #6b7280; }
+  .footer { text-align: center; font-size: 12px; color: #9ca3af; margin-top: 32px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo-block">
+    <img class="logo" src="${logoUrl}" onerror="this.style.display='none'" alt=""/>
+    <div>
+      <div class="biz-name">${business?.name || 'Mi negocio'}</div>
+      ${business?.phone ? `<div class="biz-sub">${business.phone}</div>` : ''}
+    </div>
+  </div>
+  <div style="text-align:right">
+    <div class="recibo-title">RECIBO</div>
+    <div class="recibo-nro">N° ${nroRecibo}</div>
+    <div class="recibo-date">Fecha: ${fecha}</div>
+  </div>
+</div>
+<hr/>
+<div class="row"><span class="label">Socio / Cliente</span><span class="value">${recibo.client?.name || '-'}</span></div>
+${recibo.client?.dni ? `<div class="row"><span class="label">DNI</span><span class="value">${recibo.client.dni}</span></div>` : ''}
+<div class="row"><span class="label">Actividad / Servicio</span><span class="value">${recibo.activity?.name || '-'}</span></div>
+<div class="row"><span class="label">Período</span><span class="value">${fmtD(recibo.startDate)} – ${fmtD(recibo.dueDate)}</span></div>
+<div class="row"><span class="label">Forma de pago</span><span class="value">${recibo.metodoPago || 'Efectivo'}</span></div>
+<hr/>
+<div class="row"><span class="label">Cuota</span><span class="value">${fmtR(recibo.amountDue)}</span></div>
+${(recibo.discount > 0) ? `<div class="row"><span class="label">Descuento</span><span class="value" style="color:#10b981">- ${fmtR(recibo.discount)}</span></div>` : ''}
+<div class="total-row"><span>TOTAL ABONADO</span><span>${fmtR(net)}</span></div>
+<hr/>
+<div class="firmas">
+  <div class="firma-box"><div class="firma-line"></div><div class="firma-label">Firma y sello</div></div>
+  <div class="firma-box"><div class="firma-line"></div><div class="firma-label">Recibí conforme</div></div>
+</div>
+<div class="footer">Este recibo es comprobante válido de pago.</div>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=700,height=600');
+    win.document.write(html);
+    win.document.close();
+    // Esperar a que cargue el logo antes de imprimir
+    win.onload = () => { win.focus(); win.print(); };
+    setTimeout(() => { try { win.focus(); win.print(); } catch(e) {} }, 800);
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal recibo-modal" onClick={e => e.stopPropagation()}>
         <div className="recibo-screen-header">
           <h2 style={{ margin: 0 }}>Recibo de pago</h2>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Imprimir</button>
+            <button className="btn btn-primary" onClick={handlePrint}>🖨️ Imprimir</button>
             <button className="btn" onClick={onClose}>Cerrar</button>
           </div>
         </div>
