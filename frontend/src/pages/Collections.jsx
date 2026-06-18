@@ -3,13 +3,29 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { AuthContext } from '../context/AuthContext';
 
+export const DEFAULT_TEMPLATES = [
+  {
+    id: 'cobranza',
+    name: 'Recordatorio de pago',
+    text: 'Hola {nombre}! Te recordamos que tenés pendiente el pago de {actividad} por {monto}. Vencimiento: {vencimiento}. Cualquier consulta estamos a disposición. ¡Gracias!',
+  },
+];
+
+export function getTemplates() {
+  try {
+    const stored = localStorage.getItem('wa_templates');
+    return stored ? JSON.parse(stored) : DEFAULT_TEMPLATES;
+  } catch {
+    return DEFAULT_TEMPLATES;
+  }
+}
+
+
 const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
 const fmtDate = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
 const statusLabels = { paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido' };
 
-function getWaTemplates() {
-  try { return JSON.parse(localStorage.getItem('wa_templates')) || []; } catch { return []; }
-}
+
 
 export default function Collections() {
   const [enrollments, setEnrollments] = useState([]);
@@ -20,7 +36,7 @@ export default function Collections() {
   const [waModal, setWaModal] = useState(null);
   const [recibo, setRecibo] = useState(null);
   const [expanded, setExpanded] = useState({});
-  const { business } = useContext(AuthContext);
+  const { business } = useAuth();
 
   function load() {
     setLoading(true);
@@ -328,7 +344,7 @@ function EditCuotaModal({ enrollment, onClose, onSaved }) {
 
 /* ── WhatsApp template modal ───────────────────────────────────── */
 function WaModal({ enrollment, onClose }) {
-  const templates = getWaTemplates();
+  const templates = getTemplates();
   const e = enrollment;
   const fmt2 = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
   const net = Math.max(0, (e.amountDue || 0) - (e.discount || 0));
