@@ -49,7 +49,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/clients - crear cliente
 router.post('/', async (req, res) => {
   try {
-    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni } = req.body;
+    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, responsableName, responsablePhone, globalDiscount } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const client = await prisma.client.create({
       data: {
@@ -61,6 +61,10 @@ router.post('/', async (req, res) => {
         emergencyContact: emergencyContact || null,
         emergencyPhone: emergencyPhone || null,
         medicalNotes: medicalNotes || null,
+        dni: dni || null,
+        responsableName: responsableName || null,
+        responsablePhone: responsablePhone || null,
+        globalDiscount: globalDiscount != null ? Number(globalDiscount) : 0,
         businessId: req.user.businessId,
       },
     });
@@ -105,7 +109,7 @@ router.put('/:id', async (req, res) => {
       where: scopedWhere(req, { id: req.params.id }),
     });
     if (!existing) return res.status(404).json({ error: 'Cliente no encontrado' });
-    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni } = req.body;
+    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, responsableName, responsablePhone, globalDiscount } = req.body;
     const client = await prisma.client.update({
       where: { id: req.params.id },
       data: {
@@ -119,6 +123,9 @@ router.put('/:id', async (req, res) => {
         emergencyPhone: emergencyPhone !== undefined ? emergencyPhone || null : existing.emergencyPhone,
         medicalNotes: medicalNotes !== undefined ? medicalNotes || null : existing.medicalNotes,
         active: active !== undefined ? active : existing.active,
+        responsableName: responsableName !== undefined ? (responsableName || null) : existing.responsableName,
+        responsablePhone: responsablePhone !== undefined ? (responsablePhone || null) : existing.responsablePhone,
+        globalDiscount: globalDiscount !== undefined ? Number(globalDiscount) : existing.globalDiscount,
       },
     });
     res.json(client);

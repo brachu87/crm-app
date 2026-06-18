@@ -47,6 +47,7 @@ body {
   font-family: var(--font-body);
   background: var(--bg);
   color: var(--ink);
+  font-size: 16px;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -122,7 +123,7 @@ input, select, textarea { font-family: var(--font-body); }
   border-radius: var(--radius);
   color: var(--ink-soft);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 15px;
   transition: background 0.15s, color 0.15s;
 }
 
@@ -136,7 +137,7 @@ input, select, textarea { font-family: var(--font-body); }
 .sidebar-footer {
   margin-top: auto;
   padding: 0 8px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-soft);
 }
 
@@ -167,11 +168,11 @@ input, select, textarea { font-family: var(--font-body); }
   flex-wrap: wrap;
 }
 
-.page-header h1 { font-size: 28px; }
+.page-header h1 { font-size: 30px; }
 
 .page-subtitle {
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: 15px;
   margin-top: 4px;
 }
 
@@ -199,14 +200,14 @@ input, select, textarea { font-family: var(--font-body); }
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-soft);
   margin-bottom: 6px;
 }
 
 .stat-value {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 600;
 }
 
@@ -222,7 +223,7 @@ input, select, textarea { font-family: var(--font-body); }
   padding: 10px 18px;
   border-radius: var(--radius);
   border: 1px solid transparent;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   transition: transform 0.1s, opacity 0.15s;
   white-space: nowrap;
@@ -240,14 +241,14 @@ input, select, textarea { font-family: var(--font-body); }
 }
 .btn-secondary:hover { background: var(--bg); }
 
-.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-sm { padding: 6px 12px; font-size: 14px; }
 
 .btn-danger-text {
   background: none;
   border: none;
   color: var(--accent);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   padding: 4px 8px;
 }
 
@@ -266,7 +267,7 @@ input, select, textarea { font-family: var(--font-body); }
 
 .table th {
   text-align: left;
-  font-size: 12px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--ink-soft);
@@ -279,7 +280,7 @@ input, select, textarea { font-family: var(--font-body); }
 .table td {
   padding: 12px 12px;
   border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .table tr:last-child td { border-bottom: none; }
@@ -293,7 +294,7 @@ input, select, textarea { font-family: var(--font-body); }
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -323,7 +324,7 @@ input, select, textarea { font-family: var(--font-body); }
 }
 
 .field label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink-soft);
 }
@@ -332,7 +333,7 @@ input, select, textarea { font-family: var(--font-body); }
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 14px;
+  font-size: 15px;
   background: var(--surface);
   color: var(--ink);
 }
@@ -361,7 +362,7 @@ input, select, textarea { font-family: var(--font-body); }
   max-width: 380px;
 }
 
-.auth-card h1 { font-size: 26px; margin-bottom: 4px; }
+.auth-card h1 { font-size: 28px; margin-bottom: 4px; }
 .auth-card .page-subtitle { margin-bottom: 24px; }
 
 .auth-switch {
@@ -376,7 +377,7 @@ input, select, textarea { font-family: var(--font-body); }
   color: var(--accent);
   padding: 10px 14px;
   border-radius: var(--radius);
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 16px;
 }
 
@@ -413,7 +414,7 @@ input, select, textarea { font-family: var(--font-body); }
   overflow-y: auto;
 }
 
-.modal h2 { font-size: 20px; margin-bottom: 16px; }
+.modal h2 { font-size: 22px; margin-bottom: 16px; }
 
 .modal-actions {
   display: flex;
@@ -549,7 +550,7 @@ input, select, textarea { font-family: var(--font-body); }
     margin-bottom: 20px;
   }
 
-  .stat-value { font-size: 22px; }
+  .stat-value { font-size: 26px; }
 
   /* Cards scroll horizontally for tables */
   .card {

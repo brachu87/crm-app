@@ -48,6 +48,9 @@ model Client {
   medicalNotes     String?
   active           Boolean      @default(true)
   dni              String?
+  responsableName  String?
+  responsablePhone String?
+  globalDiscount   Float        @default(0)
   businessId       String
   business         Business     @relation(fields: [businessId], references: [id])
   enrollments      Enrollment[]

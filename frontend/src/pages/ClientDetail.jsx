@@ -33,6 +33,7 @@ export default function ClientDetail() {
   const [savingNote, setSavingNote] = useState(false);
   const [account, setAccount] = useState(null);
   const [movModal, setMovModal] = useState(false);
+  const [editMontoEnrollment, setEditMontoEnrollment] = useState(null);
 
   function load() {
     api.get(`/clients/${id}`).then((res) => setClient(res.data)).finally(() => setLoading(false));
@@ -133,8 +134,18 @@ export default function ClientDetail() {
           {client.email && <InfoField label="Email" value={client.email} />}
           {client.dni && <InfoField label="DNI" value={client.dni} />}
           {client.birthday && <InfoField label="Cumpleaños" value={formatDate(client.birthday)} />}
+          {client.globalDiscount > 0 && <InfoField label="Bonificación general" value={`${client.globalDiscount}%`} />}
           {client.notes && <InfoField label="Notas" value={client.notes} />}
         </div>
+        {(client.responsableName || client.responsablePhone) && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+            <p style={{ fontSize: 11, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, fontWeight: 700 }}>⚠️ Menor de edad — Adulto responsable</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+              {client.responsableName && <InfoField label="Nombre del responsable" value={client.responsableName} />}
+              {client.responsablePhone && <InfoField label="Teléfono del responsable" value={client.responsablePhone} />}
+            </div>
+          </div>
+        )}
         {(client.emergencyContact || client.emergencyPhone || client.medicalNotes) && (
           <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
             <p style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Emergencia y salud</p>
@@ -171,7 +182,18 @@ export default function ClientDetail() {
               {client.enrollments.map((e) => (
                 <tr key={e.id}>
                   <td><Link to={`/actividades/${e.activityId}`}>{e.activity.name}</Link></td>
-                  <td>{formatMoney(e.amountDue)}</td>
+                  <td>
+                    <span>{formatMoney(e.amountDue)}</span>
+                    {client.globalDiscount > 0 && (
+                      <div style={{ fontSize: 11, color: '#10b981' }}>
+                        con {client.globalDiscount}% bonif: {formatMoney(e.amountDue * (1 - client.globalDiscount / 100))}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setEditMontoEnrollment(e)}
+                      style={{ display: 'block', marginTop: 3, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11, cursor: 'pointer', padding: 0 }}
+                    >✏️ editar monto</button>
+                  </td>
                   <td>
                     <div style={{ fontSize: 12 }}>
                       {e.startDate && <span style={{ color: 'var(--ink-soft)' }}>{formatDate(e.startDate)}</span>}
@@ -504,6 +526,52 @@ function AccountStatement({ client, onClose }) {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickEditMontoModal({ enrollment, onClose, onSaved }) {
+  const [amount, setAmount] = useState(String(enrollment.amountDue));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!amount || isNaN(Number(amount))) return setError('Ingresá un monto válido');
+    setSaving(true);
+    try {
+      await api.patch(`/enrollments/${enrollment.id}`, { amountDue: Number(amount) });
+      onSaved();
+    } catch {
+      setError('No se pudo guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
+        <h2>Editar monto — {enrollment.activity.name}</h2>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Monto mensual ($)</label>
+            <input
+              type="number" min="0" step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

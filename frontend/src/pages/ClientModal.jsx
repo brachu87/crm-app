@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import api from '../api/client';
 
+function getAge(birthday) {
+  if (!birthday) return null;
+  const today = new Date();
+  const bday = new Date(birthday);
+  let age = today.getFullYear() - bday.getFullYear();
+  const m = today.getMonth() - bday.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < bday.getDate())) age--;
+  return age;
+}
+
 export default function ClientModal({ client, onClose, onSaved }) {
   const isEdit = !!client;
   const [form, setForm] = useState({
@@ -13,12 +23,18 @@ export default function ClientModal({ client, onClose, onSaved }) {
     emergencyContact: client?.emergencyContact || '',
     emergencyPhone: client?.emergencyPhone || '',
     medicalNotes: client?.medicalNotes || '',
+    responsableName: client?.responsableName || '',
+    responsablePhone: client?.responsablePhone || '',
+    globalDiscount: client?.globalDiscount != null ? String(client.globalDiscount) : '0',
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [showExtra, setShowExtra] = useState(
     !!(client?.emergencyContact || client?.emergencyPhone || client?.medicalNotes)
   );
+
+  const age = getAge(form.birthday);
+  const isMinor = age !== null && age < 18;
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -39,6 +55,9 @@ export default function ClientModal({ client, onClose, onSaved }) {
         emergencyContact: form.emergencyContact || undefined,
         emergencyPhone: form.emergencyPhone || undefined,
         medicalNotes: form.medicalNotes || undefined,
+        responsableName: form.responsableName || undefined,
+        responsablePhone: form.responsablePhone || undefined,
+        globalDiscount: Number(form.globalDiscount) || 0,
       };
       if (isEdit) {
         await api.put(`/clients/${client.id}`, payload);
@@ -83,14 +102,46 @@ export default function ClientModal({ client, onClose, onSaved }) {
               <input value={form.dni} onChange={(e) => update('dni', e.target.value)} placeholder="Ej: 12345678" />
             </div>
           </div>
+          <div className="two-col-grid">
+            <div className="field">
+              <label>Bonificación general (%)</label>
+              <input
+                type="number" min="0" max="100" step="1"
+                value={form.globalDiscount}
+                onChange={(e) => update('globalDiscount', e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div />
+          </div>
           <div className="field">
             <label>Notas</label>
             <textarea rows="2" value={form.notes} onChange={(e) => update('notes', e.target.value)} />
           </div>
+
+          {/* Adulto responsable — solo si es menor de 18 */}
+          {isMinor && (
+            <div style={{ background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: '#92400e' }}>
+                ⚠️ Menor de edad — Adulto responsable
+              </p>
+              <div className="two-col-grid">
+                <div className="field">
+                  <label>Nombre del responsable</label>
+                  <input value={form.responsableName} onChange={(e) => update('responsableName', e.target.value)} placeholder="Nombre completo" />
+                </div>
+                <div className="field">
+                  <label>Teléfono del responsable</label>
+                  <input value={form.responsablePhone} onChange={(e) => update('responsablePhone', e.target.value)} placeholder="11 5555 5555" />
+                </div>
+              </div>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => setShowExtra(!showExtra)}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, padding: '4px 0', cursor: 'pointer', marginBottom: 8 }}
+            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 14, padding: '4px 0', cursor: 'pointer', marginBottom: 8 }}
           >
             {showExtra ? '▲ Ocultar datos extra' : '▼ Emergencia y datos médicos'}
           </button>
