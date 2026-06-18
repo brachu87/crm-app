@@ -30,17 +30,6 @@ export default function ActivityDetail() {
 
   useEffect(load, [id]);
 
-  async function cycleStatus(enrollment) {
-    // ciclo: pending -> paid -> overdue -> pending (atajo rápido desde la tabla)
-    const next = { pending: 'paid', paid: 'overdue', overdue: 'pending' }[enrollment.paymentStatus];
-    try {
-      await api.patch(`/enrollments/${enrollment.id}`, { paymentStatus: next });
-      load();
-    } catch {
-      setError('No se pudo actualizar el estado');
-    }
-  }
-
   async function removeEnrollment(enrollmentId) {
     if (!confirm('¿Quitar a este cliente de la actividad?')) return;
     try {
@@ -96,14 +85,9 @@ export default function ActivityDetail() {
                   <td>{formatMoney(e.amountDue)}</td>
                   <td>{formatDate(e.dueDate)}</td>
                   <td>
-                    <button
-                      className={`pill pill-${e.paymentStatus}`}
-                      style={{ border: 'none' }}
-                      onClick={() => cycleStatus(e)}
-                      title="Click para cambiar estado"
-                    >
+                    <span className={`pill pill-${e.paymentStatus}`}>
                       {statusLabels[e.paymentStatus]}
-                    </button>
+                    </span>
                   </td>
                   <td>
                     <button className="btn-danger-text" onClick={() => removeEnrollment(e.id)}>Quitar</button>
