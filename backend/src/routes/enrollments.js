@@ -45,6 +45,7 @@ router.get('/', async (req, res) => {
       include: {
         client: true,
         activity: true,
+        payments: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { dueDate: 'asc' },
     });

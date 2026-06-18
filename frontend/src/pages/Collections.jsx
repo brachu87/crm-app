@@ -28,6 +28,7 @@ const statusLabels = { paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido' 
 
 
 export default function Collections() {
+  const [view, setView] = useState('pending'); // 'pending' | 'paid'
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -40,22 +41,23 @@ export default function Collections() {
 
   function load() {
     setLoading(true);
-    // fetch pending + overdue + partial (pagos parciales marcados como paid por error)
-    Promise.all([
-      api.get('/enrollments?status=pending'),
-      api.get('/enrollments?status=overdue'),
-      api.get('/enrollments?partial=true'),
-    ]).then(([p, o, part]) => {
-      const all = [...p.data, ...o.data, ...part.data];
-      // deduplicate by id
-      const seen = new Set();
-      setEnrollments(all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }));
-    }).finally(() => setLoading(false));
+    if (view === 'paid') {
+      api.get('/enrollments?status=paid').then(r => setEnrollments(r.data)).finally(() => setLoading(false));
+    } else {
+      Promise.all([
+        api.get('/enrollments?status=pending'),
+        api.get('/enrollments?status=overdue'),
+        api.get('/enrollments?partial=true'),
+      ]).then(([p, o, part]) => {
+        const all = [...p.data, ...o.data, ...part.data];
+        const seen = new Set();
+        setEnrollments(all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }));
+      }).finally(() => setLoading(false));
+    }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [view]);
 
-  // Group by client
   const grouped = useMemo(() => {
     const map = {};
     enrollments.forEach(e => {
@@ -81,15 +83,35 @@ export default function Collections() {
     setExpanded(prev => ({ ...prev, [cid]: !prev[cid] }));
   }
 
+  const tabStyle = (active) => ({
+    padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 15,
+    background: active ? 'var(--primary)' : 'var(--surface)',
+    color: active ? '#fff' : 'var(--ink-soft)',
+    transition: 'all .15s',
+  });
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <h1>Cobranza</h1>
           <p className="page-subtitle">
-            {filtered.length} {filtered.length === 1 ? 'cliente' : 'clientes'} con deuda · Total: <strong>{fmt(totalGeneral)}</strong>
+            {view === 'pending'
+              ? `${filtered.length} ${filtered.length === 1 ? 'cliente' : 'clientes'} con deuda · Total: `
+              : `${filtered.length} ${filtered.length === 1 ? 'cliente' : 'clientes'} cobrados · Total: `}
+            <strong>{fmt(totalGeneral)}</strong>
           </p>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button style={tabStyle(view === 'pending')} onClick={() => { setView('pending'); setSearch(''); }}>
+          ⏳ Pendientes
+        </button>
+        <button style={tabStyle(view === 'paid')} onClick={() => { setView('paid'); setSearch(''); }}>
+          ✅ Cobradas
+        </button>
       </div>
 
       {/* Search */}
@@ -107,73 +129,99 @@ export default function Collections() {
         <p>Cargando...</p>
       ) : filtered.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--ink-soft)' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-          <p style={{ fontSize: 17 }}>{search ? 'No hay resultados.' : '¡No hay deudas pendientes!'}</p>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>{view === 'paid' ? '📋' : '✅'}</div>
+          <p style={{ fontSize: 17 }}>
+            {search ? 'No hay resultados.' : view === 'paid' ? 'No hay cobros registrados.' : '¡No hay deudas pendientes!'}
+          </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(g => {
             const cid = g.client.id;
-            const isOpen = expanded[cid] !== false; // default open
+            const isOpen = expanded[cid] !== false;
             const overdue = g.enrollments.some(e => e.paymentStatus === 'overdue');
             return (
               <div key={cid} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                {/* Client header row */}
-                <div
-                  onClick={() => toggleExpand(cid)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer', gap: 12 }}
-                >
+                <div onClick={() => toggleExpand(cid)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                     <span style={{ fontSize: 20 }}>{isOpen ? '▾' : '▸'}</span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <Link
-                          to={`/clientes/${cid}`}
-                          style={{ fontWeight: 700, fontSize: 16 }}
-                          onClick={e => e.stopPropagation()}
-                        >{g.client.name}</Link>
-                        {overdue && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', fontSize: 12 }}>Vencido</span>}
+                        <Link to={`/clientes/${cid}`} style={{ fontWeight: 700, fontSize: 16 }} onClick={e => e.stopPropagation()}>
+                          {g.client.name}
+                        </Link>
+                        {view === 'pending' && overdue && (
+                          <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', fontSize: 12 }}>Vencido</span>
+                        )}
+                        {view === 'paid' && (
+                          <span className="pill" style={{ background: '#d1fae5', color: '#065f46', fontSize: 12 }}>Pagado</span>
+                        )}
                       </div>
-                      {g.client.phone && (
-                        <a
-                          href={`https://wa.me/${g.client.phone.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ fontSize: 13, color: '#25d366' }}
-                          onClick={e => e.stopPropagation()}
-                        >📱 WhatsApp</a>
-                      )}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontWeight: 800, fontSize: 18, color: overdue ? '#dc2626' : 'var(--ink)' }}>{fmt(g.total)}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{g.enrollments.length} {g.enrollments.length === 1 ? 'cuota' : 'cuotas'}</div>
+                    <div style={{ fontWeight: 800, fontSize: 18, color: view === 'paid' ? '#10b981' : overdue ? '#dc2626' : 'var(--ink)' }}>
+                      {fmt(g.total)}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                      {g.enrollments.length} {g.enrollments.length === 1 ? 'cuota' : 'cuotas'}
+                    </div>
                   </div>
                 </div>
 
-                {/* Enrollments detail */}
                 {isOpen && (
                   <div style={{ borderTop: '1px solid var(--border)' }}>
-                    {g.enrollments.map(e => (
-                      <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px 12px 40px', borderBottom: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 15 }}>{e.activity?.name}</div>
-                          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
-                            Vence: {fmtDate(e.dueDate)}
-                            {e.discount > 0 && <span style={{ marginLeft: 8, color: '#6366f1' }}>Desc: {fmt(e.discount)}</span>}
+                    {g.enrollments.map(e => {
+                      const lastPayment = e.payments?.[0];
+                      return (
+                        <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px 12px 40px', borderBottom: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: 15 }}>{e.activity?.name}</div>
+                            <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
+                              {view === 'paid' ? (
+                                <>
+                                  {lastPayment ? `Cobrado el ${fmtDate(lastPayment.createdAt)} · ${lastPayment.method || 'Efectivo'}` : fmtDate(e.dueDate)}
+                                </>
+                              ) : (
+                                <>
+                                  Vence: {fmtDate(e.dueDate)}
+                                  {e.discount > 0 && <span style={{ marginLeft: 8, color: '#6366f1' }}>Desc: {fmt(e.discount)}</span>}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                            <strong style={{ fontSize: 16, minWidth: 80, textAlign: 'right' }}>{fmt(e.net)}</strong>
+                            {view === 'paid' ? (
+                              <>
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  title="Reimprimir recibo"
+                                  onClick={() => setRecibo({ ...e, metodoPago: lastPayment?.method || 'Efectivo', amountDue: lastPayment?.amount || e.amountDue })}
+                                >🖨️ Recibo</button>
+                                {g.client.phone && (
+                                  <button
+                                    className="btn btn-sm btn-secondary"
+                                    style={{ color: '#25d366' }}
+                                    title="Enviar comprobante por WhatsApp"
+                                    onClick={() => setWaModal({ ...e, waRecibo: true, lastPayment })}
+                                  >📱 WA</button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span>
+                                <button className="btn btn-sm btn-secondary" onClick={() => setEditModal(e)} title="Editar cuota">✏️</button>
+                                {g.client.phone && (
+                                  <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} onClick={() => setWaModal(e)} title="WhatsApp">📱</button>
+                                )}
+                                <button className="btn btn-sm btn-primary" onClick={() => setCobrarModal(e)}>Cobrar</button>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
-                          <span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span>
-                          <strong style={{ fontSize: 16, minWidth: 80, textAlign: 'right' }}>{fmt(e.net)}</strong>
-                          <button className="btn btn-sm btn-secondary" onClick={() => setEditModal(e)} title="Editar cuota">✏️</button>
-                          {g.client.phone && (
-                            <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} onClick={() => setWaModal(e)} title="WhatsApp">📱</button>
-                          )}
-                          <button className="btn btn-sm btn-primary" onClick={() => setCobrarModal(e)}>Cobrar</button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -362,7 +410,9 @@ function WaModal({ enrollment, onClose }) {
       .replace('{vencimiento}', fmtD(e.dueDate));
   }
 
-  const defaultMsg = `Hola ${e.client?.name}! Te recordamos que tenés pendiente el pago de ${e.activity?.name} por ${fmt2(net)}. Vencimiento: ${fmtD(e.dueDate)}. ¡Gracias!`;
+  const defaultMsg = e.waRecibo
+    ? `Hola ${e.client?.name}! Tu pago de ${e.activity?.name} por ${fmt2(e.lastPayment?.amount || net)} fue registrado. ${e.lastPayment?.method ? `Forma de pago: ${e.lastPayment.method}.` : ''} ¡Gracias!`
+    : `Hola ${e.client?.name}! Te recordamos que tenés pendiente el pago de ${e.activity?.name} por ${fmt2(net)}. Vencimiento: ${fmtD(e.dueDate)}. ¡Gracias!`;
   const phone = e.client?.phone?.replace(/\D/g, '');
 
   return (
@@ -398,6 +448,19 @@ function WaModal({ enrollment, onClose }) {
       </div>
     </div>
   );
+}
+
+/* ── Helpers ──────────────────────────────────────────────────── */
+function buildWaReceiptLink(recibo, net, nroRecibo, business) {
+  const fmtR = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+  const msg = `Hola ${recibo.client?.name}! Te enviamos el comprobante de pago N° ${nroRecibo}.\n\n` +
+    `Actividad: ${recibo.activity?.name || '-'}\n` +
+    `Monto abonado: ${fmtR(net)}\n` +
+    `Forma de pago: ${recibo.metodoPago || 'Efectivo'}\n\n` +
+    `¡Gracias por tu pago! ${business?.name || ''}`;
+  const phone = recibo.client?.phone?.replace(/\D/g, '');
+  const num = phone?.startsWith('0') ? '549' + phone.slice(1) : phone?.startsWith('54') ? phone : '549' + phone;
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
 
 /* ── Recibo de pago ────────────────────────────────────────────── */
@@ -501,8 +564,17 @@ ${(recibo.discount > 0) ? `<div class="row"><span class="label">Descuento</span>
       <div className="modal recibo-modal" onClick={e => e.stopPropagation()}>
         <div className="recibo-screen-header">
           <h2 style={{ margin: 0 }}>Recibo de pago</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={handlePrint}>🖨️ Imprimir</button>
+            {recibo.client?.phone && (
+              <a
+                href={buildWaReceiptLink(recibo, net, nroRecibo, business)}
+                target="_blank"
+                rel="noreferrer"
+                className="btn"
+                style={{ background: '#25d366', color: '#fff', border: 'none', textDecoration: 'none' }}
+              >📱 Enviar WA</a>
+            )}
             <button className="btn" onClick={onClose}>Cerrar</button>
           </div>
         </div>
