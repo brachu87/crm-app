@@ -204,6 +204,7 @@ model AccountMovement {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   businessId  String
+  business    Business @relation(fields: [businessId], references: [id])
 
   @@index([clientId])
   @@index([businessId])
