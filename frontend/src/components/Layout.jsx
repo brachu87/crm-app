@@ -8,6 +8,8 @@ const links = [
   { to: '/clientes', label: 'Clientes' },
   { to: '/cobranza', label: 'Cobranza' },
   { to: '/empleados', label: 'Empleados' },
+  { to: '/sedes', label: 'Sedes' },
+  { to: '/horarios', label: 'Horarios' },
   { to: '/gastos', label: 'Gastos' },
   { to: '/proveedores', label: 'Proveedores' },
   { to: '/agenda', label: 'Agenda' },

@@ -16,6 +16,8 @@ import Suppliers from './pages/Suppliers';
 import Notes from './pages/Notes';
 import DailyCash from './pages/DailyCash';
 import Settings from './pages/Settings';
+import Sedes from './pages/Sedes';
+import Horarios from './pages/Horarios';
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -43,6 +45,8 @@ export default function App() {
             <Route path="clientes/:id" element={<ClientDetail />} />
             <Route path="cobranza" element={<Collections />} />
             <Route path="empleados" element={<Employees />} />
+            <Route path="sedes" element={<Sedes />} />
+            <Route path="horarios" element={<Horarios />} />
             <Route path="gastos" element={<Expenses />} />
             <Route path="reportes" element={<Reports />} />
             <Route path="proveedores" element={<Suppliers />} />

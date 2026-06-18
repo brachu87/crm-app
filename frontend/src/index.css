@@ -1292,3 +1292,98 @@ input, select, textarea { font-family: var(--font-body); }
   font-size: 13px;
   margin-bottom: 4px;
 }
+
+/* ── Schedule / Horarios ──────────────────────────────────────── */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  overflow-x: auto;
+}
+.schedule-col {
+  min-width: 130px;
+}
+.schedule-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+.day-short { display: none; }
+.add-slot-btn {
+  background: rgba(255,255,255,0.25);
+  border: none;
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.add-slot-btn:hover { background: rgba(255,255,255,0.45); }
+.schedule-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+  min-height: 60px;
+}
+.empty-slot {
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 12px 4px;
+}
+.schedule-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 13px;
+  position: relative;
+}
+.sc-time   { font-weight: 700; color: var(--primary); font-size: 13px; }
+.sc-activity { font-weight: 600; margin: 3px 0 2px; color: var(--ink); font-size: 14px; }
+.sc-employee, .sc-branch, .sc-capacity { color: var(--ink-soft); font-size: 12px; }
+.sc-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.sc-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0.7;
+}
+.sc-actions button:hover { opacity: 1; background: var(--bg); }
+.field-input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 15px;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .schedule-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 600px) {
+  .schedule-grid { grid-template-columns: repeat(2, 1fr); }
+  .day-full { display: none; }
+  .day-short { display: inline; }
+}

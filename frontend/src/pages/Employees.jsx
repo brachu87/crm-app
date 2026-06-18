@@ -74,9 +74,10 @@ export default function Employees() {
               <tr>
                 <th>Nombre</th>
                 <th>Rol</th>
+                <th>Sede</th>
+                <th>Actividades</th>
                 <th>Teléfono</th>
                 <th>Sueldo</th>
-                <th>Fecha ingreso</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -86,9 +87,10 @@ export default function Employees() {
                 <tr key={e.id}>
                   <td><strong>{e.name}</strong></td>
                   <td>{e.role}</td>
+                  <td>{e.branch?.name || <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
+                  <td style={{fontSize:13}}>{e.activityEmployees?.length > 0 ? e.activityEmployees.map(ae => ae.activity?.name).filter(Boolean).join(', ') : <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
                   <td>{e.phone || '-'}</td>
                   <td>{e.salary != null ? `$${Number(e.salary).toLocaleString('es-AR')}` : '-'}</td>
-                  <td>{new Date(e.startDate).toLocaleDateString('es-AR')}</td>
                   <td>
                     <span style={{
                       padding: '2px 8px',
@@ -137,9 +139,12 @@ function EmployeeModal({ employee, onClose, onSaved }) {
     startDate: employee?.startDate ? employee.startDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
     notes: employee?.notes || '',
     active: employee?.active !== undefined ? employee.active : true,
+    branchId: employee?.branchId || '',
   });
+  const [branches, setBranches] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  useEffect(() => { api.get('/branches').then(r => setBranches(r.data.filter(b => b.active))); }, []);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -159,6 +164,7 @@ function EmployeeModal({ employee, onClose, onSaved }) {
         startDate: form.startDate,
         notes: form.notes || undefined,
         active: form.active,
+        branchId: form.branchId || null,
       };
       if (isEdit) {
         await api.put(`/employees/${employee.id}`, payload);
@@ -216,6 +222,13 @@ function EmployeeModal({ employee, onClose, onSaved }) {
               <input type="date" value={form.startDate} onChange={(e) => update('startDate', e.target.value)} />
             </div>
           </div>
+          {branches.length > 0 && <div className="field">
+            <label>Sede</label>
+            <select value={form.branchId} onChange={e => update('branchId', e.target.value)}>
+              <option value="">Sin sede</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>}
           <div className="field">
             <label>Notas</label>
             <textarea rows="2" value={form.notes} onChange={(e) => update('notes', e.target.value)} />

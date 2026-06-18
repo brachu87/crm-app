@@ -20,6 +20,8 @@ const searchRoutes = require('./routes/search');
 const accountMovementsRoutes = require('./routes/account-movements');
 const photosRoutes = require('./routes/photos');
 const businessRoutes = require('./routes/business');
+const branchesRoutes = require('./routes/branches');
+const schedulesRoutes = require('./routes/schedules');
 
 const app = express();
 
@@ -41,6 +43,8 @@ app.use('/api/users', usersRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/clients', photosRoutes);
 app.use('/api/business', businessRoutes);
+app.use('/api/branches', branchesRoutes);
+app.use('/api/schedules', schedulesRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {

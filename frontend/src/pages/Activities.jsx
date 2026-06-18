@@ -72,7 +72,8 @@ export default function Activities() {
             <thead>
               <tr>
                 <th>Nombre</th>
-                <th>Horario</th>
+                <th>Sede</th>
+                <th>Instructores</th>
                 <th>Precio</th>
                 <th>Inscriptos</th>
                 <th></th>
@@ -82,7 +83,8 @@ export default function Activities() {
               {activities.map((a) => (
                 <tr key={a.id} style={{ opacity: a.active === false ? 0.5 : 1 }}>
                   <td><Link to={`/actividades/${a.id}`}>{a.name}</Link></td>
-                  <td>{a.schedule || '-'}</td>
+                  <td>{a.branch?.name || <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
+                  <td>{a.activityEmployees?.length > 0 ? a.activityEmployees.map(ae => ae.employee?.name).filter(Boolean).join(', ') : <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
                   <td>{formatMoney(a.price)}</td>
                   <td>{a._count?.enrollments ?? 0}{a.capacity ? ` / ${a.capacity}` : ''}</td>
                   <td style={{ display: 'flex', gap: 6 }}>
@@ -121,7 +123,14 @@ export default function Activities() {
 }
 
 function NewActivityModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({ name: '', description: '', price: '', capacity: '', schedule: '' });
+  const [form, setForm] = useState({ name: '', description: '', price: '', capacity: '', schedule: '', branchId: '' });
+  const [branches, setBranches] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  useEffect(() => {
+    api.get('/branches').then(r => setBranches(r.data.filter(b => b.active)));
+    api.get('/employees').then(r => setEmployees(r.data.filter(e => e.active)));
+  }, []);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -134,13 +143,17 @@ function NewActivityModal({ onClose, onCreated }) {
     setError('');
     setSaving(true);
     try {
-      await api.post('/activities', {
+      const res = await api.post('/activities', {
         name: form.name,
         description: form.description || undefined,
         price: Number(form.price),
         capacity: form.capacity ? Number(form.capacity) : null,
         schedule: form.schedule || undefined,
+        branchId: form.branchId || null,
       });
+      if (selectedEmployees.length > 0) {
+        await api.put(`/activities/${res.data.id}/employees`, { employeeIds: selectedEmployees });
+      }
       onCreated();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo crear la actividad');
@@ -175,6 +188,25 @@ function NewActivityModal({ onClose, onCreated }) {
             <label>Descripción (opcional)</label>
             <textarea rows="2" value={form.description} onChange={(e) => update('description', e.target.value)} />
           </div>
+          {branches.length > 0 && <div className="field">
+            <label>Sede</label>
+            <select value={form.branchId} onChange={e => update('branchId', e.target.value)}>
+              <option value="">Sin sede</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>}
+          {employees.length > 0 && <div className="field">
+            <label>Instructores asignados</label>
+            <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+              {employees.map(e => (
+                <label key={e.id} style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer',fontSize:14}}>
+                  <input type="checkbox" checked={selectedEmployees.includes(e.id)}
+                    onChange={ev => setSelectedEmployees(prev => ev.target.checked ? [...prev, e.id] : prev.filter(x => x !== e.id))} />
+                  {e.name}
+                </label>
+              ))}
+            </div>
+          </div>}
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Creando...' : 'Crear actividad'}</button>
@@ -194,7 +226,15 @@ function EditActivityModal({ activity, onClose, onSaved }) {
     capacity: activity.capacity ?? '',
     schedule: activity.schedule || '',
     active: activity.active !== false,
+    branchId: activity.branchId || '',
   });
+  const [branches, setBranches] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState((activity.activityEmployees || []).map(ae => ae.employeeId));
+  useEffect(() => {
+    api.get('/branches').then(r => setBranches(r.data.filter(b => b.active)));
+    api.get('/employees').then(r => setEmployees(r.data.filter(e => e.active)));
+  }, []);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -214,7 +254,9 @@ function EditActivityModal({ activity, onClose, onSaved }) {
         capacity: form.capacity !== '' ? Number(form.capacity) : null,
         schedule: form.schedule || undefined,
         active: form.active,
+        branchId: form.branchId || null,
       });
+      await api.put(`/activities/${activity.id}/employees`, { employeeIds: selectedEmployees });
       onSaved();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo guardar');
@@ -249,6 +291,25 @@ function EditActivityModal({ activity, onClose, onSaved }) {
             <label>Descripcion (opcional)</label>
             <textarea rows="2" value={form.description} onChange={(e) => update('description', e.target.value)} />
           </div>
+          {branches.length > 0 && <div className="field">
+            <label>Sede</label>
+            <select value={form.branchId} onChange={e => update('branchId', e.target.value)}>
+              <option value="">Sin sede</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>}
+          {employees.length > 0 && <div className="field">
+            <label>Instructores asignados</label>
+            <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+              {employees.map(e => (
+                <label key={e.id} style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer',fontSize:14}}>
+                  <input type="checkbox" checked={selectedEmployees.includes(e.id)}
+                    onChange={ev => setSelectedEmployees(prev => ev.target.checked ? [...prev, e.id] : prev.filter(x => x !== e.id))} />
+                  {e.name}
+                </label>
+              ))}
+            </div>
+          </div>}
           <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <label>Activa</label>
             <input type="checkbox" checked={form.active} onChange={(e) => update('active', e.target.checked)} />

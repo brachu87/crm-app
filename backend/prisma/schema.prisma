@@ -23,6 +23,8 @@ model Business {
   notes            Note[]
   dailyCash        DailyCash[]
   accountMovements AccountMovement[]
+  branches         Branch[]
+  classSchedules   ClassSchedule[]
 }
 
 model User {
@@ -81,10 +83,15 @@ model Activity {
   active      Boolean      @default(true)
   businessId  String
   business    Business     @relation(fields: [businessId], references: [id])
+  branchId    String?
+  branch      Branch?      @relation(fields: [branchId], references: [id])
   enrollments Enrollment[]
+  activityEmployees ActivityEmployee[]
+  classSchedules    ClassSchedule[]
   createdAt   DateTime     @default(now())
 
   @@index([businessId])
+  @@index([branchId])
 }
 
 model Enrollment {
@@ -178,9 +185,14 @@ model Employee {
   notes     String?
   businessId String
   business  Business @relation(fields: [businessId], references: [id])
+  branchId   String?
+  branch     Branch?  @relation(fields: [branchId], references: [id])
   createdAt DateTime @default(now())
+  activityEmployees ActivityEmployee[]
+  classSchedules    ClassSchedule[]
 
   @@index([businessId])
+  @@index([branchId])
 }
 
 model Expense {
@@ -211,4 +223,52 @@ model AccountMovement {
 
   @@index([clientId])
   @@index([businessId])
+}
+
+model Branch {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  name       String
+  address    String?
+  phone      String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  employees      Employee[]
+  activities     Activity[]
+  classSchedules ClassSchedule[]
+
+  @@index([businessId])
+}
+
+model ActivityEmployee {
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, employeeId])
+}
+
+model ClassSchedule {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id])
+  branchId    String?
+  branch      Branch?   @relation(fields: [branchId], references: [id])
+  activityId  String
+  activity    Activity  @relation(fields: [activityId], references: [id])
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+  dayOfWeek   Int
+  startTime   String
+  endTime     String
+  maxCapacity Int?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@index([businessId])
+  @@index([branchId])
+  @@index([activityId])
 }

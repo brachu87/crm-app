@@ -11,6 +11,10 @@ router.get('/', async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
       where: scopedWhere(req),
+      include: {
+        branch: { select: { id: true, name: true } },
+        activityEmployees: { include: { activity: { select: { id: true, name: true } } } }
+      },
       orderBy: { name: 'asc' },
     });
     res.json(employees);
@@ -23,7 +27,7 @@ router.get('/', async (req, res) => {
 // POST /api/employees
 router.post('/', async (req, res) => {
   try {
-    const { name, role, phone, email, salary, startDate, notes } = req.body;
+    const { name, role, phone, email, salary, startDate, notes, branchId } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     if (!role) return res.status(400).json({ error: 'El rol es obligatorio' });
 
@@ -36,8 +40,10 @@ router.post('/', async (req, res) => {
         salary: salary ? parseFloat(salary) : null,
         startDate: startDate ? new Date(startDate) : new Date(),
         notes: notes || null,
+        branchId: branchId || null,
         businessId: req.user.businessId,
       },
+      include: { branch: { select: { id: true, name: true } } }
     });
     res.status(201).json(employee);
   } catch (err) {
@@ -54,7 +60,7 @@ router.put('/:id', async (req, res) => {
     });
     if (!existing) return res.status(404).json({ error: 'Empleado no encontrado' });
 
-    const { name, role, phone, email, salary, startDate, notes, active } = req.body;
+    const { name, role, phone, email, salary, startDate, notes, active, branchId } = req.body;
     const employee = await prisma.employee.update({
       where: { id: req.params.id },
       data: {
@@ -66,7 +72,9 @@ router.put('/:id', async (req, res) => {
         startDate: startDate ? new Date(startDate) : undefined,
         notes: notes || null,
         active: active !== undefined ? active : existing.active,
+        branchId: branchId !== undefined ? (branchId || null) : existing.branchId,
       },
+      include: { branch: { select: { id: true, name: true } } }
     });
     res.json(employee);
   } catch (err) {
