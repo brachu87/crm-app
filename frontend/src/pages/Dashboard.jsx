@@ -25,7 +25,7 @@ function shortMonth(monthStr) {
 }
 
 function BarChart({ months }) {
-  if (!months || months.length === 0) return <p style={{ color: '#9ca3af', fontSize: 13 }}>Sin datos</p>;
+  if (!months || months.length === 0) return <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Sin datos</p>;
   const maxVal = Math.max(...months.map((m) => Math.max(m.income || 0, m.expenses || 0)), 1);
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 130, paddingBottom: 24, position: 'relative' }}>
@@ -44,7 +44,7 @@ function BarChart({ months }) {
                 style={{ width: '40%', height: `${expH}%`, minHeight: expH > 0 ? 3 : 0, background: '#ef4444', borderRadius: '3px 3px 0 0', transition: 'height .3s' }}
               />
             </div>
-            <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>{shortMonth(m.month)}</div>
+            <div style={{ fontSize: 10, color: 'var(--ink-soft)', marginTop: 4 }}>{shortMonth(m.month)}</div>
           </div>
         );
       })}
@@ -54,7 +54,7 @@ function BarChart({ months }) {
 
 function DonutChart({ paid, pending, overdue }) {
   const total = paid + pending + overdue;
-  if (total === 0) return <p style={{ color: '#9ca3af', fontSize: 13 }}>Sin inscripciones</p>;
+  if (total === 0) return <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Sin inscripciones</p>;
   const paidPct = (paid / total) * 100;
   const pendingPct = (pending / total) * 100;
   const overduePct = (overdue / total) * 100;
@@ -67,9 +67,9 @@ function DonutChart({ paid, pending, overdue }) {
       }}>
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-          width: 52, height: 52, borderRadius: '50%', background: 'white',
+          width: 52, height: 52, borderRadius: '50%', background: 'var(--surface)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, fontWeight: 700, color: '#374151',
+          fontSize: 13, fontWeight: 700, color: 'var(--ink)',
         }}>{total}</div>
       </div>
       <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
@@ -177,7 +177,7 @@ export default function Dashboard() {
           </div>
           <BarChart months={summary?.months || []} />
           {summary?.months && summary.months.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6b7280', borderTop: '1px solid #f3f4f6', paddingTop: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-soft)', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
               <span>Total ingresos: <strong style={{ color: '#10b981' }}>{formatMoney(summary.months.reduce((a, m) => a + (m.income || 0), 0))}</strong></span>
               <span>Total gastos: <strong style={{ color: '#ef4444' }}>{formatMoney(summary.months.reduce((a, m) => a + (m.expenses || 0), 0))}</strong></span>
             </div>
@@ -209,8 +209,8 @@ export default function Dashboard() {
             key={link.to}
             to={link.to}
             style={{
-              display: 'block', padding: '14px 16px', borderRadius: 12, background: 'white',
-              border: '1px solid #e5e7eb', textDecoration: 'none', color: link.color,
+              display: 'block', padding: '14px 16px', borderRadius: 12, background: 'var(--surface)',
+              border: '1px solid var(--border)', textDecoration: 'none', color: link.color,
               fontWeight: 600, fontSize: 14, transition: 'box-shadow .15s',
             }}
           >
@@ -223,11 +223,11 @@ export default function Dashboard() {
       {cashData && (cashData.totalIncome > 0 || cashData.totalExpenses > 0) && (
         <div className="card" style={{ marginBottom: 20, display: 'flex', gap: 32, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
-            <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>Cobrado hoy</p>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>Cobrado hoy</p>
             <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#10b981' }}>{formatMoney(cashData.totalIncome)}</p>
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>Gastado hoy</p>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>Gastado hoy</p>
             <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#ef4444' }}>{formatMoney(cashData.totalExpenses)}</p>
           </div>
           <Link to="/caja" className="btn btn-secondary btn-sm" style={{ marginLeft: 'auto' }}>Ver caja completa</Link>
@@ -244,11 +244,11 @@ export default function Dashboard() {
           {notes.slice(0, 3).map((n) => {
             const isOverdue = n.dueDate && new Date(n.dueDate) < new Date();
             return (
-              <div key={n.id} style={{ padding: '7px 0', borderBottom: '1px solid #f3f4f6', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: n.priority === 'high' ? '#f59e0b' : isOverdue ? '#ef4444' : '#9ca3af' }}>●</span>
+              <div key={n.id} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: n.priority === 'high' ? '#f59e0b' : isOverdue ? '#ef4444' : 'var(--ink-soft)' }}>●</span>
                 <span style={{ flex: 1 }}>{n.title}</span>
                 {isOverdue && <span style={{ fontSize: 11, color: '#ef4444', background: '#fee2e2', padding: '1px 6px', borderRadius: 8 }}>Vencida</span>}
-                {n.dueDate && !isOverdue && <span style={{ fontSize: 12, color: '#9ca3af' }}>{formatDate(n.dueDate)}</span>}
+                {n.dueDate && !isOverdue && <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{formatDate(n.dueDate)}</span>}
               </div>
             );
           })}

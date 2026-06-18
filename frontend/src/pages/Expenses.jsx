@@ -106,8 +106,8 @@ export default function Expenses() {
                       padding: '2px 8px',
                       borderRadius: 12,
                       fontSize: 12,
-                      background: '#f3f4f6',
-                      color: '#374151',
+                      background: 'var(--bg)',
+                      color: 'var(--ink)',
                     }}>
                       {e.category}
                     </span>

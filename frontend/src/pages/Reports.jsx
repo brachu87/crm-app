@@ -109,7 +109,7 @@ function DonutChart({ data }) {
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
             <span style={{ fontSize: 13, flex: 1 }}>{s.label}</span>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>{s.pct}%</span>
+            <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{s.pct}%</span>
             <span style={{ fontSize: 13, fontWeight: 600, minWidth: 70, textAlign: 'right' }}>{fmt(s.total)}</span>
           </div>
         ))}
@@ -155,7 +155,7 @@ export default function Reports() {
           <select
             value={activityFilter}
             onChange={(e) => setActivityFilter(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14 }}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 14 }}
           >
             <option value="">Todas las actividades</option>
             {activities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -163,7 +163,7 @@ export default function Reports() {
           <select
             value={months}
             onChange={(e) => setMonths(Number(e.target.value))}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14 }}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 14 }}
           >
             <option value={3}>Últimos 3 meses</option>
             <option value={6}>Últimos 6 meses</option>
@@ -198,7 +198,7 @@ export default function Reports() {
             <div className="card">
               <h3 style={{ marginBottom: 16 }}>Gastos por categoría</h3>
               {data.expensesByCategory.length === 0 ? (
-                <p style={{ color: '#9ca3af' }}>Sin gastos registrados</p>
+                <p style={{ color: 'var(--ink-soft)' }}>Sin gastos registrados</p>
               ) : (
                 <DonutChart data={data.expensesByCategory} />
               )}
@@ -208,20 +208,20 @@ export default function Reports() {
             <div className="card">
               <h3 style={{ marginBottom: 16 }}>Top clientes por ingreso</h3>
               {data.topClients.length === 0 ? (
-                <p style={{ color: '#9ca3af' }}>Sin pagos registrados</p>
+                <p style={{ color: 'var(--ink-soft)' }}>Sin pagos registrados</p>
               ) : (
                 <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>#</th>
-                      <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Cliente</th>
-                      <th style={{ textAlign: 'right', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Total</th>
+                      <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>#</th>
+                      <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Cliente</th>
+                      <th style={{ textAlign: 'right', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.topClients.map((c, i) => (
-                      <tr key={c.name} style={{ borderTop: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '8px 0', color: '#9ca3af' }}>{i + 1}</td>
+                      <tr key={c.name} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td style={{ padding: '8px 0', color: 'var(--ink-soft)' }}>{i + 1}</td>
                         <td style={{ padding: '8px 0' }}>{c.name}</td>
                         <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600 }}>{fmt(c.total)}</td>
                       </tr>
@@ -239,18 +239,18 @@ export default function Reports() {
               <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Empleado</th>
-                    <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Rol</th>
-                    <th style={{ textAlign: 'right', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Sueldo mensual</th>
+                    <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Empleado</th>
+                    <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Rol</th>
+                    <th style={{ textAlign: 'right', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Sueldo mensual</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.employees.map((e) => (
-                    <tr key={e.name} style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <tr key={e.name} style={{ borderTop: '1px solid var(--border)' }}>
                       <td style={{ padding: '8px 0' }}>{e.name}</td>
-                      <td style={{ padding: '8px 0', color: '#6b7280' }}>{e.role}</td>
+                      <td style={{ padding: '8px 0', color: 'var(--ink-soft)' }}>{e.role}</td>
                       <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600 }}>
-                        {e.salary ? fmt(e.salary) : <span style={{ color: '#9ca3af' }}>-</span>}
+                        {e.salary ? fmt(e.salary) : <span style={{ color: 'var(--ink-soft)' }}>-</span>}
                       </td>
                     </tr>
                   ))}
@@ -271,7 +271,7 @@ export default function Reports() {
 function KPICard({ label, value, color }) {
   return (
     <div className="card" style={{ padding: '16px 20px' }}>
-      <p style={{ margin: 0, fontSize: 12, color: '#6b7280', marginBottom: 4 }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>{label}</p>
       <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color }}>{value}</p>
     </div>
   );

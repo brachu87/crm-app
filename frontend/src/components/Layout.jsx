@@ -150,7 +150,7 @@ export default function Layout() {
             <button
               onClick={() => setDark(!dark)}
               style={{
-                background: dark ? 'var(--primary)' : '#e5e7eb',
+                background: dark ? 'var(--primary)' : 'var(--border)',
                 border: 'none',
                 borderRadius: 12,
                 width: 36,
@@ -168,7 +168,7 @@ export default function Layout() {
                 left: dark ? 18 : 2,
                 width: 16,
                 height: 16,
-                background: 'white',
+                background: dark ? '#e8e8e8' : 'white',
                 borderRadius: '50%',
                 transition: 'left .2s',
               }} />
@@ -190,36 +190,36 @@ function SearchDropdown({ results, onSelect }) {
   return (
     <div style={{
       position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 9999,
-      background: 'white', border: '1px solid #e5e7eb', borderRadius: 10,
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
       boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden',
       color: '#1f2937',
     }}>
       {clients.length > 0 && (
         <>
-          <div style={{ padding: '6px 12px', fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#f9fafb' }}>Clientes</div>
+          <div style={{ padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--bg)' }}>Clientes</div>
           {clients.map((c) => (
             <button key={c.id} onClick={() => onSelect(`/clientes/${c.id}`)}
               style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column' }}
-              onMouseOver={(e) => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg)'}
               onMouseOut={(e) => e.currentTarget.style.background = 'none'}
             >
               <span style={{ fontWeight: 600 }}>{c.name}</span>
-              {c.phone && <span style={{ fontSize: 12, color: '#9ca3af' }}>{c.phone}</span>}
+              {c.phone && <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{c.phone}</span>}
             </button>
           ))}
         </>
       )}
       {activities.length > 0 && (
         <>
-          <div style={{ padding: '6px 12px', fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#f9fafb' }}>Actividades</div>
+          <div style={{ padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--bg)' }}>Actividades</div>
           {activities.map((a) => (
             <button key={a.id} onClick={() => onSelect(`/actividades/${a.id}`)}
               style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid #f3f4f6' }}
-              onMouseOver={(e) => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg)'}
               onMouseOut={(e) => e.currentTarget.style.background = 'none'}
             >
               <span style={{ fontWeight: 600 }}>{a.name}</span>
-              {a.schedule && <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 6 }}>{a.schedule}</span>}
+              {a.schedule && <span style={{ fontSize: 12, color: 'var(--ink-soft)', marginLeft: 6 }}>{a.schedule}</span>}
             </button>
           ))}
         </>

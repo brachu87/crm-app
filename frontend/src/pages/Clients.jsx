@@ -81,7 +81,7 @@ export default function Clients() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, teléfono o email..."
-            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e5e7eb', width: 300, fontSize: 14 }}
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', width: 300, fontSize: 14 }}
           />
         </div>
       )}
@@ -101,7 +101,7 @@ export default function Clients() {
       ) : (
         <div className="card">
           {filtered.length === 0 ? (
-            <p style={{ color: '#9ca3af', padding: 8 }}>Sin resultados para "{search}"</p>
+            <p style={{ color: 'var(--ink-soft)', padding: 8 }}>Sin resultados para "{search}"</p>
           ) : (
             <div className="table-wrap"><table className="table">
               <thead>
@@ -117,7 +117,7 @@ export default function Clients() {
                   <tr key={c.id} style={{ opacity: c.active === false ? 0.5 : 1 }}>
                     <td>
                       <Link to={`/clientes/${c.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#6366f1' }}>
+                        <span style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#6366f1' }}>
                           <img
                             src={`/api/clients/${c.id}/photo`}
                             alt=""
@@ -220,7 +220,7 @@ function ImportModal({ onClose, onImported }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
         <h2>Importar clientes desde CSV</h2>
-        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
           El archivo debe tener columnas: <strong>nombre, telefono, email, notas</strong> (la primera fila es el encabezado).
         </p>
         {error && <div className="error-banner">{error}</div>}
@@ -238,16 +238,16 @@ function ImportModal({ onClose, onImported }) {
             </div>
             {preview.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
+                <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 8 }}>
                   {preview.length} clientes detectados — primeros 3:
                 </p>
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr>{['Nombre', 'Teléfono', 'Email'].map((h) => <th key={h} style={{ textAlign: 'left', padding: '3px 4px', color: '#9ca3af' }}>{h}</th>)}</tr>
+                    <tr>{['Nombre', 'Teléfono', 'Email'].map((h) => <th key={h} style={{ textAlign: 'left', padding: '3px 4px', color: 'var(--ink-soft)' }}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {preview.slice(0, 3).map((r, i) => (
-                      <tr key={i} style={{ borderTop: '1px solid #f3f4f6' }}>
+                      <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
                         <td style={{ padding: '3px 4px' }}>{r.name}</td>
                         <td style={{ padding: '3px 4px' }}>{r.phone || '-'}</td>
                         <td style={{ padding: '3px 4px' }}>{r.email || '-'}</td>

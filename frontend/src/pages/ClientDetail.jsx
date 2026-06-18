@@ -97,7 +97,7 @@ export default function ClientDetail() {
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <label style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Cambiar foto">
-            <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: '#9ca3af', border: '2px solid #e5e7eb' }}>
+            <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: 'var(--ink-soft)', border: '2px solid var(--border)' }}>
               <img
                 src={`/api/clients/${id}/photo?t=${photoTs}`}
                 alt=""
@@ -138,7 +138,7 @@ export default function ClientDetail() {
           {client.notes && <InfoField label="Notas" value={client.notes} />}
         </div>
         {(client.responsableName || client.responsablePhone) && (
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
             <p style={{ fontSize: 11, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, fontWeight: 700 }}>⚠️ Menor de edad — Adulto responsable</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
               {client.responsableName && <InfoField label="Nombre del responsable" value={client.responsableName} />}
@@ -147,8 +147,8 @@ export default function ClientDetail() {
           </div>
         )}
         {(client.emergencyContact || client.emergencyPhone || client.medicalNotes) && (
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
-            <p style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Emergencia y salud</p>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <p style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Emergencia y salud</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
               {client.emergencyContact && <InfoField label="Contacto de emergencia" value={client.emergencyContact} />}
               {client.emergencyPhone && <InfoField label="Teléfono de emergencia" value={client.emergencyPhone} />}
@@ -241,11 +241,11 @@ export default function ClientDetail() {
             <>
               <div style={{ display: 'flex', gap: 24, marginBottom: 16, flexWrap: 'wrap' }}>
                 <div>
-                  <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>Total pagado</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>Total pagado</p>
                   <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#10b981' }}>{formatMoney(totalPaid)}</p>
                 </div>
                 <div>
-                  <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>Cantidad de pagos</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>Cantidad de pagos</p>
                   <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{allPayments.length}</p>
                 </div>
               </div>
@@ -374,6 +374,13 @@ export default function ClientDetail() {
           onSaved={() => { setMovModal(false); loadAccount(); }}
         />
       )}
+      {editMontoEnrollment && (
+        <QuickEditMontoModal
+          enrollment={editMontoEnrollment}
+          onClose={() => setEditMontoEnrollment(null)}
+          onSaved={() => { setEditMontoEnrollment(null); load(); }}
+        />
+      )}
       {showEdit && (
         <ClientModal
           client={client}
@@ -429,7 +436,7 @@ function AccountStatement({ client, onClose }) {
 
           {/* Datos del cliente */}
           <div style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid #e5e7eb', paddingBottom: 6 }}>Datos del cliente</h3>
+            <h3 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>Datos del cliente</h3>
             <div className="two-col-grid" style={{ gap: '6px 20px', fontSize: 14 }}>
               <div><span style={{ color: '#666' }}>Nombre:</span> <strong>{client.name}</strong></div>
               {client.phone && <div><span style={{ color: '#666' }}>Teléfono:</span> {client.phone}</div>}
@@ -440,13 +447,13 @@ function AccountStatement({ client, onClose }) {
 
           {/* Inscripciones activas */}
           <div style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid #e5e7eb', paddingBottom: 6 }}>Inscripciones activas</h3>
+            <h3 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>Inscripciones activas</h3>
             {client.enrollments.length === 0 ? (
               <p style={{ fontSize: 14, color: '#666' }}>Sin inscripciones.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
-                  <tr style={{ background: '#f3f4f6' }}>
+                  <tr style={{ background: 'var(--bg)' }}>
                     <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 600 }}>Actividad</th>
                     <th style={{ textAlign: 'right', padding: '7px 10px', fontWeight: 600 }}>Cuota</th>
                     <th style={{ textAlign: 'right', padding: '7px 10px', fontWeight: 600 }}>Descuento</th>
@@ -460,7 +467,7 @@ function AccountStatement({ client, onClose }) {
                     const statusColor = { paid: '#16a34a', pending: '#b45309', overdue: '#dc2626' };
                     const statusText = { paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido' };
                     return (
-                      <tr key={e.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                      <tr key={e.id} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '7px 10px' }}>{e.activity.name}</td>
                         <td style={{ padding: '7px 10px', textAlign: 'right' }}>{formatMoney(e.amountDue)}</td>
                         <td style={{ padding: '7px 10px', textAlign: 'right', color: '#666' }}>
@@ -480,13 +487,13 @@ function AccountStatement({ client, onClose }) {
 
           {/* Historial de pagos */}
           <div style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid #e5e7eb', paddingBottom: 6 }}>Historial de pagos</h3>
+            <h3 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>Historial de pagos</h3>
             {allPayments.length === 0 ? (
               <p style={{ fontSize: 14, color: '#666' }}>Sin pagos registrados.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
-                  <tr style={{ background: '#f3f4f6' }}>
+                  <tr style={{ background: 'var(--bg)' }}>
                     <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 600 }}>Fecha</th>
                     <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 600 }}>Actividad</th>
                     <th style={{ textAlign: 'left', padding: '7px 10px', fontWeight: 600 }}>Método</th>
@@ -495,7 +502,7 @@ function AccountStatement({ client, onClose }) {
                 </thead>
                 <tbody>
                   {allPayments.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '7px 10px' }}>{formatDate(p.date)}</td>
                       <td style={{ padding: '7px 10px' }}>{p.activityName}</td>
                       <td style={{ padding: '7px 10px', color: '#666' }}>{p.method || '-'}</td>
@@ -508,7 +515,7 @@ function AccountStatement({ client, onClose }) {
           </div>
 
           {/* Resumen */}
-          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '14px 18px' }}>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 18px' }}>
             <h3 style={{ fontSize: 15, margin: '0 0 10px' }}>Resumen</h3>
             <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', fontSize: 14 }}>
               <div>
@@ -580,7 +587,7 @@ function QuickEditMontoModal({ enrollment, onClose, onSaved }) {
 function InfoField({ label, value }) {
   return (
     <div>
-      <p style={{ margin: 0, fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</p>
       <p style={{ margin: 0, fontSize: 14 }}>{value}</p>
     </div>
   );

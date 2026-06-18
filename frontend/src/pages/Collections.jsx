@@ -253,7 +253,7 @@ export default function Collections() {
         ))}
         {status === 'proximas' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>Vencen en</span>
+            <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Vencen en</span>
             {[7, 14, 30].map((d) => (
               <button
                 key={d}
@@ -491,7 +491,7 @@ function NewEnrollmentModal({ onClose, onSaved }) {
               <input type="checkbox" checked={form.bonificada} onChange={(e) => set('bonificada', e.target.checked)} style={{ width: 16, height: 16, accentColor: '#10b981' }} />
               <div>
                 <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Beca / Bonificación</p>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#9ca3af' }}>Actividad sin costo o con precio reducido</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>Actividad sin costo o con precio reducido</p>
               </div>
             </label>
             {form.bonificada && (

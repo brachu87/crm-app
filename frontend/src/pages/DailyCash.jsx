@@ -48,23 +48,23 @@ function HistorialTab() {
             <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left', padding: '4px 0', color: '#6b7280', fontWeight: 500 }}>Fecha</th>
-                  <th style={{ textAlign: 'right', padding: '4px 0', color: '#6b7280', fontWeight: 500 }}>Ingresos</th>
-                  <th style={{ textAlign: 'right', padding: '4px 0', color: '#6b7280', fontWeight: 500 }}>Gastos</th>
-                  <th style={{ textAlign: 'right', padding: '4px 0', color: '#6b7280', fontWeight: 500 }}>Balance</th>
-                  <th style={{ textAlign: 'right', padding: '4px 0', color: '#6b7280', fontWeight: 500 }}>Cierre</th>
+                  <th style={{ textAlign: 'left', padding: '4px 0', color: 'var(--ink-soft)', fontWeight: 500 }}>Fecha</th>
+                  <th style={{ textAlign: 'right', padding: '4px 0', color: 'var(--ink-soft)', fontWeight: 500 }}>Ingresos</th>
+                  <th style={{ textAlign: 'right', padding: '4px 0', color: 'var(--ink-soft)', fontWeight: 500 }}>Gastos</th>
+                  <th style={{ textAlign: 'right', padding: '4px 0', color: 'var(--ink-soft)', fontWeight: 500 }}>Balance</th>
+                  <th style={{ textAlign: 'right', padding: '4px 0', color: 'var(--ink-soft)', fontWeight: 500 }}>Cierre</th>
                 </tr>
               </thead>
               <tbody>
                 {mDays.map((d) => {
                   const bal = (d.cashRecord?.openingBalance || 0) + d.income - d.expenses;
                   return (
-                    <tr key={d.date} style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <tr key={d.date} style={{ borderTop: '1px solid var(--border)' }}>
                       <td style={{ padding: '6px 0' }}>{new Date(d.date + 'T00:00:00').toLocaleDateString('es-AR')}</td>
                       <td style={{ padding: '6px 0', textAlign: 'right', color: '#10b981' }}>{d.income > 0 ? fmt(d.income) : '-'}</td>
                       <td style={{ padding: '6px 0', textAlign: 'right', color: '#ef4444' }}>{d.expenses > 0 ? fmt(d.expenses) : '-'}</td>
                       <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 600 }}>{fmt(d.income - d.expenses)}</td>
-                      <td style={{ padding: '6px 0', textAlign: 'right', color: '#9ca3af' }}>
+                      <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--ink-soft)' }}>
                         {d.cashRecord?.closingBalance != null ? fmt(d.cashRecord.closingBalance) : '-'}
                       </td>
                     </tr>
@@ -127,8 +127,8 @@ export default function DailyCash() {
             onClick={() => setTab(key)}
             style={{
               padding: '7px 18px', borderRadius: 20, fontSize: 14, cursor: 'pointer', border: 'none',
-              background: tab === key ? 'var(--primary)' : '#f3f4f6',
-              color: tab === key ? 'white' : '#374151', fontWeight: 600,
+              background: tab === key ? 'var(--primary)' : 'var(--bg)',
+              color: tab === key ? 'white' : 'var(--ink)', fontWeight: 600,
             }}
           >
             {label}
@@ -145,26 +145,26 @@ export default function DailyCash() {
           {/* KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 24 }}>
             <div className="card" style={{ padding: '16px 20px' }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Saldo inicial</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>Saldo inicial</p>
               <p style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>
-                {data.cashRecord ? fmt(data.cashRecord.openingBalance) : <span style={{ color: '#9ca3af', fontSize: 14 }}>Sin abrir</span>}
+                {data.cashRecord ? fmt(data.cashRecord.openingBalance) : <span style={{ color: 'var(--ink-soft)', fontSize: 14 }}>Sin abrir</span>}
               </p>
             </div>
             <div className="card" style={{ padding: '16px 20px' }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Ingresos del día</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>Ingresos del día</p>
               <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#10b981' }}>{fmt(data.totalIncome)}</p>
             </div>
             <div className="card" style={{ padding: '16px 20px' }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Gastos del día</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>Gastos del día</p>
               <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#ef4444' }}>{fmt(data.totalExpenses)}</p>
             </div>
             <div className="card" style={{ padding: '16px 20px', background: balance >= 0 ? '#f0fdf4' : '#fef2f2' }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Saldo esperado</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>Saldo esperado</p>
               <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: balance >= 0 ? '#10b981' : '#ef4444' }}>{fmt(balance)}</p>
             </div>
             {data.cashRecord?.closingBalance != null && (
               <div className="card" style={{ padding: '16px 20px', background: diff === 0 ? '#f0fdf4' : '#fef3c7' }}>
-                <p style={{ margin: 0, fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Diferencia al cierre</p>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>Diferencia al cierre</p>
                 <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: diff === 0 ? '#10b981' : '#f59e0b' }}>
                   {diff >= 0 ? '+' : ''}{fmt(diff)}
                 </p>
@@ -189,21 +189,21 @@ export default function DailyCash() {
             <div className="card">
               <h3 style={{ marginBottom: 16 }}>Cobros del día ({data.payments.length})</h3>
               {data.payments.length === 0 ? (
-                <p style={{ color: '#9ca3af', fontSize: 14 }}>Sin cobros registrados hoy</p>
+                <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>Sin cobros registrados hoy</p>
               ) : (
                 <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Cliente</th>
-                      <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Actividad</th>
-                      <th style={{ textAlign: 'right', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Monto</th>
+                      <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Cliente</th>
+                      <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Actividad</th>
+                      <th style={{ textAlign: 'right', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Monto</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.payments.map((p) => (
-                      <tr key={p.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                      <tr key={p.id} style={{ borderTop: '1px solid var(--border)' }}>
                         <td style={{ padding: '7px 0' }}>{p.enrollment.client.name}</td>
-                        <td style={{ padding: '7px 0', color: '#6b7280' }}>{p.enrollment.activity.name}</td>
+                        <td style={{ padding: '7px 0', color: 'var(--ink-soft)' }}>{p.enrollment.activity.name}</td>
                         <td style={{ padding: '7px 0', textAlign: 'right', fontWeight: 600, color: '#10b981' }}>{fmt(p.amount)}</td>
                       </tr>
                     ))}
@@ -220,21 +220,21 @@ export default function DailyCash() {
             <div className="card">
               <h3 style={{ marginBottom: 16 }}>Gastos del día ({data.expenses.length})</h3>
               {data.expenses.length === 0 ? (
-                <p style={{ color: '#9ca3af', fontSize: 14 }}>Sin gastos registrados hoy</p>
+                <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>Sin gastos registrados hoy</p>
               ) : (
                 <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Descripción</th>
-                      <th style={{ textAlign: 'left', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Categoría</th>
-                      <th style={{ textAlign: 'right', paddingBottom: 8, color: '#6b7280', fontWeight: 500 }}>Monto</th>
+                      <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Descripción</th>
+                      <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Categoría</th>
+                      <th style={{ textAlign: 'right', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Monto</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.expenses.map((e) => (
-                      <tr key={e.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                      <tr key={e.id} style={{ borderTop: '1px solid var(--border)' }}>
                         <td style={{ padding: '7px 0' }}>{e.description || '-'}</td>
-                        <td style={{ padding: '7px 0', color: '#6b7280' }}>{e.category}</td>
+                        <td style={{ padding: '7px 0', color: 'var(--ink-soft)' }}>{e.category}</td>
                         <td style={{ padding: '7px 0', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>{fmt(e.amount)}</td>
                       </tr>
                     ))}

@@ -64,7 +64,7 @@ export default function Suppliers() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre o contacto..."
-            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e5e7eb', width: 280, fontSize: 14 }}
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', width: 280, fontSize: 14 }}
           />
         </div>
       )}
@@ -84,7 +84,7 @@ export default function Suppliers() {
       ) : (
         <div className="card">
           {filtered.length === 0 ? (
-            <p style={{ color: '#9ca3af', padding: 8 }}>Sin resultados para "{search}"</p>
+            <p style={{ color: 'var(--ink-soft)', padding: 8 }}>Sin resultados para "{search}"</p>
           ) : (
             <div className="table-wrap"><table className="table">
               <thead>
@@ -107,7 +107,7 @@ export default function Suppliers() {
                     <td>{s.email || '-'}</td>
                     <td>{s.cuit || '-'}</td>
                     <td>{s.category ? (
-                      <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#f3f4f6', color: '#374151' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }}>
                         {s.category}
                       </span>
                     ) : '-'}</td>
