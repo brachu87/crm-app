@@ -22,7 +22,6 @@ export default function ClientDetail() {
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [payModal, setPayModal] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showStatement, setShowStatement] = useState(false);
   const [bonModal, setBonModal] = useState(null);
@@ -76,16 +75,6 @@ export default function ClientDetail() {
       setPhotoTs(Date.now());
     } catch (err) {
       alert('No se pudo subir la foto');
-    }
-  }
-
-  async function registerPayment(enrollmentId, amount, method) {
-    try {
-      await api.post(`/enrollments/${enrollmentId}/pay`, { amount: Number(amount), method: method || undefined });
-      setPayModal(null);
-      load();
-    } catch {
-      setError('No se pudo registrar el pago');
     }
   }
 
@@ -214,11 +203,7 @@ export default function ClientDetail() {
                     )}
                   </td>
                   <td><span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span></td>
-                  <td>
-                    {e.paymentStatus !== 'paid' && (
-                      <button className="btn btn-secondary btn-sm" onClick={() => setPayModal(e)}>Registrar pago</button>
-                    )}
-                  </td>
+                  <td></td>
                 </tr>
               ))}
             </tbody>
@@ -353,13 +338,7 @@ export default function ClientDetail() {
         )}
       </div>
 
-      {payModal && (
-        <PayModal
-          enrollment={payModal}
-          onClose={() => setPayModal(null)}
-          onConfirm={registerPayment}
-        />
-      )}
+
       {bonModal && (
         <BonificacionModal
           enrollment={bonModal}
@@ -589,46 +568,6 @@ function InfoField({ label, value }) {
     <div>
       <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</p>
       <p style={{ margin: 0, fontSize: 14 }}>{value}</p>
-    </div>
-  );
-}
-
-function PayModal({ enrollment, onClose, onConfirm }) {
-  const [amount, setAmount] = useState(enrollment.amountDue);
-  const [method, setMethod] = useState('efectivo');
-  const [saving, setSaving] = useState(false);
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setSaving(true);
-    await onConfirm(enrollment.id, amount, method);
-    setSaving(false);
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Registrar pago — {enrollment.activity.name}</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="field">
-            <label>Monto</label>
-            <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-          </div>
-          <div className="field">
-            <label>Método</label>
-            <select value={method} onChange={(e) => setMethod(e.target.value)}>
-              <option value="efectivo">Efectivo</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="mercadopago">Mercado Pago</option>
-              <option value="tarjeta">Tarjeta</option>
-            </select>
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Confirmar pago'}</button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

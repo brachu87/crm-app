@@ -1,360 +1,187 @@
-import { useEffect, useState, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useEffect, useState, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
+import { AuthContext } from '../context/AuthContext';
 
+const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+const fmtDate = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
 const statusLabels = { paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido' };
 
-const filters = [
-  { value: '', label: 'Todos' },
-  { value: 'pending', label: 'Pendientes' },
-  { value: 'overdue', label: 'Vencidos' },
-  { value: 'paid', label: 'Pagados' },
-  { value: 'proximas', label: '⏰ Próximas a vencer' },
-];
-
-export const DEFAULT_TEMPLATES = [
-  {
-    id: 'cobranza',
-    name: 'Recordatorio de pago',
-    text: 'Hola {nombre}! Te recordamos que tenés pendiente el pago de {actividad} por {monto}. Vencimiento: {vencimiento}. Cualquier consulta estamos a disposición. ¡Gracias!',
-  },
-  {
-    id: 'vencido',
-    name: 'Cuota vencida',
-    text: 'Hola {nombre}! Tu cuota de {actividad} por {monto} se encuentra vencida desde el {vencimiento}. Te pedimos que regularices tu situación a la brevedad. ¡Gracias!',
-  },
-  {
-    id: 'previo',
-    name: 'Aviso previo al vencimiento',
-    text: 'Hola {nombre}! Te avisamos que tu cuota de {actividad} ({monto}) vence el {vencimiento}. ¡Gracias por tu puntualidad!',
-  },
-  {
-    id: 'generico',
-    name: 'Mensaje genérico',
-    text: 'Hola {nombre}! Queremos contactarte respecto a tu inscripción en {actividad}. ¡Escribinos cuando puedas!',
-  },
-];
-
-export function getTemplates() {
-  try {
-    const stored = localStorage.getItem('wa_templates');
-    return stored ? JSON.parse(stored) : DEFAULT_TEMPLATES;
-  } catch {
-    return DEFAULT_TEMPLATES;
-  }
-}
-
-function fillTemplate(text, vars) {
-  return text
-    .replace(/{nombre}/g, vars.nombre || '')
-    .replace(/{actividad}/g, vars.actividad || '')
-    .replace(/{monto}/g, vars.monto || '')
-    .replace(/{vencimiento}/g, vars.vencimiento || '');
-}
-
-function buildWaLink(phone, message) {
-  const cleaned = phone.replace(/\D/g, '');
-  const num = cleaned.startsWith('0')
-    ? '549' + cleaned.slice(1)
-    : cleaned.startsWith('54')
-    ? cleaned
-    : '549' + cleaned;
-  return `https://wa.me/${num}?text=${encodeURIComponent(message)}`;
-}
-
-function formatMoney(value) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value || 0);
-}
-
-function formatDate(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('es-AR');
-}
-
-function TemplateModal({ enrollment, onClose }) {
-  const templates = getTemplates();
-  const [selectedId, setSelectedId] = useState(templates[0]?.id);
-  const net = Math.max(0, enrollment.amountDue - (enrollment.discount || 0));
-
-  const vars = {
-    nombre: enrollment.client.name,
-    actividad: enrollment.activity.name,
-    monto: formatMoney(net),
-    vencimiento: formatDate(enrollment.dueDate),
-  };
-
-  const selected = templates.find((t) => t.id === selectedId) || templates[0];
-  const preview = selected ? fillTemplate(selected.text, vars) : '';
-  const waHref = buildWaLink(enrollment.client.phone, preview);
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ width: 480 }} onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ marginBottom: 4 }}>Enviar por WhatsApp</h2>
-        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
-          Para <strong>{enrollment.client.name}</strong> — {enrollment.activity.name}
-        </p>
-
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-soft)', display: 'block', marginBottom: 6 }}>
-            Plantilla
-          </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {templates.map((t) => (
-              <label
-                key={t.id}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
-                  padding: '10px 12px', borderRadius: 8, border: `1px solid ${selectedId === t.id ? 'var(--primary)' : 'var(--border)'}`,
-                  background: selectedId === t.id ? 'var(--primary-soft)' : 'var(--surface)',
-                  transition: 'all .15s',
-                }}
-              >
-                <input
-                  type="radio"
-                  name="template"
-                  value={t.id}
-                  checked={selectedId === t.id}
-                  onChange={() => setSelectedId(t.id)}
-                  style={{ marginTop: 2, accentColor: 'var(--primary)' }}
-                />
-                <div>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>{t.name}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>
-                    {t.text.slice(0, 70)}{t.text.length > 70 ? '…' : ''}
-                  </p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-soft)', display: 'block', marginBottom: 6 }}>
-            Vista previa del mensaje
-          </label>
-          <div style={{
-            background: '#dcfce7', borderRadius: 10, padding: '12px 14px', fontSize: 13,
-            lineHeight: 1.5, color: '#14532d', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-          }}>
-            {preview}
-          </div>
-        </div>
-
-        <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-          <a
-            href={waHref}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-primary"
-            onClick={onClose}
-            style={{ textDecoration: 'none' }}
-          >
-            💬 Abrir WhatsApp
-          </a>
-        </div>
-      </div>
-    </div>
-  );
+function getWaTemplates() {
+  try { return JSON.parse(localStorage.getItem('wa_templates')) || []; } catch { return []; }
 }
 
 export default function Collections() {
   const [enrollments, setEnrollments] = useState([]);
-  const [status, setStatus] = useState('pending');
-  const [dias, setDias] = useState(7);
   const [loading, setLoading] = useState(true);
-  const [renewing, setRenewing] = useState(false);
-  const [renewMsg, setRenewMsg] = useState('');
-  const [waModal, setWaModal] = useState(null);
-  const [showNew, setShowNew] = useState(false);
+  const [search, setSearch] = useState('');
+  const [cobrarModal, setCobrarModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
+  const [waModal, setWaModal] = useState(null);
   const [recibo, setRecibo] = useState(null);
+  const [expanded, setExpanded] = useState({});
   const { business } = useContext(AuthContext);
 
   function load() {
     setLoading(true);
-    const apiStatus = status === 'proximas' ? 'pending' : status;
-    const query = apiStatus ? `?status=${apiStatus}` : '';
-    api.get(`/enrollments${query}`).then((res) => setEnrollments(res.data)).finally(() => setLoading(false));
+    // fetch pending + overdue
+    Promise.all([
+      api.get('/enrollments?status=pending'),
+      api.get('/enrollments?status=overdue'),
+    ]).then(([p, o]) => {
+      const all = [...p.data, ...o.data];
+      // deduplicate by id
+      const seen = new Set();
+      setEnrollments(all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }));
+    }).finally(() => setLoading(false));
   }
 
-  useEffect(load, [status]);
+  useEffect(() => { load(); }, []);
 
-  async function handleRenewMonth() {
-    if (!confirm('¿Renovar el mes? Esto marcará todas las cuotas pagadas como pendientes para el mes siguiente.')) return;
-    setRenewing(true);
-    setRenewMsg('');
-    try {
-      const res = await api.post('/enrollments/renew-month');
-      setRenewMsg(`✓ ${res.data.message}`);
-      load();
-    } catch (err) {
-      setRenewMsg('Error al renovar: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setRenewing(false);
-    }
+  // Group by client
+  const grouped = useMemo(() => {
+    const map = {};
+    enrollments.forEach(e => {
+      if (!e.active) return;
+      const cid = e.clientId;
+      if (!map[cid]) map[cid] = { client: e.client, enrollments: [], total: 0 };
+      const net = Math.max(0, (e.amountDue || 0) - (e.discount || 0));
+      map[cid].enrollments.push({ ...e, net });
+      map[cid].total += net;
+    });
+    return Object.values(map).filter(g => g.enrollments.length > 0);
+  }, [enrollments]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return grouped;
+    const q = search.toLowerCase();
+    return grouped.filter(g => g.client?.name?.toLowerCase().includes(q) || g.client?.dni?.includes(q));
+  }, [grouped, search]);
+
+  const totalGeneral = filtered.reduce((s, g) => s + g.total, 0);
+
+  function toggleExpand(cid) {
+    setExpanded(prev => ({ ...prev, [cid]: !prev[cid] }));
   }
-
-  // Filter for proximas a vencer
-  const displayEnrollments = status === 'proximas'
-    ? enrollments.filter((e) => {
-        if (!e.dueDate) return false;
-        const due = new Date(e.dueDate);
-        const now = new Date();
-        const limit = new Date();
-        limit.setDate(limit.getDate() + dias);
-        return due >= now && due <= limit;
-      })
-    : enrollments;
-
-  const totalDeuda = enrollments
-    .filter((e) => e.paymentStatus !== 'paid')
-    .reduce((s, e) => s + Math.max(0, e.amountDue - (e.discount || 0)), 0);
 
   return (
-    <div>
+    <div className="page">
       <div className="page-header">
         <div>
           <h1>Cobranza</h1>
-          <p className="page-subtitle">Quién te debe y quién está al día</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-primary" onClick={() => setShowNew(true)}>+ Nueva cobranza</button>
-          <button
-            className="btn btn-secondary"
-            onClick={handleRenewMonth}
-            disabled={renewing}
-            title="Marca todas las cuotas pagadas como pendientes para el mes siguiente"
-          >
-            {renewing ? 'Renovando...' : '↻ Renovar mes'}
-          </button>
+          <p className="page-subtitle">
+            {filtered.length} {filtered.length === 1 ? 'cliente' : 'clientes'} con deuda · Total: <strong>{fmt(totalGeneral)}</strong>
+          </p>
         </div>
       </div>
 
-      {renewMsg && (
-        <div style={{
-          background: renewMsg.startsWith('✓') ? '#f0fdf4' : '#fef2f2',
-          border: `1px solid ${renewMsg.startsWith('✓') ? '#bbf7d0' : '#fecaca'}`,
-          color: renewMsg.startsWith('✓') ? '#166534' : '#991b1b',
-          borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 14,
-        }}>
-          {renewMsg}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-        {filters.map((f) => (
-          <button
-            key={f.value}
-            className={`btn btn-sm ${status === f.value ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setStatus(f.value)}
-          >
-            {f.label}
-          </button>
-        ))}
-        {status === 'proximas' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-            <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Vencen en</span>
-            {[7, 14, 30].map((d) => (
-              <button
-                key={d}
-                className={`btn btn-sm ${dias === d ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setDias(d)}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-        )}
-        {totalDeuda > 0 && (
-          <span style={{ marginLeft: 'auto', fontSize: 14, color: '#dc2626', fontWeight: 600 }}>
-            Total a cobrar: {formatMoney(totalDeuda)}
-          </span>
-        )}
+      {/* Search */}
+      <div style={{ marginBottom: 16 }}>
+        <input
+          className="field-input"
+          style={{ maxWidth: 320 }}
+          placeholder="Buscar cliente…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
       </div>
 
-      <div className="card">
-        {loading ? (
-          <p>Cargando...</p>
-        ) : displayEnrollments.length === 0 ? (
-          <div className="empty-state">
-            <h3>Nada por aquí</h3>
-            <p>{status === 'proximas' ? `No hay cuotas que venzan en los próximos ${dias} días.` : 'No hay inscripciones con este estado.'}</p>
-          </div>
-        ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Actividad</th>
-                <th>Cuota</th>
-                <th>Descuento</th>
-                <th>A cobrar</th>
-                <th>Vence</th>
-                <th>Estado</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayEnrollments.map((e) => {
-                const net = Math.max(0, e.amountDue - (e.discount || 0));
-                const phone = e.client.phone;
-                return (
-                  <tr key={e.id}>
-                    <td><Link to={`/clientes/${e.clientId}`}>{e.client.name}</Link></td>
-                    <td><Link to={`/actividades/${e.activityId}`}>{e.activity.name}</Link></td>
-                    <td>{formatMoney(e.amountDue)}</td>
-                    <td>{e.discount > 0 ? <span style={{ color: '#10b981', fontSize: 12 }}>-{formatMoney(e.discount)}</span> : '-'}</td>
-                    <td style={{ fontWeight: 600 }}>{formatMoney(net)}</td>
-                    <td style={{ color: e.paymentStatus === 'overdue' ? '#dc2626' : 'inherit' }}>{formatDate(e.dueDate)}</td>
-                    <td><span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span></td>
-                    <td style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                      {phone && e.paymentStatus !== 'paid' && (
-                        <button
-                          onClick={() => setWaModal(e)}
-                          title="Enviar mensaje por WhatsApp"
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 4,
-                            padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                            background: '#dcfce7', color: '#166534', border: 'none', cursor: 'pointer',
-                          }}
-                        >
-                          💬 WA
-                        </button>
+      {loading ? (
+        <p>Cargando...</p>
+      ) : filtered.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--ink-soft)' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+          <p style={{ fontSize: 17 }}>{search ? 'No hay resultados.' : '¡No hay deudas pendientes!'}</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(g => {
+            const cid = g.client.id;
+            const isOpen = expanded[cid] !== false; // default open
+            const overdue = g.enrollments.some(e => e.paymentStatus === 'overdue');
+            return (
+              <div key={cid} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                {/* Client header row */}
+                <div
+                  onClick={() => toggleExpand(cid)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', cursor: 'pointer', gap: 12 }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <span style={{ fontSize: 20 }}>{isOpen ? '▾' : '▸'}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <Link
+                          to={`/clientes/${cid}`}
+                          style={{ fontWeight: 700, fontSize: 16 }}
+                          onClick={e => e.stopPropagation()}
+                        >{g.client.name}</Link>
+                        {overdue && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', fontSize: 12 }}>Vencido</span>}
+                      </div>
+                      {g.client.phone && (
+                        <a
+                          href={`https://wa.me/${g.client.phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: 13, color: '#25d366' }}
+                          onClick={e => e.stopPropagation()}
+                        >📱 WhatsApp</a>
                       )}
-                      <button
-                        onClick={() => setEditModal(e)}
-                        className="btn btn-secondary btn-sm"
-                        style={{ fontSize: 12 }}
-                      >
-                        Editar
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table></div>
-        )}
-      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 18, color: overdue ? '#dc2626' : 'var(--ink)' }}>{fmt(g.total)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{g.enrollments.length} {g.enrollments.length === 1 ? 'cuota' : 'cuotas'}</div>
+                  </div>
+                </div>
 
-      {waModal && (
-        <TemplateModal enrollment={waModal} onClose={() => setWaModal(null)} />
+                {/* Enrollments detail */}
+                {isOpen && (
+                  <div style={{ borderTop: '1px solid var(--border)' }}>
+                    {g.enrollments.map(e => (
+                      <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px 12px 40px', borderBottom: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 15 }}>{e.activity?.name}</div>
+                          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
+                            Vence: {fmtDate(e.dueDate)}
+                            {e.discount > 0 && <span style={{ marginLeft: 8, color: '#6366f1' }}>Desc: {fmt(e.discount)}</span>}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                          <span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span>
+                          <strong style={{ fontSize: 16, minWidth: 80, textAlign: 'right' }}>{fmt(e.net)}</strong>
+                          <button className="btn btn-sm btn-secondary" onClick={() => setEditModal(e)} title="Editar cuota">✏️</button>
+                          {g.client.phone && (
+                            <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} onClick={() => setWaModal(e)} title="WhatsApp">📱</button>
+                          )}
+                          <button className="btn btn-sm btn-primary" onClick={() => setCobrarModal(e)}>Cobrar</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
-      {showNew && (
-        <NewEnrollmentModal
-          onClose={() => setShowNew(false)}
-          onSaved={(data) => { setShowNew(false); load(); if (data?.paymentStatus === 'paid') setRecibo(data); }}
+
+      {cobrarModal && (
+        <CobrarModal
+          enrollment={cobrarModal}
+          business={business}
+          onClose={() => setCobrarModal(null)}
+          onSaved={(data) => { setCobrarModal(null); load(); if (data) setRecibo(data); }}
         />
       )}
       {editModal && (
-        <EditEnrollmentModal
+        <EditCuotaModal
           enrollment={editModal}
           onClose={() => setEditModal(null)}
-          onSaved={(data) => { setEditModal(null); load(); if (data?.paymentStatus === 'paid') setRecibo(data); }}
+          onSaved={() => { setEditModal(null); load(); }}
         />
+      )}
+      {waModal && (
+        <WaModal enrollment={waModal} onClose={() => setWaModal(null)} />
       )}
       {recibo && (
         <ReciboModal recibo={recibo} business={business} onClose={() => setRecibo(null)} />
@@ -363,254 +190,48 @@ export default function Collections() {
   );
 }
 
-function NewEnrollmentModal({ onClose, onSaved }) {
-  const [clients, setClients] = useState([]);
-  const [activities, setActivities] = useState([]);
-  const [form, setForm] = useState({
-    clientId: '',
-    activityId: '',
-    amountDue: '',
-    discount: '',
-    startDate: new Date().toISOString().slice(0, 10),
-    dueDate: (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })(),
-    paymentStatus: 'pending',
-    metodoPago: 'Efectivo',
-    bonificada: false,
-    sinLimite: true,
-    bonHasta: '',
-  });
-  const [error, setError] = useState('');
+/* ── Cobrar Modal ──────────────────────────────────────────────── */
+function CobrarModal({ enrollment, business, onClose, onSaved }) {
+  const net = Math.max(0, (enrollment.amountDue || 0) - (enrollment.discount || 0));
+  const [monto, setMonto] = useState(net);
+  const [metodoPago, setMetodoPago] = useState('Efectivo');
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    api.get('/clients').then((r) => setClients(r.data)).catch(() => {});
-    api.get('/activities').then((r) => setActivities(r.data)).catch(() => {});
-  }, []);
-
-  // Auto-fill price when activity is selected
-  function handleActivityChange(actId) {
-    const act = activities.find((a) => a.id === actId);
-    setForm((f) => ({ ...f, activityId: actId, amountDue: act ? String(act.price) : f.amountDue }));
-  }
-
-  function set(field, value) {
-    if (field === 'startDate' && value) {
-      const d = new Date(value + 'T12:00:00');
-      d.setMonth(d.getMonth() + 1);
-      d.setDate(d.getDate() - 1);
-      setForm((f) => ({ ...f, startDate: value, dueDate: d.toISOString().slice(0, 10) }));
-    } else {
-      setForm((f) => ({ ...f, [field]: value }));
-    }
-  }
+  const [error, setError] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
-    if (!form.clientId || !form.activityId || !form.amountDue) {
-      return setError('Cliente, actividad y monto son obligatorios');
-    }
     setSaving(true);
+    setError('');
     try {
-      const res = await api.post('/enrollments', {
-        clientId: form.clientId,
-        activityId: form.activityId,
-        amountDue: parseFloat(form.amountDue),
-        discount: form.discount ? parseFloat(form.discount) : 0,
-        startDate: form.startDate || null,
-        dueDate: form.dueDate || null,
-        paymentStatus: form.paymentStatus,
-        bonificada: form.bonificada,
-        bonificadaHasta: form.bonificada && !form.sinLimite && form.bonHasta ? form.bonHasta : null,
-      });
-      const clientObj = clients.find(cl => cl.id === form.clientId);
-      const actObj = activities.find(a => a.id === form.activityId);
-      onSaved({ ...res.data, client: clientObj, activity: actObj, metodoPago: form.metodoPago });
+      await api.patch(`/enrollments/${enrollment.id}`, { paymentStatus: 'paid' });
+      onSaved({ ...enrollment, paymentStatus: 'paid', metodoPago, amountDue: Number(monto) });
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al crear la cobranza');
-    } finally {
+      setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);
     }
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
-        <h2>Nueva cobranza</h2>
-        {error && <div className="error-banner">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="field">
-            <label>Cliente *</label>
-            <select value={form.clientId} onChange={(e) => set('clientId', e.target.value)} required>
-              <option value="">Seleccioná un cliente...</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>Actividad *</label>
-            <select value={form.activityId} onChange={(e) => handleActivityChange(e.target.value)} required>
-              <option value="">Seleccioná una actividad...</option>
-              {activities.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="two-col-grid">
-            <div className="field">
-              <label>Monto *</label>
-              <input
-                type="number" min="0" step="0.01"
-                value={form.amountDue}
-                onChange={(e) => set('amountDue', e.target.value)}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Descuento</label>
-              <input
-                type="number" min="0" step="0.01"
-                value={form.discount}
-                onChange={(e) => set('discount', e.target.value)}
-                placeholder="0"
-              />
-            </div>
-          </div>
-          <div className="two-col-grid">
-            <div className="field">
-              <label>Inicio de membresía</label>
-              <input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
-            </div>
-            <div className="field">
-              <label>Vencimiento</label>
-              <input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
-            </div>
-          </div>
-          <div className="field">
-            <label>Estado</label>
-            <select value={form.paymentStatus} onChange={(e) => set('paymentStatus', e.target.value)}>
-              <option value="pending">Pendiente</option>
-              <option value="paid">Pagado</option>
-              <option value="overdue">Vencido</option>
-            </select>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 12px', borderRadius: 10, border: `2px solid ${form.bonificada ? '#10b981' : 'var(--border)'}`, background: form.bonificada ? '#f0fdf4' : 'var(--surface)', transition: 'all .15s' }}>
-              <input type="checkbox" checked={form.bonificada} onChange={(e) => set('bonificada', e.target.checked)} style={{ width: 16, height: 16, accentColor: '#10b981' }} />
-              <div>
-                <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Beca / Bonificación</p>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>Actividad sin costo o con precio reducido</p>
-              </div>
-            </label>
-            {form.bonificada && (
-              <div style={{ marginTop: 10, paddingLeft: 4 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 14 }}>
-                  <input type="checkbox" checked={form.sinLimite} onChange={(e) => set('sinLimite', e.target.checked)} style={{ width: 15, height: 15, accentColor: '#6366f1' }} />
-                  Sin tiempo determinado
-                </label>
-                {!form.sinLimite && (
-                  <div className="field" style={{ marginBottom: 0 }}>
-                    <label>Beca hasta</label>
-                    <input type="date" value={form.bonHasta} onChange={(e) => set('bonHasta', e.target.value)} required={!form.sinLimite} />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando...' : 'Crear cobranza'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    amountDue: enrollment.amountDue ?? '',
-    discount: enrollment.discount ?? 0,
-    startDate: enrollment.startDate ? enrollment.startDate.slice(0, 10) : '',
-    dueDate: enrollment.dueDate ? enrollment.dueDate.slice(0, 10) : '',
-    paymentStatus: enrollment.paymentStatus || 'pending',
-    metodoPago: 'Efectivo',
-  });
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  function set(field, value) { setForm((f) => ({ ...f, [field]: value })); }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError('');
-    setSaving(true);
-    try {
-      await api.patch(`/enrollments/${enrollment.id}`, {
-        amountDue: Number(form.amountDue),
-        discount: Number(form.discount) || 0,
-        startDate: form.startDate || undefined,
-        dueDate: form.dueDate || undefined,
-        paymentStatus: form.paymentStatus,
-      });
-      onSaved({ ...enrollment, amountDue: Number(form.amountDue), discount: Number(form.discount) || 0, startDate: form.startDate, dueDate: form.dueDate, paymentStatus: form.paymentStatus, metodoPago: form.metodoPago });
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo guardar');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const net = Math.max(0, Number(form.amountDue) - Number(form.discount || 0));
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
-        <h2>Editar cuota</h2>
-        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h2>Registrar cobro</h2>
+        <p style={{ color: 'var(--ink-soft)', marginBottom: 16, fontSize: 15 }}>
           <strong>{enrollment.client?.name}</strong> — {enrollment.activity?.name}
         </p>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
-          <div className="two-col-grid">
-            <div className="field">
-              <label>Cuota ($)</label>
-              <input type="number" min="0" step="0.01" value={form.amountDue} onChange={(e) => set('amountDue', e.target.value)} required />
-            </div>
-            <div className="field">
-              <label>Descuento ($)</label>
-              <input type="number" min="0" step="0.01" value={form.discount} onChange={(e) => set('discount', e.target.value)} />
-            </div>
-          </div>
-          {Number(form.discount) > 0 && (
-            <p style={{ fontSize: 13, color: '#6366f1', marginBottom: 10 }}>
-              A cobrar: <strong>${net.toLocaleString('es-AR')}</strong>
-            </p>
-          )}
-          <div className="two-col-grid">
-            <div className="field">
-              <label>Inicio de membresía</label>
-              <input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
-            </div>
-            <div className="field">
-              <label>Vencimiento</label>
-              <input type="date" value={form.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
-            </div>
-          </div>
           <div className="field">
-            <label>Estado</label>
-            <select value={form.paymentStatus} onChange={(e) => set('paymentStatus', e.target.value)}>
-              <option value="pending">Pendiente</option>
-              <option value="paid">Pagado</option>
-              <option value="overdue">Vencido</option>
-            </select>
+            <label>Monto a cobrar ($)</label>
+            <input type="number" min="0" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} required />
+            {enrollment.discount > 0 && (
+              <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
+                Cuota: {fmt(enrollment.amountDue)} · Descuento: {fmt(enrollment.discount)}
+              </span>
+            )}
           </div>
           <div className="field">
             <label>Forma de pago</label>
-            <select value={form.metodoPago} onChange={(e) => set('metodoPago', e.target.value)}>
+            <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
               <option>Efectivo</option>
               <option>Transferencia</option>
               <option>Tarjeta débito</option>
@@ -619,11 +240,11 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
               <option>Cheque</option>
             </select>
           </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando...' : 'Guardar cambios'}
+              {saving ? 'Guardando…' : '✅ Confirmar cobro'}
             </button>
+            <button type="button" className="btn" onClick={onClose}>Cancelar</button>
           </div>
         </form>
       </div>
@@ -631,9 +252,138 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
   );
 }
 
+/* ── Editar cuota (solo montos/fechas, no estado) ──────────────── */
+function EditCuotaModal({ enrollment, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    amountDue: enrollment.amountDue ?? '',
+    discount: enrollment.discount ?? 0,
+    startDate: enrollment.startDate ? enrollment.startDate.slice(0, 10) : '',
+    dueDate: enrollment.dueDate ? enrollment.dueDate.slice(0, 10) : '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      await api.patch(`/enrollments/${enrollment.id}`, {
+        amountDue: Number(form.amountDue),
+        discount: Number(form.discount) || 0,
+        startDate: form.startDate || undefined,
+        dueDate: form.dueDate || undefined,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo guardar');
+      setSaving(false);
+    }
+  }
+
+  const net = Math.max(0, Number(form.amountDue) - Number(form.discount || 0));
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h2>Editar cuota</h2>
+        <p style={{ color: 'var(--ink-soft)', marginBottom: 16, fontSize: 15 }}>
+          <strong>{enrollment.client?.name}</strong> — {enrollment.activity?.name}
+        </p>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="two-col-grid">
+            <div className="field">
+              <label>Cuota ($)</label>
+              <input type="number" min="0" step="0.01" value={form.amountDue} onChange={e => set('amountDue', e.target.value)} required />
+            </div>
+            <div className="field">
+              <label>Descuento ($)</label>
+              <input type="number" min="0" step="0.01" value={form.discount} onChange={e => set('discount', e.target.value)} />
+            </div>
+          </div>
+          {Number(form.discount) > 0 && (
+            <p style={{ fontSize: 13, color: '#6366f1', marginBottom: 10 }}>A cobrar: <strong>{fmt(net)}</strong></p>
+          )}
+          <div className="two-col-grid">
+            <div className="field">
+              <label>Inicio de membresía</label>
+              <input type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Vencimiento</label>
+              <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
+            <button type="button" className="btn" onClick={onClose}>Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ── WhatsApp template modal ───────────────────────────────────── */
+function WaModal({ enrollment, onClose }) {
+  const templates = getWaTemplates();
+  const e = enrollment;
+  const fmt2 = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+  const net = Math.max(0, (e.amountDue || 0) - (e.discount || 0));
+  const fmtD = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
+
+  function buildMsg(tpl) {
+    return tpl.text
+      .replace('{nombre}', e.client?.name || '')
+      .replace('{actividad}', e.activity?.name || '')
+      .replace('{monto}', fmt2(net))
+      .replace('{vencimiento}', fmtD(e.dueDate));
+  }
+
+  const defaultMsg = `Hola ${e.client?.name}! Te recordamos que tenés pendiente el pago de ${e.activity?.name} por ${fmt2(net)}. Vencimiento: ${fmtD(e.dueDate)}. ¡Gracias!`;
+  const phone = e.client?.phone?.replace(/\D/g, '');
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={ev => ev.stopPropagation()}>
+        <h2>Mensaje WhatsApp</h2>
+        <p style={{ color: 'var(--ink-soft)', marginBottom: 12, fontSize: 14 }}>
+          {e.client?.name} — {e.activity?.name}
+        </p>
+        {templates.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {templates.filter(t => t.id === 'cobranza' || t.id?.startsWith('custom')).map(t => (
+              <div key={t.id} className="card" style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 6 }}>{t.name}</div>
+                <p style={{ fontSize: 14, margin: '0 0 10px' }}>{buildMsg(t)}</p>
+                <a href={`https://wa.me/${phone}?text=${encodeURIComponent(buildMsg(t))}`} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ background: '#25d366', color: '#fff', border: 'none' }}>
+                  Enviar por WhatsApp
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: 14, marginBottom: 12 }}>{defaultMsg}</p>
+            <a href={`https://wa.me/${phone}?text=${encodeURIComponent(defaultMsg)}`} target="_blank" rel="noreferrer" className="btn btn-primary">
+              Enviar por WhatsApp
+            </a>
+          </div>
+        )}
+        <div style={{ marginTop: 16 }}>
+          <button className="btn" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Recibo de pago ────────────────────────────────────────────── */
 function ReciboModal({ recibo, business, onClose }) {
-  const formatMoney = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
-  const formatDate = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
+  const fmtR = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+  const fmtD = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
   const net = Math.max(0, (recibo.amountDue || 0) - (recibo.discount || 0));
   const nroRecibo = `${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${recibo.id?.slice(-5).toUpperCase()}`;
   const token = localStorage.getItem('token');
@@ -641,7 +391,6 @@ function ReciboModal({ recibo, business, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal recibo-modal" onClick={e => e.stopPropagation()}>
-        {/* Screen header */}
         <div className="recibo-screen-header">
           <h2 style={{ margin: 0 }}>Recibo de pago</h2>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -649,17 +398,10 @@ function ReciboModal({ recibo, business, onClose }) {
             <button className="btn" onClick={onClose}>Cerrar</button>
           </div>
         </div>
-
-        {/* Printable area */}
-        <div className="recibo-print-area" id="recibo-content">
+        <div className="recibo-print-area">
           <div className="recibo-header">
             <div className="recibo-logo-block">
-              <img
-                src={`/api/business/logo?token=${token}&t=${Date.now()}`}
-                alt=""
-                className="recibo-logo"
-                onError={e => { e.target.style.display = 'none' }}
-              />
+              <img src={`/api/business/logo?token=${token}&t=${Date.now()}`} alt="" className="recibo-logo" onError={e => { e.target.style.display='none' }} />
               <div>
                 <div className="recibo-business-name">{business?.name || 'Mi negocio'}</div>
                 {business?.phone && <div className="recibo-business-sub">{business.phone}</div>}
@@ -668,72 +410,29 @@ function ReciboModal({ recibo, business, onClose }) {
             <div style={{ textAlign: 'right' }}>
               <div className="recibo-title">RECIBO</div>
               <div className="recibo-nro">N° {nroRecibo}</div>
-              <div className="recibo-date">Fecha: {formatDate(new Date().toISOString().slice(0,10))}</div>
+              <div className="recibo-date">Fecha: {fmtD(new Date().toISOString().slice(0,10))}</div>
             </div>
           </div>
-
           <div className="recibo-divider" />
-
           <div className="recibo-section">
-            <div className="recibo-row">
-              <span className="recibo-label">Socio / Cliente</span>
-              <span className="recibo-value">{recibo.client?.name || '-'}</span>
-            </div>
-            {recibo.client?.dni && (
-              <div className="recibo-row">
-                <span className="recibo-label">DNI</span>
-                <span className="recibo-value">{recibo.client.dni}</span>
-              </div>
-            )}
-            <div className="recibo-row">
-              <span className="recibo-label">Actividad / Servicio</span>
-              <span className="recibo-value">{recibo.activity?.name || '-'}</span>
-            </div>
-            <div className="recibo-row">
-              <span className="recibo-label">Período</span>
-              <span className="recibo-value">{formatDate(recibo.startDate)} – {formatDate(recibo.dueDate)}</span>
-            </div>
-            <div className="recibo-row">
-              <span className="recibo-label">Forma de pago</span>
-              <span className="recibo-value">{recibo.metodoPago || 'Efectivo'}</span>
-            </div>
+            <div className="recibo-row"><span className="recibo-label">Socio / Cliente</span><span className="recibo-value">{recibo.client?.name || '-'}</span></div>
+            {recibo.client?.dni && <div className="recibo-row"><span className="recibo-label">DNI</span><span className="recibo-value">{recibo.client.dni}</span></div>}
+            <div className="recibo-row"><span className="recibo-label">Actividad / Servicio</span><span className="recibo-value">{recibo.activity?.name || '-'}</span></div>
+            <div className="recibo-row"><span className="recibo-label">Período</span><span className="recibo-value">{fmtD(recibo.startDate)} – {fmtD(recibo.dueDate)}</span></div>
+            <div className="recibo-row"><span className="recibo-label">Forma de pago</span><span className="recibo-value">{recibo.metodoPago || 'Efectivo'}</span></div>
           </div>
-
           <div className="recibo-divider" />
-
           <div className="recibo-montos">
-            <div className="recibo-row">
-              <span className="recibo-label">Cuota</span>
-              <span className="recibo-value">{formatMoney(recibo.amountDue)}</span>
-            </div>
-            {(recibo.discount > 0) && (
-              <div className="recibo-row">
-                <span className="recibo-label">Descuento</span>
-                <span className="recibo-value" style={{ color: '#10b981' }}>- {formatMoney(recibo.discount)}</span>
-              </div>
-            )}
-            <div className="recibo-row recibo-total">
-              <span>TOTAL ABONADO</span>
-              <span>{formatMoney(net)}</span>
-            </div>
+            <div className="recibo-row"><span className="recibo-label">Cuota</span><span className="recibo-value">{fmtR(recibo.amountDue)}</span></div>
+            {recibo.discount > 0 && <div className="recibo-row"><span className="recibo-label">Descuento</span><span className="recibo-value" style={{ color: '#10b981' }}>- {fmtR(recibo.discount)}</span></div>}
+            <div className="recibo-row recibo-total"><span>TOTAL ABONADO</span><span>{fmtR(net)}</span></div>
           </div>
-
           <div className="recibo-divider" />
-
           <div className="recibo-firmas">
-            <div className="recibo-firma-box">
-              <div className="recibo-firma-line" />
-              <div className="recibo-firma-label">Firma y sello</div>
-            </div>
-            <div className="recibo-firma-box">
-              <div className="recibo-firma-line" />
-              <div className="recibo-firma-label">Recibí conforme</div>
-            </div>
+            <div className="recibo-firma-box"><div className="recibo-firma-line" /><div className="recibo-firma-label">Firma y sello</div></div>
+            <div className="recibo-firma-box"><div className="recibo-firma-line" /><div className="recibo-firma-label">Recibí conforme</div></div>
           </div>
-
-          <div className="recibo-footer">
-            Este recibo es comprobante válido de pago.
-          </div>
+          <div className="recibo-footer">Este recibo es comprobante válido de pago.</div>
         </div>
       </div>
     </div>
