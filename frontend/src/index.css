@@ -1400,3 +1400,140 @@ input, select, textarea { font-family: var(--font-body); }
   .day-full { display: none; }
   .day-short { display: inline; }
 }
+
+/* ── Recibo de pago ───────────────────────────────────────────── */
+.recibo-modal {
+  max-width: 560px !important;
+  width: min(560px, calc(100vw - 32px)) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+.recibo-screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.recibo-print-area {
+  padding: 28px 32px;
+  background: #fff;
+  color: #111;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+.recibo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.recibo-logo-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.recibo-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+.recibo-business-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #111;
+}
+.recibo-business-sub {
+  font-size: 13px;
+  color: #555;
+  margin-top: 2px;
+}
+.recibo-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #111;
+}
+.recibo-nro {
+  font-size: 13px;
+  color: #555;
+  margin-top: 2px;
+}
+.recibo-date {
+  font-size: 13px;
+  color: #555;
+}
+.recibo-divider {
+  border: none;
+  border-top: 1.5px solid #ddd;
+  margin: 14px 0;
+}
+.recibo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.recibo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.recibo-label {
+  color: #666;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.recibo-value {
+  font-weight: 500;
+  color: #111;
+  text-align: right;
+}
+.recibo-montos {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.recibo-total {
+  font-size: 16px;
+  font-weight: 800;
+  color: #111;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 2px solid #111;
+}
+.recibo-firmas {
+  display: flex;
+  gap: 40px;
+  margin-top: 32px;
+}
+.recibo-firma-box {
+  flex: 1;
+  text-align: center;
+}
+.recibo-firma-line {
+  border-top: 1px solid #aaa;
+  margin-bottom: 6px;
+  margin-top: 48px;
+}
+.recibo-firma-label {
+  font-size: 12px;
+  color: #777;
+}
+.recibo-footer {
+  text-align: center;
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 20px;
+}
+
+/* Print styles */
+@media print {
+  body > * { display: none !important; }
+  .modal-overlay { display: block !important; position: static !important; background: none !important; padding: 0 !important; }
+  .recibo-modal { box-shadow: none !important; max-height: none !important; overflow: visible !important; width: 100% !important; max-width: 100% !important; border-radius: 0 !important; }
+  .recibo-screen-header { display: none !important; }
+  .recibo-print-area { padding: 20px 24px !important; }
+}

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 
@@ -169,6 +170,8 @@ export default function Collections() {
   const [waModal, setWaModal] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [editModal, setEditModal] = useState(null);
+  const [recibo, setRecibo] = useState(null);
+  const { business } = useContext(AuthContext);
 
   function load() {
     setLoading(true);
@@ -343,15 +346,18 @@ export default function Collections() {
       {showNew && (
         <NewEnrollmentModal
           onClose={() => setShowNew(false)}
-          onSaved={() => { setShowNew(false); load(); }}
+          onSaved={(data) => { setShowNew(false); load(); if (data?.paymentStatus === 'paid') setRecibo(data); }}
         />
       )}
       {editModal && (
         <EditEnrollmentModal
           enrollment={editModal}
           onClose={() => setEditModal(null)}
-          onSaved={() => { setEditModal(null); load(); }}
+          onSaved={(data) => { setEditModal(null); load(); if (data?.paymentStatus === 'paid') setRecibo(data); }}
         />
+      )}
+      {recibo && (
+        <ReciboModal recibo={recibo} business={business} onClose={() => setRecibo(null)} />
       )}
     </div>
   );
@@ -368,6 +374,7 @@ function NewEnrollmentModal({ onClose, onSaved }) {
     startDate: new Date().toISOString().slice(0, 10),
     dueDate: (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })(),
     paymentStatus: 'pending',
+    metodoPago: 'Efectivo',
     bonificada: false,
     sinLimite: true,
     bonHasta: '',
@@ -405,7 +412,7 @@ function NewEnrollmentModal({ onClose, onSaved }) {
     }
     setSaving(true);
     try {
-      await api.post('/enrollments', {
+      const res = await api.post('/enrollments', {
         clientId: form.clientId,
         activityId: form.activityId,
         amountDue: parseFloat(form.amountDue),
@@ -416,7 +423,9 @@ function NewEnrollmentModal({ onClose, onSaved }) {
         bonificada: form.bonificada,
         bonificadaHasta: form.bonificada && !form.sinLimite && form.bonHasta ? form.bonHasta : null,
       });
-      onSaved();
+      const clientObj = clients.find(cl => cl.id === form.clientId);
+      const actObj = activities.find(a => a.id === form.activityId);
+      onSaved({ ...res.data, client: clientObj, activity: actObj, metodoPago: form.metodoPago });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al crear la cobranza');
     } finally {
@@ -528,6 +537,7 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
     startDate: enrollment.startDate ? enrollment.startDate.slice(0, 10) : '',
     dueDate: enrollment.dueDate ? enrollment.dueDate.slice(0, 10) : '',
     paymentStatus: enrollment.paymentStatus || 'pending',
+    metodoPago: 'Efectivo',
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -546,7 +556,7 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
         dueDate: form.dueDate || undefined,
         paymentStatus: form.paymentStatus,
       });
-      onSaved();
+      onSaved({ ...enrollment, amountDue: Number(form.amountDue), discount: Number(form.discount) || 0, startDate: form.startDate, dueDate: form.dueDate, paymentStatus: form.paymentStatus, metodoPago: form.metodoPago });
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo guardar');
     } finally {
@@ -598,6 +608,17 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
               <option value="overdue">Vencido</option>
             </select>
           </div>
+          <div className="field">
+            <label>Forma de pago</label>
+            <select value={form.metodoPago} onChange={(e) => set('metodoPago', e.target.value)}>
+              <option>Efectivo</option>
+              <option>Transferencia</option>
+              <option>Tarjeta débito</option>
+              <option>Tarjeta crédito</option>
+              <option>Mercado Pago</option>
+              <option>Cheque</option>
+            </select>
+          </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -605,6 +626,115 @@ function EditEnrollmentModal({ enrollment, onClose, onSaved }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function ReciboModal({ recibo, business, onClose }) {
+  const formatMoney = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+  const formatDate = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
+  const net = Math.max(0, (recibo.amountDue || 0) - (recibo.discount || 0));
+  const nroRecibo = `${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${recibo.id?.slice(-5).toUpperCase()}`;
+  const token = localStorage.getItem('token');
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal recibo-modal" onClick={e => e.stopPropagation()}>
+        {/* Screen header */}
+        <div className="recibo-screen-header">
+          <h2 style={{ margin: 0 }}>Recibo de pago</h2>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Imprimir</button>
+            <button className="btn" onClick={onClose}>Cerrar</button>
+          </div>
+        </div>
+
+        {/* Printable area */}
+        <div className="recibo-print-area" id="recibo-content">
+          <div className="recibo-header">
+            <div className="recibo-logo-block">
+              <img
+                src={`/api/business/logo?token=${token}&t=${Date.now()}`}
+                alt=""
+                className="recibo-logo"
+                onError={e => { e.target.style.display = 'none' }}
+              />
+              <div>
+                <div className="recibo-business-name">{business?.name || 'Mi negocio'}</div>
+                {business?.phone && <div className="recibo-business-sub">{business.phone}</div>}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div className="recibo-title">RECIBO</div>
+              <div className="recibo-nro">N° {nroRecibo}</div>
+              <div className="recibo-date">Fecha: {formatDate(new Date().toISOString().slice(0,10))}</div>
+            </div>
+          </div>
+
+          <div className="recibo-divider" />
+
+          <div className="recibo-section">
+            <div className="recibo-row">
+              <span className="recibo-label">Socio / Cliente</span>
+              <span className="recibo-value">{recibo.client?.name || '-'}</span>
+            </div>
+            {recibo.client?.dni && (
+              <div className="recibo-row">
+                <span className="recibo-label">DNI</span>
+                <span className="recibo-value">{recibo.client.dni}</span>
+              </div>
+            )}
+            <div className="recibo-row">
+              <span className="recibo-label">Actividad / Servicio</span>
+              <span className="recibo-value">{recibo.activity?.name || '-'}</span>
+            </div>
+            <div className="recibo-row">
+              <span className="recibo-label">Período</span>
+              <span className="recibo-value">{formatDate(recibo.startDate)} – {formatDate(recibo.dueDate)}</span>
+            </div>
+            <div className="recibo-row">
+              <span className="recibo-label">Forma de pago</span>
+              <span className="recibo-value">{recibo.metodoPago || 'Efectivo'}</span>
+            </div>
+          </div>
+
+          <div className="recibo-divider" />
+
+          <div className="recibo-montos">
+            <div className="recibo-row">
+              <span className="recibo-label">Cuota</span>
+              <span className="recibo-value">{formatMoney(recibo.amountDue)}</span>
+            </div>
+            {(recibo.discount > 0) && (
+              <div className="recibo-row">
+                <span className="recibo-label">Descuento</span>
+                <span className="recibo-value" style={{ color: '#10b981' }}>- {formatMoney(recibo.discount)}</span>
+              </div>
+            )}
+            <div className="recibo-row recibo-total">
+              <span>TOTAL ABONADO</span>
+              <span>{formatMoney(net)}</span>
+            </div>
+          </div>
+
+          <div className="recibo-divider" />
+
+          <div className="recibo-firmas">
+            <div className="recibo-firma-box">
+              <div className="recibo-firma-line" />
+              <div className="recibo-firma-label">Firma y sello</div>
+            </div>
+            <div className="recibo-firma-box">
+              <div className="recibo-firma-line" />
+              <div className="recibo-firma-label">Recibí conforme</div>
+            </div>
+          </div>
+
+          <div className="recibo-footer">
+            Este recibo es comprobante válido de pago.
+          </div>
+        </div>
       </div>
     </div>
   );
