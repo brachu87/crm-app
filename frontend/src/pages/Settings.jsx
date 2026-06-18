@@ -95,7 +95,7 @@ export default function Settings() {
             <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--border)', overflow: 'hidden', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               {!logoError ? (
                 <img
-                  src={`/api/business/logo?t=${logoTs}`}
+                  src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`}
                   alt="Logo"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   onError={() => setLogoError(true)}

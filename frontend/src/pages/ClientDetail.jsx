@@ -99,7 +99,7 @@ export default function ClientDetail() {
           <label style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Cambiar foto">
             <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: 'var(--ink-soft)', border: '2px solid var(--border)' }}>
               <img
-                src={`/api/clients/${id}/photo?t=${photoTs}`}
+                src={`/api/clients/${id}/photo?t=${photoTs}&token=${localStorage.getItem('token')}`}
                 alt=""
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}

@@ -1,12 +1,17 @@
 const jwt = require('jsonwebtoken');
 
 function authMiddleware(req, res, next) {
+  // Accept token from Authorization header OR ?token= query param (for img src)
+  let token = null;
   const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
+  if (header && header.startsWith('Bearer ')) {
+    token = header.split(' ')[1];
+  } else if (req.query.token) {
+    token = req.query.token;
+  }
+  if (!token) {
     return res.status(401).json({ error: 'Token no provisto' });
   }
-
-  const token = header.split(' ')[1];
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);

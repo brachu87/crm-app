@@ -81,7 +81,7 @@ export default function Layout() {
         <span className="mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {logoOk && (
             <img
-              src={`/api/business/logo?t=${logoTs}`}
+              src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`}
               alt=""
               style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
               onError={() => setLogoOk(false)}
@@ -122,7 +122,7 @@ export default function Layout() {
           <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {logoOk && (
               <img
-                src={`/api/business/logo?t=${logoTs}`}
+                src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`}
                 alt=""
                 style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
                 onError={() => setLogoOk(false)}
