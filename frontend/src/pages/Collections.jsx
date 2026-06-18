@@ -408,10 +408,10 @@ function ReciboModal({ recibo, business, onClose }) {
   const nroRecibo = `${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${recibo.id?.slice(-5).toUpperCase()}`;
   const token = localStorage.getItem('token');
 
-  function handlePrint() {
+  function buildHtml() {
     const logoUrl = `${window.location.origin}/api/business/logo?token=${token}`;
     const fecha = fmtD(new Date().toISOString().slice(0,10));
-    const html = `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -437,6 +437,7 @@ function ReciboModal({ recibo, business, onClose }) {
   .firma-line { border-top: 1px solid #9ca3af; margin-bottom: 6px; }
   .firma-label { font-size: 12px; color: #6b7280; }
   .footer { text-align: center; font-size: 12px; color: #9ca3af; margin-top: 32px; }
+  @media print { @page { margin: 1.5cm; } }
 </style>
 </head>
 <body>
@@ -472,13 +473,27 @@ ${(recibo.discount > 0) ? `<div class="row"><span class="label">Descuento</span>
 <div class="footer">Este recibo es comprobante válido de pago.</div>
 </body>
 </html>`;
+  }
 
-    const win = window.open('', '_blank', 'width=700,height=600');
-    win.document.write(html);
-    win.document.close();
-    // Esperar a que cargue el logo antes de imprimir
-    win.onload = () => { win.focus(); win.print(); };
-    setTimeout(() => { try { win.focus(); win.print(); } catch(e) {} }, 800);
+  function handlePrint() {
+    const html = buildHtml();
+    // Usar iframe oculto — evita el bloqueador de popups del navegador
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;';
+    document.body.appendChild(iframe);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(url);
+        }, 2000);
+      }, 400);
+    };
+    iframe.src = url;
   }
 
   return (
