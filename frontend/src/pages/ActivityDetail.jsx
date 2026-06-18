@@ -22,6 +22,7 @@ export default function ActivityDetail() {
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [error, setError] = useState('');
 
   function load() {
@@ -53,7 +54,10 @@ export default function ActivityDetail() {
             {activity.capacity ? ` · Cupo ${activity.enrollments.length}/${activity.capacity}` : ''}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Inscribir cliente</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>Editar</button>
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Inscribir cliente</button>
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
@@ -104,6 +108,13 @@ export default function ActivityDetail() {
           activity={activity}
           onClose={() => setShowModal(false)}
           onCreated={() => { setShowModal(false); load(); }}
+        />
+      )}
+      {showEdit && (
+        <EditActivityModal
+          activity={activity}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => { setShowEdit(false); load(); }}
         />
       )}
     </div>
@@ -209,6 +220,123 @@ function EnrollModal({ activity, onClose, onCreated }) {
             </div>
           </form>
         )}
+      </div>
+    </div>
+  );
+}
+
+
+/* ── Editar Actividad ─────────────────────────────────────────── */
+function EditActivityModal({ activity, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    name: activity.name || '',
+    description: activity.description || '',
+    price: activity.price ?? '',
+    capacity: activity.capacity ?? '',
+    schedule: activity.schedule || '',
+    active: activity.active !== false,
+    branchId: activity.branchId || '',
+  });
+  const [branches, setBranches] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState(
+    (activity.activityEmployees || []).map(ae => ae.employeeId)
+  );
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/branches').then(r => setBranches(r.data.filter(b => b.active))).catch(() => {});
+    api.get('/employees').then(r => setEmployees(r.data.filter(e => e.active))).catch(() => {});
+  }, []);
+
+  function update(field, value) { setForm(f => ({ ...f, [field]: value })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await api.put(`/activities/${activity.id}`, {
+        name: form.name,
+        description: form.description || undefined,
+        price: Number(form.price),
+        capacity: form.capacity !== '' ? Number(form.capacity) : null,
+        schedule: form.schedule || undefined,
+        active: form.active,
+        branchId: form.branchId || null,
+      });
+      await api.put(`/activities/${activity.id}/employees`, { employeeIds: selectedEmployees });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo guardar');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h2>Editar actividad</h2>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Nombre</label>
+            <input value={form.name} onChange={e => update('name', e.target.value)} required />
+          </div>
+          <div className="field">
+            <label>Horario (opcional)</label>
+            <input value={form.schedule} onChange={e => update('schedule', e.target.value)} placeholder="Ej: Lunes y miércoles 18:00" />
+          </div>
+          <div className="two-col-grid">
+            <div className="field">
+              <label>Precio</label>
+              <input type="number" min="0" step="0.01" value={form.price} onChange={e => update('price', e.target.value)} required />
+            </div>
+            <div className="field">
+              <label>Cupo (opcional)</label>
+              <input type="number" min="0" value={form.capacity} onChange={e => update('capacity', e.target.value)} placeholder="Sin límite" />
+            </div>
+          </div>
+          <div className="field">
+            <label>Descripción (opcional)</label>
+            <textarea rows="2" value={form.description} onChange={e => update('description', e.target.value)} />
+          </div>
+          {branches.length > 0 && (
+            <div className="field">
+              <label>Sede</label>
+              <select value={form.branchId} onChange={e => update('branchId', e.target.value)}>
+                <option value="">Sin sede</option>
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+          )}
+          {employees.length > 0 && (
+            <div className="field">
+              <label>Instructores asignados</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {employees.map(emp => (
+                  <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 14 }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedEmployees.includes(emp.id)}
+                      onChange={ev => setSelectedEmployees(prev =>
+                        ev.target.checked ? [...prev, emp.id] : prev.filter(x => x !== emp.id)
+                      )}
+                    />
+                    {emp.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
