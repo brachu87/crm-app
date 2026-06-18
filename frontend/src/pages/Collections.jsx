@@ -40,12 +40,13 @@ export default function Collections() {
 
   function load() {
     setLoading(true);
-    // fetch pending + overdue
+    // fetch pending + overdue + partial (pagos parciales marcados como paid por error)
     Promise.all([
       api.get('/enrollments?status=pending'),
       api.get('/enrollments?status=overdue'),
-    ]).then(([p, o]) => {
-      const all = [...p.data, ...o.data];
+      api.get('/enrollments?partial=true'),
+    ]).then(([p, o, part]) => {
+      const all = [...p.data, ...o.data, ...part.data];
       // deduplicate by id
       const seen = new Set();
       setEnrollments(all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }));
@@ -219,8 +220,11 @@ function CobrarModal({ enrollment, business, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      await api.patch(`/enrollments/${enrollment.id}`, { paymentStatus: 'paid' });
-      onSaved({ ...enrollment, paymentStatus: 'paid', metodoPago, amountDue: Number(monto) });
+      const res = await api.post(`/enrollments/${enrollment.id}/pay`, {
+        amount: Number(monto),
+        method: metodoPago,
+      });
+      onSaved({ ...enrollment, ...res.data.enrollment, metodoPago, amountDue: Number(monto) });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);

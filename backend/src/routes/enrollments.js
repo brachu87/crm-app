@@ -17,11 +17,25 @@ async function verifyOwnership(req, clientId, activityId) {
   return client && activity;
 }
 
-// GET /api/enrollments?status=pending|paid|overdue
-// Vista de cobranza: todas las inscripciones del negocio, filtrables por estado
+// GET /api/enrollments?status=pending|paid|overdue|partial
+// partial=true devuelve inscripciones activas donde sum(pagos) < amountDue
 router.get('/', async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, partial } = req.query;
+
+    // Caso especial: inscripciones con saldo pendiente (pago parcial o ningún pago)
+    if (partial === 'true') {
+      const all = await prisma.enrollment.findMany({
+        where: { client: { businessId: req.user.businessId }, active: true },
+        include: { client: true, activity: true, payments: { select: { amount: true } } },
+        orderBy: { dueDate: 'asc' },
+      });
+      const withBalance = all.filter(e => {
+        const totalPaid = e.payments.reduce((s, p) => s + p.amount, 0);
+        return totalPaid < e.amountDue;
+      });
+      return res.json(withBalance.map(({ payments, ...rest }) => rest));
+    }
 
     const enrollments = await prisma.enrollment.findMany({
       where: {
@@ -111,7 +125,7 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-// POST /api/enrollments/:id/pay - registrar un pago y marcar como pagado
+// POST /api/enrollments/:id/pay - registrar un pago y recalcular estado
 router.post('/:id/pay', async (req, res) => {
   try {
     const existing = await prisma.enrollment.findFirst({
@@ -122,20 +136,30 @@ router.post('/:id/pay', async (req, res) => {
     const { amount, method } = req.body;
     if (amount === undefined) return res.status(400).json({ error: 'amount es obligatorio' });
 
-    const [payment, enrollment] = await prisma.$transaction([
-      prisma.payment.create({
-        data: {
-          enrollmentId: req.params.id,
-          amount,
-          method,
-        },
-      }),
-      prisma.enrollment.update({
-        where: { id: req.params.id },
-        data: { paymentStatus: 'paid' },
-        include: { client: true, activity: true },
-      }),
-    ]);
+    // Registrar el pago
+    const payment = await prisma.payment.create({
+      data: {
+        enrollmentId: req.params.id,
+        amount: parseFloat(amount),
+        method,
+      },
+    });
+
+    // Sumar todos los pagos registrados para esta inscripción
+    const agg = await prisma.payment.aggregate({
+      where: { enrollmentId: req.params.id },
+      _sum: { amount: true },
+    });
+    const totalPaid = agg._sum.amount || 0;
+
+    // Solo marcar como 'paid' si el total cubre el monto completo
+    const newStatus = totalPaid >= existing.amountDue ? 'paid' : 'pending';
+
+    const enrollment = await prisma.enrollment.update({
+      where: { id: req.params.id },
+      data: { paymentStatus: newStatus },
+      include: { client: true, activity: true },
+    });
 
     res.status(201).json({ payment, enrollment });
   } catch (err) {
