@@ -19,6 +19,7 @@ const usersRoutes = require('./routes/users');
 const searchRoutes = require('./routes/search');
 const accountMovementsRoutes = require('./routes/account-movements');
 const photosRoutes = require('./routes/photos');
+const businessRoutes = require('./routes/business');
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/clients', photosRoutes);
+app.use('/api/business', businessRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {

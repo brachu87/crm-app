@@ -20,6 +20,8 @@ export default function Layout() {
   const { business, logout, user } = useAuth();
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoTs] = useState(Date.now());
+  const [logoOk, setLogoOk] = useState(true);
   const [searchQ, setSearchQ] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [searchFocus, setSearchFocus] = useState(false);
@@ -76,7 +78,17 @@ export default function Layout() {
         >
           <span /><span /><span />
         </button>
-        <span className="mobile-brand">{business?.name || 'Mi Negocio'}</span>
+        <span className="mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {logoOk && (
+            <img
+              src={`/api/business/logo?t=${logoTs}`}
+              alt=""
+              style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+              onError={() => setLogoOk(false)}
+            />
+          )}
+          {business?.name || 'Mi Negocio'}
+        </span>
         <div style={{ position: 'relative', flex: 1, maxWidth: 180, margin: '0 8px' }}>
           <input
             value={searchQ}
@@ -107,7 +119,17 @@ export default function Layout() {
       {/* Sidebar / drawer */}
       <aside className={`sidebar${menuOpen ? ' sidebar-open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-brand">{business?.name || 'Mi Negocio'}</div>
+          <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {logoOk && (
+              <img
+                src={`/api/business/logo?t=${logoTs}`}
+                alt=""
+                style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                onError={() => setLogoOk(false)}
+              />
+            )}
+            <span>{business?.name || 'Mi Negocio'}</span>
+          </div>
           <button
             className="sidebar-close-btn"
             onClick={() => setMenuOpen(false)}
