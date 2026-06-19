@@ -11,42 +11,55 @@ router.get('/', async (req, res) => {
   try {
     const businessId = req.user.businessId;
 
+    // NOTA paso #1: conteos/sumas sobre Cuota pero SIN filtrar inscripciones dadas de baja
+    // y usando monto BRUTO (sin restar descuento) — bugs a corregir en pasos #8 y #9.
     const [clientsCount, activitiesCount, pendingCount, overdueCount, pendingSum, overdueSum, upcoming] =
       await Promise.all([
         prisma.client.count({ where: { businessId } }),
         prisma.activity.count({ where: { businessId, active: true } }),
-        prisma.enrollment.count({
-          where: { client: { businessId }, paymentStatus: 'pending' },
+        prisma.cuota.count({
+          where: { enrollment: { client: { businessId } }, paymentStatus: 'pending' },
         }),
-        prisma.enrollment.count({
-          where: { client: { businessId }, paymentStatus: 'overdue' },
+        prisma.cuota.count({
+          where: { enrollment: { client: { businessId } }, paymentStatus: 'overdue' },
         }),
-        prisma.enrollment.aggregate({
-          where: { client: { businessId }, paymentStatus: 'pending' },
+        prisma.cuota.aggregate({
+          where: { enrollment: { client: { businessId } }, paymentStatus: 'pending' },
           _sum: { amountDue: true },
         }),
-        prisma.enrollment.aggregate({
-          where: { client: { businessId }, paymentStatus: 'overdue' },
+        prisma.cuota.aggregate({
+          where: { enrollment: { client: { businessId } }, paymentStatus: 'overdue' },
           _sum: { amountDue: true },
         }),
-        prisma.enrollment.findMany({
+        prisma.cuota.findMany({
           where: {
-            client: { businessId },
+            enrollment: { client: { businessId } },
             paymentStatus: { in: ['pending', 'overdue'] },
             dueDate: { not: null },
           },
-          include: { client: true, activity: true },
+          include: { enrollment: { include: { client: true, activity: true } } },
           orderBy: { dueDate: 'asc' },
           take: 10,
         }),
       ]);
+
+    // Aplanar las cuotas próximas a la forma que consume el Dashboard
+    const upcomingDueDates = upcoming.map((c) => ({
+      id: c.id,
+      clientId: c.enrollment.clientId,
+      client: c.enrollment.client,
+      activity: c.enrollment.activity,
+      dueDate: c.dueDate,
+      amountDue: c.amountDue,
+      paymentStatus: c.paymentStatus,
+    }));
 
     res.json({
       clientsCount,
       activitiesCount,
       pending: { count: pendingCount, total: pendingSum._sum.amountDue || 0 },
       overdue: { count: overdueCount, total: overdueSum._sum.amountDue || 0 },
-      upcomingDueDates: upcoming,
+      upcomingDueDates,
     });
   } catch (err) {
     console.error(err);

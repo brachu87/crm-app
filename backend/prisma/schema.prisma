@@ -100,29 +100,47 @@ model Enrollment {
   client        Client    @relation(fields: [clientId], references: [id])
   activityId    String
   activity      Activity  @relation(fields: [activityId], references: [id])
-  paymentStatus String    @default("pending")
-  amountDue     Float
-  discount      Float     @default(0)
-  dueDate       DateTime?
+  amountDue     Float     // monto base mensual: plantilla para generar las cuotas
+  discount      Float     @default(0) // descuento base mensual
   startDate     DateTime  @default(now())
   active          Boolean   @default(true)
   bonificada      Boolean   @default(false)
   bonificadaHasta DateTime?
 
-  payments Payment[]
+  cuotas Cuota[]
 
   @@unique([clientId, activityId])
   @@index([activityId])
   @@index([clientId])
 }
 
+// Cargo mensual de una inscripción. Una fila por período (mes).
+model Cuota {
+  id            String     @id @default(cuid())
+  enrollmentId  String
+  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  period        String     // formato "YYYY-MM"
+  amountDue     Float
+  discount      Float      @default(0)
+  paymentStatus String     @default("pending") // pending | paid | overdue
+  dueDate       DateTime?
+  createdAt     DateTime   @default(now())
+
+  payments Payment[]
+
+  @@unique([enrollmentId, period])
+  @@index([enrollmentId])
+}
+
 model Payment {
-  id           String     @id @default(cuid())
-  enrollmentId String
-  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id])
-  amount       Float
-  date         DateTime   @default(now())
-  method       String?
+  id        String   @id @default(cuid())
+  cuotaId   String
+  cuota     Cuota    @relation(fields: [cuotaId], references: [id], onDelete: Cascade)
+  amount    Float
+  date      DateTime @default(now())
+  method    String?
+
+  @@index([cuotaId])
 }
 
 model Supplier {

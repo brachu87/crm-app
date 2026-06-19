@@ -21,7 +21,7 @@ router.get('/history', async (req, res) => {
 
     // Payments per day
     const payments = await prisma.payment.findMany({
-      where: { date: { gte: since }, enrollment: { activity: { businessId: bId } } },
+      where: { date: { gte: since }, cuota: { enrollment: { activity: { businessId: bId } } } },
       select: { amount: true, date: true },
     });
 
@@ -92,13 +92,15 @@ router.get('/today', async (req, res) => {
     end.setHours(23, 59, 59, 999);
 
     // Payments made today
-    const payments = await prisma.payment.findMany({
+    const paymentsRaw = await prisma.payment.findMany({
       where: {
         date: { gte: start, lte: end },
-        enrollment: { activity: { businessId: bId } },
+        cuota: { enrollment: { activity: { businessId: bId } } },
       },
-      include: { enrollment: { include: { client: true, activity: true } } },
+      include: { cuota: { include: { enrollment: { include: { client: true, activity: true } } } } },
     });
+    // Mantener la forma p.enrollment.{client,activity} que espera el front de Caja
+    const payments = paymentsRaw.map((p) => ({ ...p, enrollment: p.cuota.enrollment }));
 
     // Expenses recorded today
     const expenses = await prisma.expense.findMany({

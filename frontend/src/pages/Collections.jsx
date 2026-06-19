@@ -268,11 +268,11 @@ function CobrarModal({ enrollment, business, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      const res = await api.post(`/enrollments/${enrollment.id}/pay`, {
+      const res = await api.post(`/enrollments/cuotas/${enrollment.id}/pay`, {
         amount: Number(monto),
         method: metodoPago,
       });
-      onSaved({ ...enrollment, ...res.data.enrollment, metodoPago, amountDue: Number(monto) });
+      onSaved({ ...enrollment, ...res.data.cuota, metodoPago, amountDue: Number(monto) });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);
@@ -337,7 +337,7 @@ function EditCuotaModal({ enrollment, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      await api.patch(`/enrollments/${enrollment.id}`, {
+      await api.patch(`/enrollments/cuotas/${enrollment.id}`, {
         amountDue: Number(form.amountDue),
         discount: Number(form.discount) || 0,
         startDate: form.startDate || undefined,

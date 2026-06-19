@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const prisma = require('./prisma');
 
 const authRoutes = require('./routes/auth');
 const clientsRoutes = require('./routes/clients');
@@ -66,7 +67,7 @@ const PORT = process.env.PORT || 4000;
 async function markOverdueEnrollments() {
   try {
     const now = new Date();
-    const result = await prisma.enrollment.updateMany({
+    const result = await prisma.cuota.updateMany({
       where: { paymentStatus: 'pending', dueDate: { lt: now } },
       data: { paymentStatus: 'overdue' },
     });

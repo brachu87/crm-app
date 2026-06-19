@@ -31,13 +31,31 @@ router.get('/:id', async (req, res) => {
         enrollments: {
           include: {
             activity: true,
-            payments: { orderBy: { date: 'desc' } },
+            cuotas: {
+              include: { payments: { orderBy: { date: 'desc' } } },
+              orderBy: { period: 'desc' },
+            },
           },
         },
       },
     });
 
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    // Exponer pagos aplanados y el estado/vencimiento de la última cuota,
+    // manteniendo la forma que consume la ficha de cliente.
+    client.enrollments = client.enrollments.map((e) => {
+      const payments = e.cuotas
+        .flatMap((c) => c.payments)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      const current = e.cuotas[0] || null; // la más reciente (period desc)
+      return {
+        ...e,
+        payments,
+        paymentStatus: current?.paymentStatus || 'pending',
+        dueDate: current?.dueDate || null,
+      };
+    });
 
     res.json(client);
   } catch (err) {

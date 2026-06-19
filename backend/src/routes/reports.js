@@ -20,7 +20,7 @@ router.get('/summary', async (req, res) => {
     const payments = await prisma.payment.findMany({
       where: {
         date: { gte: since },
-        enrollment: { activity: { businessId: bId } },
+        cuota: { enrollment: { activity: { businessId: bId } } },
       },
       select: { amount: true, date: true },
     });
@@ -71,31 +71,30 @@ router.get('/summary', async (req, res) => {
     // Overdue enrollments
     const now = new Date();
     // Auto-update overdue
-    await prisma.enrollment.updateMany({
+    await prisma.cuota.updateMany({
       where: {
-        activity: { businessId: bId },
+        enrollment: { activity: { businessId: bId } },
         paymentStatus: 'pending',
         dueDate: { lt: now },
       },
       data: { paymentStatus: 'overdue' },
     });
 
-    const overdueCount = await prisma.enrollment.count({
+    const overdueCount = await prisma.cuota.count({
       where: {
-        activity: { businessId: bId },
+        enrollment: { activity: { businessId: bId }, active: true },
         paymentStatus: 'overdue',
-        active: true,
       },
     });
 
     // Top clients by payment amount
     const allPayments = await prisma.payment.findMany({
-      where: { enrollment: { activity: { businessId: bId } } },
-      include: { enrollment: { include: { client: { select: { id: true, name: true } } } } },
+      where: { cuota: { enrollment: { activity: { businessId: bId } } } },
+      include: { cuota: { include: { enrollment: { include: { client: { select: { id: true, name: true } } } } } } },
     });
     const clientMap = {};
     for (const p of allPayments) {
-      const c = p.enrollment.client;
+      const c = p.cuota.enrollment.client;
       if (!clientMap[c.id]) clientMap[c.id] = { name: c.name, total: 0 };
       clientMap[c.id].total += p.amount;
     }

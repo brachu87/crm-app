@@ -12,15 +12,19 @@ router.get('/', async (req, res) => {
     const client = await prisma.client.findFirst({
       where: scopedWhere(req, { id: req.params.id }),
       include: {
-        enrollments: { include: { payments: true } },
+        enrollments: { include: { cuotas: { include: { payments: true } } } },
         accountMovements: { orderBy: { date: 'desc' } },
       },
     });
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
 
     // Compute balance from enrollments + payments + manual movements
+    // NOTA: totalCharged cuenta cada inscripción UNA vez (no por cuota) — bug a corregir en paso #4.
     const totalCharged = client.enrollments.reduce((s, e) => s + Math.max(0, e.amountDue - (e.discount || 0)), 0);
-    const totalPaid = client.enrollments.reduce((s, e) => s + e.payments.reduce((p, pay) => p + pay.amount, 0), 0);
+    const totalPaid = client.enrollments.reduce(
+      (s, e) => s + e.cuotas.reduce((cs, c) => cs + c.payments.reduce((p, pay) => p + pay.amount, 0), 0),
+      0
+    );
     const manualCargos = client.accountMovements.filter(m => m.type === 'cargo').reduce((s, m) => s + m.amount, 0);
     const manualAbonos = client.accountMovements.filter(m => m.type === 'abono').reduce((s, m) => s + m.amount, 0);
     const balance = totalCharged + manualCargos - totalPaid - manualAbonos;

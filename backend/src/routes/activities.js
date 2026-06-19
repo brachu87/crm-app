@@ -34,13 +34,22 @@ router.get('/:id', async (req, res) => {
       where: scopedWhere(req, { id: req.params.id }),
       include: {
         enrollments: {
-          include: { client: true },
+          include: {
+            client: true,
+            cuotas: { orderBy: { period: 'desc' }, take: 1 },
+          },
           orderBy: { client: { name: 'asc' } },
         },
       },
     });
 
     if (!activity) return res.status(404).json({ error: 'Actividad no encontrada' });
+
+    // Exponer estado/vencimiento de la última cuota en cada inscripción
+    activity.enrollments = activity.enrollments.map((e) => {
+      const current = e.cuotas[0] || null;
+      return { ...e, paymentStatus: current?.paymentStatus || 'pending', dueDate: current?.dueDate || null };
+    });
 
     res.json(activity);
   } catch (err) {
