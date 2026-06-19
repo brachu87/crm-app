@@ -146,6 +146,16 @@ router.put('/:id', async (req, res) => {
         globalDiscount: globalDiscount !== undefined ? Number(globalDiscount) : existing.globalDiscount,
       },
     });
+
+    // Propagar el estado activo a las inscripciones: una baja no debe dejar
+    // cuotas vivas en Cobranza/Dashboard; una re-alta restaura las membresías.
+    if (active !== undefined && active !== existing.active) {
+      await prisma.enrollment.updateMany({
+        where: { clientId: req.params.id },
+        data: { active },
+      });
+    }
+
     res.json(client);
   } catch (err) {
     console.error(err);

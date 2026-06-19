@@ -39,7 +39,7 @@ function shapeCuota(c) {
 router.get('/', async (req, res) => {
   try {
     const { status, partial } = req.query;
-    const baseWhere = { enrollment: { client: { businessId: req.user.businessId }, active: true } };
+    const baseWhere = { enrollment: { client: { businessId: req.user.businessId, active: true }, active: true } };
 
     // Caso especial: cuotas con saldo pendiente (pago parcial o sin pagos)
     if (partial === 'true') {
