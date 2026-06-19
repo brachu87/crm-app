@@ -42,7 +42,7 @@ function BarChart({ data }) {
               x={x}
               y={scaleY(d.income)}
               width={barW}
-              height={H - PAD - scaleY(d.income) + PAD}
+              height={(H - PAD) - scaleY(d.income)}
               fill="#10b981"
               rx="3"
             />
@@ -51,7 +51,7 @@ function BarChart({ data }) {
               x={x + barW + gap}
               y={scaleY(d.expenses)}
               width={barW}
-              height={H - PAD - scaleY(d.expenses) + PAD}
+              height={(H - PAD) - scaleY(d.expenses)}
               fill="#ef4444"
               rx="3"
             />
