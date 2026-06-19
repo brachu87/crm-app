@@ -43,6 +43,17 @@ router.get('/', async (req, res) => {
         }),
       ]);
 
+    // Estado actual de cada inscripción ACTIVA según su última cuota (para el donut "Inscripciones")
+    const activeEnrollments = await prisma.enrollment.findMany({
+      where: { client: { businessId }, active: true },
+      include: { cuotas: { orderBy: { period: 'desc' }, take: 1 } },
+    });
+    const enrollmentStatus = { paid: 0, pending: 0, overdue: 0 };
+    for (const e of activeEnrollments) {
+      const st = e.cuotas[0]?.paymentStatus;
+      if (enrollmentStatus[st] !== undefined) enrollmentStatus[st]++;
+    }
+
     // Aplanar las cuotas próximas a la forma que consume el Dashboard
     const upcomingDueDates = upcoming.map((c) => ({
       id: c.id,
@@ -59,6 +70,7 @@ router.get('/', async (req, res) => {
       activitiesCount,
       pending: { count: pendingCount, total: pendingSum._sum.amountDue || 0 },
       overdue: { count: overdueCount, total: overdueSum._sum.amountDue || 0 },
+      enrollmentStatus,
       upcomingDueDates,
     });
   } catch (err) {

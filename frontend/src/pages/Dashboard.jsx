@@ -107,14 +107,8 @@ export default function Dashboard() {
     return due >= new Date() && due <= limit;
   });
 
-  // Derive paid count from total enrollments (approximation: total - pending - overdue)
-  const statusCounts = { paid: 0, pending: 0, overdue: 0 };
-  if (data.upcomingDueDates) {
-    data.upcomingDueDates.forEach((e) => {
-      if (statusCounts[e.paymentStatus] !== undefined) statusCounts[e.paymentStatus]++;
-    });
-  }
-  const donutPaid = Math.max(0, (data.clientsCount || 0) - (data.pending?.count || 0) - (data.overdue?.count || 0));
+  // Estado de las inscripciones activas (lo provee el backend, una porción por membresía)
+  const enrollmentStatus = data.enrollmentStatus || { paid: 0, pending: 0, overdue: 0 };
 
   return (
     <div>
@@ -188,9 +182,9 @@ export default function Dashboard() {
         <div className="card donut-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 200 }}>
           <h2 style={{ fontSize: 15, margin: '0 0 16px' }}>Inscripciones</h2>
           <DonutChart
-            paid={donutPaid}
-            pending={data.pending.count}
-            overdue={data.overdue.count}
+            paid={enrollmentStatus.paid}
+            pending={enrollmentStatus.pending}
+            overdue={enrollmentStatus.overdue}
           />
         </div>
       </div>
