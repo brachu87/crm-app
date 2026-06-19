@@ -265,7 +265,7 @@ input, select, textarea { font-family: var(--font-body); }
 }
 .btn-secondary:hover { background: var(--bg); }
 
-.btn-sm { padding: 7px 14px; font-size: 15px; }
+.btn-sm { padding: 5px 10px; font-size: 13px; }
 
 .btn-danger-text {
   background: none;

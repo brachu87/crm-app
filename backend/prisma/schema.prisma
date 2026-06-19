@@ -60,6 +60,7 @@ model Client {
   enrollments      Enrollment[]
   clientNotes      ClientNote[]
   accountMovements AccountMovement[]
+  appointments     Appointment[]
   createdAt        DateTime     @default(now())
 
   @@index([businessId])
@@ -214,6 +215,8 @@ model Employee {
   classSchedules    ClassSchedule[]
   attendances       Attendance[]
   payrollRecords    PayrollRecord[]
+  services          Service[]
+  appointments      Appointment[]
 
   @@index([businessId])
   @@index([branchId])
@@ -262,6 +265,7 @@ model Branch {
   employees      Employee[]
   activities     Activity[]
   classSchedules ClassSchedule[]
+  appointments   Appointment[]
 
   @@index([businessId])
 }
@@ -334,5 +338,51 @@ model PayrollRecord {
   createdAt   DateTime @default(now())
 
   @@index([businessId])
+  @@index([employeeId])
+}
+
+model Service {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id])
+  name        String
+  description String?
+  duration    Int       @default(60)
+  price       Float     @default(0)
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  appointments Appointment[]
+
+  @@index([businessId])
+}
+
+model Appointment {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id])
+  serviceId     String
+  service       Service   @relation(fields: [serviceId], references: [id])
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id])
+  employeeId    String?
+  employee      Employee? @relation(fields: [employeeId], references: [id])
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  date          String
+  startTime     String
+  endTime       String
+  price         Float     @default(0)
+  status        String    @default("scheduled")
+  paymentStatus String    @default("pending")
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([businessId])
+  @@index([serviceId])
+  @@index([clientId])
   @@index([employeeId])
 }

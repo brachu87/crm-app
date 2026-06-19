@@ -25,6 +25,8 @@ const photosRoutes = require('./routes/photos');
 const businessRoutes = require('./routes/business');
 const branchesRoutes = require('./routes/branches');
 const schedulesRoutes = require('./routes/schedules');
+const servicesRoutes = require('./routes/services');
+const appointmentsRoutes = require('./routes/appointments');
 
 const app = express();
 
@@ -50,6 +52,8 @@ app.use('/api/clients', photosRoutes);
 app.use('/api/business', businessRoutes);
 app.use('/api/branches', branchesRoutes);
 app.use('/api/schedules', schedulesRoutes);
+app.use('/api/services', servicesRoutes);
+app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
