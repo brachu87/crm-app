@@ -16,7 +16,8 @@ router.get('/', async (req, res) => {
       include: {
         _count: { select: { enrollments: true } },
         branch: { select: { id: true, name: true } },
-        activityEmployees: { include: { employee: { select: { id: true, name: true } } } }
+        activityEmployees: { include: { employee: { select: { id: true, name: true } } } },
+        classSchedules: { select: { id: true, dayOfWeek: true, startTime: true, endTime: true, employeeId: true }, where: { active: true }, orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] }
       },
       orderBy: { name: 'asc' },
     });
