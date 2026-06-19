@@ -12,10 +12,12 @@ router.get('/summary', async (req, res) => {
     const bId = req.user.businessId;
     const months = parseInt(req.query.months) || 6;
 
-    const since = new Date();
-    since.setMonth(since.getMonth() - months);
-    since.setDate(1);
-    since.setHours(0, 0, 0, 0);
+    // Anclar al primer día del mes actual para evitar desbordes de fin de mes
+    const anchor = new Date();
+    anchor.setHours(0, 0, 0, 0);
+    anchor.setDate(1);
+    // Ventana alineada con el bucket más viejo que se grafica (months-1 meses atrás)
+    const since = new Date(anchor.getFullYear(), anchor.getMonth() - (months - 1), 1);
 
     // All payments in range
     const payments = await prisma.payment.findMany({
@@ -35,8 +37,7 @@ router.get('/summary', async (req, res) => {
     // Build monthly buckets
     const monthlyMap = {};
     for (let i = months - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
+      const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       monthlyMap[key] = { month: key, income: 0, expenses: 0 };
     }
