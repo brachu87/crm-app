@@ -64,6 +64,36 @@ function expandSchedules(schedules, fromDate, toDate, activityColorMap) {
   return events;
 }
 
+
+const APPT_STATUS_COLOR = {
+  scheduled: 'orange',
+  completed:  'green',
+  cancelled:  'gray',
+  'no-show':  'gray',
+};
+
+function appointmentsToEvents(appointments) {
+  return appointments
+    .filter(a => a.date && a.startTime && a.endTime)
+    .map(a => {
+      const startAt = new Date(`${a.date}T${a.startTime}:00`).toISOString();
+      const endAt   = new Date(`${a.date}T${a.endTime}:00`).toISOString();
+      const payBadge = a.paymentStatus === 'paid' ? ' ✓$' : '';
+      return {
+        id: `appt-${a.id}`,
+        title: `${a.service?.name || 'Turno'} — ${a.client?.name || ''}${payBadge}`,
+        content: `${a.startTime}–${a.endTime}${a.employee ? ' · ' + a.employee.name : ''}`,
+        allDay: false,
+        startAt,
+        endAt,
+        color: APPT_STATUS_COLOR[a.status] || 'orange',
+        isSchedule: true,
+        isAppointment: true,
+        appointmentData: a,
+      };
+    });
+}
+
 function getViewRange(view, navDate) {
   if (view === 'month') {
     const y = navDate.getFullYear(), m = navDate.getMonth();
@@ -721,16 +751,19 @@ export default function Notes() {
 
   const [schedules, setSchedules] = useState([]);
   const [activityColorMap, setActivityColorMap] = useState({});
+  const [appointments, setAppointments] = useState([]);
 
   const load = useCallback(async () => {
     try {
-      const [notesRes, schedRes] = await Promise.all([
+      const [notesRes, schedRes, apptRes] = await Promise.all([
         api.get('/notes'),
         api.get('/schedules'),
+        api.get('/appointments'),
       ]);
       setEvents(notesRes.data);
       const scheds = schedRes.data;
       setSchedules(scheds);
+      setAppointments(apptRes.data || []);
       // Build activity→color map
       const map = {};
       let idx = 0;
@@ -753,7 +786,8 @@ export default function Notes() {
   const allEvents = (() => {
     const range = getViewRange(view, navDate);
     const schedEvents = expandSchedules(schedules, range.from, range.to, activityColorMap);
-    return [...events, ...schedEvents];
+    const apptEvents  = appointmentsToEvents(appointments);
+    return [...events, ...schedEvents, ...apptEvents];
   })();
 
   async function handleSave(payload, id) {
