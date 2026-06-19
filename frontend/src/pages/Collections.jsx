@@ -37,21 +37,31 @@ export default function Collections() {
   const [waModal, setWaModal] = useState(null);
   const [recibo, setRecibo] = useState(null);
   const [expanded, setExpanded] = useState({});
+  const [pendingAppts, setPendingAppts] = useState([]);
+  const [cobrarApptModal, setCobrarApptModal] = useState(null);
   const { business } = useAuth();
 
   function load() {
     setLoading(true);
     if (view === 'paid') {
-      api.get('/enrollments?status=paid').then(r => setEnrollments(r.data)).finally(() => setLoading(false));
+      Promise.all([
+        api.get('/enrollments?status=paid'),
+        api.get('/appointments?status=completed&paymentStatus=paid').catch(() => ({ data: [] })),
+      ]).then(([enrR, apptR]) => {
+        setEnrollments(enrR.data);
+        setPendingAppts(apptR.data || []);
+      }).finally(() => setLoading(false));
     } else {
       Promise.all([
         api.get('/enrollments?status=pending'),
         api.get('/enrollments?status=overdue'),
         api.get('/enrollments?partial=true'),
-      ]).then(([p, o, part]) => {
+        api.get('/appointments?status=completed&paymentStatus=pending').catch(() => ({ data: [] })),
+      ]).then(([p, o, part, apptR]) => {
         const all = [...p.data, ...o.data, ...part.data];
         const seen = new Set();
         setEnrollments(all.filter(e => { if (seen.has(e.id)) return false; seen.add(e.id); return true; }));
+        setPendingAppts(apptR.data || []);
       }).finally(() => setLoading(false));
     }
   }
@@ -230,12 +240,78 @@ export default function Collections() {
         </div>
       )}
 
+      {/* ── Turnos sin cobrar ──────────────────────────────────── */}
+      {view === 'pending' && pendingAppts.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            💆 Turnos completados sin cobrar
+            <span style={{ background: '#fee2e2', color: '#dc2626', borderRadius: 20, padding: '2px 10px', fontSize: 13 }}>
+              {pendingAppts.length}
+            </span>
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {pendingAppts.map(a => (
+              <div key={a.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{a.client?.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
+                    {a.service?.name} · {new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} · {a.startTime}–{a.endTime}
+                    {a.employee ? ` · ${a.employee.name}` : ''}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                  <strong style={{ fontSize: 17 }}>{fmt(a.price)}</strong>
+                  {a.client?.phone && (
+                    <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }}
+                      onClick={() => {
+                        const phone = a.client.phone.replace(/\D/g, '');
+                        const msg = `Hola ${a.client.name}! Te recordamos que tenés pendiente el cobro del turno de ${a.service?.name} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmt(a.price)}. ¡Gracias!`;
+                        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}>📱 WA</button>
+                  )}
+                  <button className="btn btn-sm btn-primary" onClick={() => setCobrarApptModal(a)}>Cobrar</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {view === 'paid' && pendingAppts.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>💆 Turnos cobrados</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {pendingAppts.map(a => (
+              <div key={a.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', opacity: 0.8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{a.client?.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
+                    {a.service?.name} · {new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} · {a.startTime}–{a.endTime}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>Cobrado</span>
+                  <strong style={{ fontSize: 17, color: '#10b981' }}>{fmt(a.price)}</strong>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {cobrarModal && (
         <CobrarModal
           enrollment={cobrarModal}
           business={business}
           onClose={() => setCobrarModal(null)}
           onSaved={(data) => { setCobrarModal(null); load(); if (data) setRecibo(data); }}
+        />
+      )}
+      {cobrarApptModal && (
+        <CobrarApptModal
+          appointment={cobrarApptModal}
+          onClose={() => setCobrarApptModal(null)}
+          onSaved={() => { setCobrarApptModal(null); load(); }}
         />
       )}
       {editModal && (
@@ -251,6 +327,66 @@ export default function Collections() {
       {recibo && (
         <ReciboModal recibo={recibo} business={business} onClose={() => setRecibo(null)} />
       )}
+    </div>
+  );
+}
+
+/* ── Cobrar turno (appointment) ────────────────────────────────── */
+function CobrarApptModal({ appointment, onClose, onSaved }) {
+  const a = appointment;
+  const [monto, setMonto] = useState(a.price || 0);
+  const [metodoPago, setMetodoPago] = useState('Efectivo');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSaving(true); setError('');
+    try {
+      await api.put(`/appointments/${a.id}`, { paymentStatus: 'paid' });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al registrar el cobro');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h2>Cobrar turno</h2>
+        <p style={{ color: 'var(--ink-soft)', marginBottom: 16, fontSize: 15 }}>
+          <strong>{a.client?.name}</strong> — {a.service?.name}
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+          {new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} · {a.startTime}–{a.endTime}
+          {a.employee ? ` · ${a.employee.name}` : ''}
+        </p>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Monto cobrado ($)</label>
+            <input type="number" min="0" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label>Forma de pago</label>
+            <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)}>
+              <option>Efectivo</option>
+              <option>Transferencia</option>
+              <option>Tarjeta débito</option>
+              <option>Tarjeta crédito</option>
+              <option>Mercado Pago</option>
+              <option>Cheque</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando…' : '✅ Confirmar cobro'}
+            </button>
+            <button type="button" className="btn" onClick={onClose}>Cancelar</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

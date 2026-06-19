@@ -371,8 +371,8 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
                     <button className="btn btn-secondary btn-sm" onClick={() => updateAppt(a.id, { status: 'cancelled' })}>✗ Cancelar</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => updateAppt(a.id, { status: 'no-show' })}>👻 No asistió</button>
                   </>)}
-                  {a.paymentStatus === 'pending' && a.status !== 'cancelled' && (
-                    <button className="btn btn-primary btn-sm" onClick={() => updateAppt(a.id, { paymentStatus: 'paid' })}>💵 Cobrar</button>
+                  {a.paymentStatus === 'pending' && a.status === 'completed' && (
+                    <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>⚠️ Ir a Cobranza</span>
                   )}
                   <button className="btn btn-secondary btn-sm" style={{ background: '#25d366', color: '#fff', borderColor: '#25d366' }} onClick={() => sendWhatsApp(a)}>📲</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(a); setShowModal(true); }}>✏️</button>

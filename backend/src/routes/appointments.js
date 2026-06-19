@@ -14,10 +14,12 @@ const INCLUDE = {
 // GET /api/appointments?serviceId=&clientId=&date=&from=&to=
 router.get('/', async (req, res) => {
   try {
-    const { serviceId, clientId, from, to } = req.query;
+    const { serviceId, clientId, from, to, status, paymentStatus } = req.query;
     const where = { businessId: req.user.businessId };
     if (serviceId) where.serviceId = serviceId;
     if (clientId) where.clientId = clientId;
+    if (status) where.status = status;
+    if (paymentStatus) where.paymentStatus = paymentStatus;
     if (from || to) {
       where.date = {};
       if (from) where.date.gte = from;
