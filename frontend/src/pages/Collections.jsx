@@ -282,16 +282,29 @@ export default function Collections() {
           <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>💆 Turnos cobrados</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pendingAppts.map(a => (
-              <div key={a.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', opacity: 0.8 }}>
+              <div key={a.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', opacity: 0.85 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{a.client?.name}</div>
                   <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
                     {a.service?.name} · {new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} · {a.startTime}–{a.endTime}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
                   <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>Cobrado</span>
                   <strong style={{ fontSize: 17, color: '#10b981' }}>{fmt(a.price)}</strong>
+                  <button className="btn btn-sm btn-secondary" title="Reimprimir recibo"
+                    onClick={() => setRecibo({ client: a.client, activity: { name: a.service?.name }, startDate: a.date, dueDate: null, amountDue: a.price, discount: 0, metodoPago: 'Efectivo', id: a.id, isAppointment: true, appointmentDate: a.date, startTime: a.startTime, endTime: a.endTime, employeeName: a.employee?.name || null })}>
+                    🖨️ Recibo
+                  </button>
+                  {a.client?.phone && (
+                    <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} title="WhatsApp"
+                      onClick={() => {
+                        const phone = a.client.phone.replace(/\D/g, '');
+                        const num = phone.startsWith('0') ? '549' + phone.slice(1) : phone.startsWith('54') ? phone : '549' + phone;
+                        const msg = `Hola ${a.client.name}! Te enviamos el comprobante del turno de ${a.service?.name} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmt(a.price)}. ¡Gracias!`;
+                        window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}>📱 WA</button>
+                  )}
                 </div>
               </div>
             ))}
@@ -311,7 +324,7 @@ export default function Collections() {
         <CobrarApptModal
           appointment={cobrarApptModal}
           onClose={() => setCobrarApptModal(null)}
-          onSaved={() => { setCobrarApptModal(null); load(); }}
+          onSaved={(data) => { setCobrarApptModal(null); load(); if (data) setRecibo(data); }}
         />
       )}
       {editModal && (
@@ -344,7 +357,21 @@ function CobrarApptModal({ appointment, onClose, onSaved }) {
     setSaving(true); setError('');
     try {
       await api.put(`/appointments/${a.id}`, { paymentStatus: 'paid' });
-      onSaved();
+      onSaved({
+        client: a.client,
+        activity: { name: a.service?.name },
+        startDate: a.date,
+        dueDate: null,
+        amountDue: Number(monto),
+        discount: 0,
+        metodoPago,
+        id: a.id,
+        isAppointment: true,
+        appointmentDate: a.date,
+        startTime: a.startTime,
+        endTime: a.endTime,
+        employeeName: a.employee?.name || null,
+      });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);
@@ -596,8 +623,13 @@ function WaModal({ enrollment, onClose }) {
 /* ── Helpers ──────────────────────────────────────────────────── */
 function buildWaReceiptLink(recibo, net, nroRecibo, business) {
   const fmtR = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+  const fmtD2 = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
+  const lineDetalle = recibo.isAppointment
+    ? `Turno: ${fmtD2(recibo.appointmentDate)} · ${recibo.startTime || ''}–${recibo.endTime || ''}`
+    : `Actividad: ${recibo.activity?.name || '-'}`;
   const msg = `Hola ${recibo.client?.name}! Te enviamos el comprobante de pago N° ${nroRecibo}.\n\n` +
-    `Actividad: ${recibo.activity?.name || '-'}\n` +
+    `Servicio: ${recibo.activity?.name || '-'}\n` +
+    `${lineDetalle}\n` +
     `Monto abonado: ${fmtR(net)}\n` +
     `Forma de pago: ${recibo.metodoPago || 'Efectivo'}\n\n` +
     `¡Gracias por tu pago! ${business?.name || ''}`;
@@ -665,11 +697,15 @@ function ReciboModal({ recibo, business, onClose }) {
 <div class="row"><span class="label">Socio / Cliente</span><span class="value">${recibo.client?.name || '-'}</span></div>
 ${recibo.client?.dni ? `<div class="row"><span class="label">DNI</span><span class="value">${recibo.client.dni}</span></div>` : ''}
 <div class="row"><span class="label">Actividad / Servicio</span><span class="value">${recibo.activity?.name || '-'}</span></div>
-<div class="row"><span class="label">Período</span><span class="value">${fmtD(recibo.startDate)} – ${fmtD(recibo.dueDate)}</span></div>
+${recibo.isAppointment
+  ? `<div class="row"><span class="label">Fecha del turno</span><span class="value">${fmtD(recibo.appointmentDate)} · ${recibo.startTime || ''}–${recibo.endTime || ''}</span></div>
+${recibo.employeeName ? `<div class="row"><span class="label">Prestador</span><span class="value">${recibo.employeeName}</span></div>` : ''}`
+  : `<div class="row"><span class="label">Período</span><span class="value">${fmtD(recibo.startDate)} – ${fmtD(recibo.dueDate)}</span></div>`
+}
 <div class="row"><span class="label">Forma de pago</span><span class="value">${recibo.metodoPago || 'Efectivo'}</span></div>
 <hr/>
-<div class="row"><span class="label">Cuota</span><span class="value">${fmtR(recibo.amountDue)}</span></div>
-${(recibo.discount > 0) ? `<div class="row"><span class="label">Descuento</span><span class="value" style="color:#10b981">- ${fmtR(recibo.discount)}</span></div>` : ''}
+<div class="row"><span class="label">${recibo.isAppointment ? 'Servicio' : 'Cuota'}</span><span class="value">${fmtR(recibo.amountDue)}</span></div>
+${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class="label">Descuento</span><span class="value" style="color:#10b981">- ${fmtR(recibo.discount)}</span></div>` : ''}
 <div class="total-row"><span>TOTAL ABONADO</span><span>${fmtR(net)}</span></div>
 <hr/>
 <div class="firmas">
