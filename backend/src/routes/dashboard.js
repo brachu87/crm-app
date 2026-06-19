@@ -11,37 +11,34 @@ router.get('/', async (req, res) => {
   try {
     const businessId = req.user.businessId;
 
-    // NOTA paso #1: conteos/sumas sobre Cuota pero SIN filtrar inscripciones dadas de baja
-    // y usando monto BRUTO (sin restar descuento) — bugs a corregir en pasos #8 y #9.
-    const [clientsCount, activitiesCount, pendingCount, overdueCount, pendingSum, overdueSum, upcoming] =
+    // Solo cuotas de inscripciones y clientes ACTIVOS (excluye dados de baja)
+    const activeScope = { enrollment: { active: true, client: { businessId, active: true } } };
+
+    const [clientsCount, activitiesCount, openCuotas, upcoming] =
       await Promise.all([
         prisma.client.count({ where: { businessId } }),
         prisma.activity.count({ where: { businessId, active: true } }),
-        prisma.cuota.count({
-          where: { enrollment: { client: { businessId } }, paymentStatus: 'pending' },
-        }),
-        prisma.cuota.count({
-          where: { enrollment: { client: { businessId } }, paymentStatus: 'overdue' },
-        }),
-        prisma.cuota.aggregate({
-          where: { enrollment: { client: { businessId } }, paymentStatus: 'pending' },
-          _sum: { amountDue: true },
-        }),
-        prisma.cuota.aggregate({
-          where: { enrollment: { client: { businessId } }, paymentStatus: 'overdue' },
-          _sum: { amountDue: true },
+        prisma.cuota.findMany({
+          where: { ...activeScope, paymentStatus: { in: ['pending', 'overdue'] } },
+          select: { amountDue: true, discount: true, paymentStatus: true },
         }),
         prisma.cuota.findMany({
-          where: {
-            enrollment: { client: { businessId } },
-            paymentStatus: { in: ['pending', 'overdue'] },
-            dueDate: { not: null },
-          },
+          where: { ...activeScope, paymentStatus: { in: ['pending', 'overdue'] }, dueDate: { not: null } },
           include: { enrollment: { include: { client: true, activity: true } } },
           orderBy: { dueDate: 'asc' },
           take: 10,
         }),
       ]);
+
+    // Conteos y totales por estado, sumando el NETO (amountDue - discount)
+    const pending = { count: 0, total: 0 };
+    const overdue = { count: 0, total: 0 };
+    for (const c of openCuotas) {
+      const net = Math.max(0, c.amountDue - (c.discount || 0));
+      const bucket = c.paymentStatus === 'overdue' ? overdue : pending;
+      bucket.count++;
+      bucket.total += net;
+    }
 
     // Estado actual de cada inscripción ACTIVA según su última cuota (para el donut "Inscripciones")
     const activeEnrollments = await prisma.enrollment.findMany({
@@ -68,8 +65,8 @@ router.get('/', async (req, res) => {
     res.json({
       clientsCount,
       activitiesCount,
-      pending: { count: pendingCount, total: pendingSum._sum.amountDue || 0 },
-      overdue: { count: overdueCount, total: overdueSum._sum.amountDue || 0 },
+      pending,
+      overdue,
       enrollmentStatus,
       upcomingDueDates,
     });
