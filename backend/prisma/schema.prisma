@@ -27,6 +27,8 @@ model Business {
   classSchedules   ClassSchedule[]
   attendances      Attendance[]
   payrollRecords   PayrollRecord[]
+  services         Service[]
+  appointments     Appointment[]
 }
 
 model User {
