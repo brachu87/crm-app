@@ -251,6 +251,11 @@ export default function Layout() {
             </button>
           </div>
           <button onClick={logout}>Cerrar sesion</button>
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+            <span style={{ fontSize: 11, opacity: 0.4, letterSpacing: '0.03em' }}>
+              <span style={{ fontWeight: 700 }}>z</span>entric
+            </span>
+          </div>
         </div>
       </aside>
 
