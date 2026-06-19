@@ -20,10 +20,20 @@ router.get('/', async (req, res) => {
     // Solo cuotas de inscripciones y clientes ACTIVOS (excluye dados de baja)
     const activeScope = { enrollment: { active: true, client: { businessId, active: true } } };
 
-    const [clientsCount, activitiesCount, openCuotas, upcoming, pendingAppts] =
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+
+    const [clientsCount, activitiesCount, servicesCount, employeesCount, suppliersCount, openCuotas, upcoming, pendingAppts, apptThisMonth, expensesThisMonth] =
       await Promise.all([
-        prisma.client.count({ where: { businessId } }),
+        prisma.client.count({ where: { businessId, active: true } }),
         prisma.activity.count({ where: { businessId, active: true } }),
+        // Turnos/trabajos del mes corriente (completados o programados)
+        prisma.appointment.count({
+          where: { businessId, date: { gte: firstOfMonth, lte: lastOfMonth } },
+        }),
+        prisma.employee.count({ where: { businessId, active: true } }),
+        prisma.supplier.count({ where: { businessId } }),
         prisma.cuota.findMany({
           where: { ...activeScope, paymentStatus: { in: ['pending', 'overdue'] } },
           select: { amountDue: true, discount: true, paymentStatus: true },
@@ -38,6 +48,29 @@ router.get('/', async (req, res) => {
           where: { businessId, status: 'completed', paymentStatus: 'pending' },
           _count: { id: true },
           _sum: { price: true },
+        }),
+        // Ingresos del mes (abonos registrados)
+        prisma.accountMovement.aggregate({
+          where: {
+            businessId,
+            type: 'abono',
+            date: {
+              gte: new Date(now.getFullYear(), now.getMonth(), 1),
+              lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
+            },
+          },
+          _sum: { amount: true },
+        }),
+        // Gastos del mes
+        prisma.expense.aggregate({
+          where: {
+            businessId,
+            date: {
+              gte: new Date(now.getFullYear(), now.getMonth(), 1),
+              lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
+            },
+          },
+          _sum: { amount: true },
         }),
       ]);
 
@@ -80,6 +113,11 @@ router.get('/', async (req, res) => {
     res.json({
       clientsCount,
       activitiesCount,
+      servicesCount,
+      employeesCount,
+      suppliersCount,
+      ingresosDelMes: apptThisMonth._sum?.amount || 0,
+      gastosDelMes: expensesThisMonth._sum?.amount || 0,
       pending,
       overdue,
       enrollmentStatus,
