@@ -65,6 +65,11 @@ router.delete('/:movId', async (req, res) => {
   try {
     const client = await prisma.client.findFirst({ where: scopedWhere(req, { id: req.params.id }) });
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
+    // Validar que el movimiento pertenezca a este cliente y negocio antes de borrar
+    const movement = await prisma.accountMovement.findFirst({
+      where: { id: req.params.movId, clientId: req.params.id, businessId: req.user.businessId },
+    });
+    if (!movement) return res.status(404).json({ error: 'Movimiento no encontrado' });
     await prisma.accountMovement.delete({ where: { id: req.params.movId } });
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Error al eliminar movimiento' }); }
