@@ -122,8 +122,6 @@ export default function Reports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [months, setMonths] = useState(6);
-  const [activities, setActivities] = useState([]);
-  const [activityFilter, setActivityFilter] = useState('');
 
   function load(m) {
     setLoading(true);
@@ -134,15 +132,11 @@ export default function Reports() {
 
   useEffect(() => {
     load(months);
-    api.get('/activities').then((res) => setActivities(res.data)).catch(() => {});
   }, [months]);
 
   const totalIncome = data?.monthlyData?.reduce((s, d) => s + d.income, 0) || 0;
   const totalExpenses = data?.monthlyData?.reduce((s, d) => s + d.expenses, 0) || 0;
   const balance = totalIncome - totalExpenses;
-  const filteredTopClients = activityFilter
-    ? (data?.topClients || [])
-    : (data?.topClients || []);
 
   return (
     <div>
@@ -152,14 +146,6 @@ export default function Reports() {
           <p className="page-subtitle">Resumen financiero del negocio</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <select
-            value={activityFilter}
-            onChange={(e) => setActivityFilter(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 14 }}
-          >
-            <option value="">Todas las actividades</option>
-            {activities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
           <select
             value={months}
             onChange={(e) => setMonths(Number(e.target.value))}
