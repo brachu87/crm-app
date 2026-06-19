@@ -230,7 +230,10 @@ router.post('/cuotas/:cuotaId/pay', async (req, res) => {
 
     // Se compara contra el monto NETO (monto - descuento), que es lo que realmente se cobra.
     const net = Math.max(0, existing.amountDue - (existing.discount || 0));
-    const newStatus = totalPaid >= net ? 'paid' : 'pending';
+    // Un pago parcial no debe "limpiar" una cuota vencida: si todavía debe y estaba
+    // vencida (o su vencimiento ya pasó), se mantiene en 'overdue'.
+    const isOverdue = existing.paymentStatus === 'overdue' || (existing.dueDate && new Date(existing.dueDate) < new Date());
+    const newStatus = totalPaid >= net ? 'paid' : (isOverdue ? 'overdue' : 'pending');
 
     const cuota = await prisma.cuota.update({
       where: { id: req.params.cuotaId },
