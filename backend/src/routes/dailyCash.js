@@ -114,8 +114,12 @@ router.get('/today', async (req, res) => {
 
     const totalIncome = payments.reduce((s, p) => s + p.amount, 0);
     const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+    // Solo el efectivo cuenta para el saldo físico de la caja (lo demás es banco/tarjeta)
+    const isCash = (m) => (m || '').trim().toLowerCase() === 'efectivo';
+    const cashIncome = payments.reduce((s, p) => s + (isCash(p.method) ? p.amount : 0), 0);
+    const cashExpenses = expenses.reduce((s, e) => s + (isCash(e.paymentMethod) ? e.amount : 0), 0);
 
-    res.json({ cashRecord, payments, expenses, totalIncome, totalExpenses });
+    res.json({ cashRecord, payments, expenses, totalIncome, totalExpenses, cashIncome, cashExpenses });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener caja del día' });

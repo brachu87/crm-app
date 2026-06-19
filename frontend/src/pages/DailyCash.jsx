@@ -94,8 +94,9 @@ export default function DailyCash() {
 
   useEffect(load, []);
 
+  // El saldo físico de la caja se reconcilia solo con efectivo (no transferencias/tarjeta)
   const balance = data
-    ? (data.cashRecord?.openingBalance || 0) + data.totalIncome - data.totalExpenses
+    ? (data.cashRecord?.openingBalance || 0) + (data.cashIncome || 0) - (data.cashExpenses || 0)
     : 0;
 
   const diff = data?.cashRecord?.closingBalance != null
@@ -159,8 +160,11 @@ export default function DailyCash() {
               <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#ef4444' }}>{fmt(data.totalExpenses)}</p>
             </div>
             <div className="card" style={{ padding: '16px 20px', background: balance >= 0 ? '#f0fdf4' : '#fef2f2' }}>
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>Saldo esperado</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>Saldo esperado en caja <span style={{ fontWeight: 400 }}>(efectivo)</span></p>
               <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: balance >= 0 ? '#10b981' : '#ef4444' }}>{fmt(balance)}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--ink-soft)' }}>
+                Efvo: +{fmt(data.cashIncome || 0)} / −{fmt(data.cashExpenses || 0)}
+              </p>
             </div>
             {data.cashRecord?.closingBalance != null && (
               <div className="card" style={{ padding: '16px 20px', background: diff === 0 ? '#f0fdf4' : '#fef3c7' }}>
