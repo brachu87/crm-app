@@ -368,20 +368,24 @@ export default function ClientDetail() {
         />
       )}
       {showStatement && (
-        <AccountStatement client={client} onClose={() => setShowStatement(false)} />
+        <AccountStatement client={client} account={account} onClose={() => setShowStatement(false)} />
       )}
     </div>
   );
 }
 
-function AccountStatement({ client, onClose }) {
+function AccountStatement({ client, account, onClose }) {
   const allPayments = client.enrollments
     .flatMap((e) => e.payments.map((p) => ({ ...p, activityName: e.activity.name })))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
   const totalPaid = allPayments.reduce((s, p) => s + p.amount, 0);
-  const totalPending = client.enrollments
-    .filter((e) => e.paymentStatus !== 'paid')
-    .reduce((s, e) => s + Math.max(0, e.amountDue - (e.discount || 0)), 0);
+  // Saldo real reconciliado (todas las cuotas + movimientos manuales): usa la cuenta
+  // corriente autoritativa y cae a un cálculo por cuotas si todavía no cargó.
+  const balance = account
+    ? account.balance
+    : client.enrollments
+        .flatMap((e) => e.cuotas || [])
+        .reduce((s, c) => s + Math.max(0, c.amountDue - (c.discount || 0)), 0) - totalPaid;
   const today = new Date().toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
 
   function handlePrint() {
@@ -502,8 +506,10 @@ function AccountStatement({ client, onClose }) {
                 <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#16a34a' }}>{formatMoney(totalPaid)}</p>
               </div>
               <div>
-                <p style={{ margin: 0, color: '#666', fontSize: 12 }}>Saldo pendiente</p>
-                <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: totalPending > 0 ? '#dc2626' : '#16a34a' }}>{formatMoney(totalPending)}</p>
+                <p style={{ margin: 0, color: '#666', fontSize: 12 }}>Saldo</p>
+                <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: balance > 0 ? '#dc2626' : '#16a34a' }}>
+                  {balance > 0 ? `Debe ${formatMoney(balance)}` : balance < 0 ? `A favor ${formatMoney(Math.abs(balance))}` : 'Al día'}
+                </p>
               </div>
               <div>
                 <p style={{ margin: 0, color: '#666', fontSize: 12 }}>Cantidad de pagos</p>
