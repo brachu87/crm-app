@@ -164,8 +164,15 @@ function ExpenseModal({ expense, onClose, onSaved }) {
     setError('');
     setSaving(true);
     try {
+      const rawAmount = String(form.amount).replace(',', '.').replace(/[^0-9.]/g, '');
+      const parsedAmount = parseFloat(rawAmount);
+      if (isNaN(parsedAmount) || parsedAmount < 0) {
+        setError('El monto ingresado no es válido');
+        setSaving(false);
+        return;
+      }
       const payload = {
-        amount: form.amount,
+        amount: parsedAmount,
         date: form.date,
         category: form.category,
         description: form.description || undefined,
@@ -193,7 +200,7 @@ function ExpenseModal({ expense, onClose, onSaved }) {
           <div className="two-col-grid">
             <div className="field">
               <label>Monto ($) *</label>
-              <input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => update('amount', e.target.value)} placeholder="0.00" required />
+              <input type="text" inputMode="decimal" value={form.amount} onChange={(e) => update('amount', e.target.value)} placeholder="0,00" required />
             </div>
             <div className="field">
               <label>Fecha</label>

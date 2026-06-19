@@ -169,7 +169,7 @@ export default function Layout() {
             onFocus={() => setSearchFocus(true)}
             onBlur={() => setTimeout(() => setSearchFocus(false), 200)}
             placeholder="🔍 Buscar..."
-            style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', fontSize: 13, background: 'rgba(255,255,255,0.1)', color: 'inherit', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--bg)', color: 'var(--ink)', boxSizing: 'border-box' }}
           />
           {searchFocus && searchResults && (searchResults.clients.length > 0 || searchResults.activities.length > 0) && (
             <SearchDropdown results={searchResults} onSelect={handleSearchSelect} />
@@ -194,7 +194,7 @@ export default function Layout() {
                 onClick={() => toggleGroup(group.label)}
                 className="sidebar-group-btn"
                 style={{
-                  color: hasActive ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.65)',
+                  color: hasActive ? 'var(--ink)' : 'var(--ink-soft)',
                   fontWeight: hasActive ? 700 : 500,
                 }}
               >
