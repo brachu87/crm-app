@@ -409,7 +409,7 @@ function QuickWorkModal({ work, clients, employees, onClose, onSaved }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.clientId || !form.description || !form.date) return alert('Cliente, descripción y fecha son obligatorios');
+    if (!form.description || !form.date) return alert('Descripción y fecha son obligatorias');
     setSaving(true);
     try {
       if (work) {
@@ -436,50 +436,45 @@ function QuickWorkModal({ work, clients, employees, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ maxWidth: 480 }}>
-        <div className="modal-header">
-          <h2 style={{ margin: 0, fontSize: 18 }}>{work ? 'Editar trabajo' : '+ Registrar trabajo realizado'}</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <h2>{work ? 'Editar trabajo' : 'Registrar trabajo realizado'}</h2>
         <form onSubmit={submit}>
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {!work && (
-              <label>
-                <span className="label">Cliente *</span>
-                <select className="input" value={form.clientId} onChange={e => set('clientId', e.target.value)} required>
-                  <option value="">Seleccioná un cliente...</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </label>
-            )}
-            <label>
-              <span className="label">Descripción del trabajo *</span>
-              <textarea className="input" rows={3} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Ej: Instalación cañería cocina, Reparación eléctrica, Pintura frente..." required style={{ resize: 'vertical' }} />
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <label>
-                <span className="label">Monto $</span>
-                <input className="input" type="number" min="0" step="0.01" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" />
-              </label>
-              <label>
-                <span className="label">Fecha *</span>
-                <input className="input" type="date" value={form.date} onChange={e => set('date', e.target.value)} required />
-              </label>
-            </div>
-            <label>
-              <span className="label">Responsable / Empleado</span>
-              <select className="input" value={form.employeeId} onChange={e => set('employeeId', e.target.value)}>
-                <option value="">Sin asignar</option>
-                {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+          {!work && (
+            <div className="field">
+              <label>Cliente *</label>
+              <select value={form.clientId} onChange={e => set('clientId', e.target.value)} required>
+                <option value="">Seleccioná un cliente...</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-            </label>
-            <label>
-              <span className="label">Notas internas</span>
-              <textarea className="input" rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Observaciones..." style={{ resize: 'vertical' }} />
-            </label>
+            </div>
+          )}
+          <div className="field">
+            <label>Descripción del trabajo *</label>
+            <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Ej: Instalación cañería cocina, Reparación eléctrica, Pintura frente..." required style={{ resize: 'vertical' }} />
           </div>
-          <div className="modal-footer">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Monto $</label>
+              <input type="number" min="0" step="0.01" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" />
+            </div>
+            <div className="field">
+              <label>Fecha *</label>
+              <input type="date" value={form.date} onChange={e => set('date', e.target.value)} required />
+            </div>
+          </div>
+          <div className="field">
+            <label>Responsable / Empleado</label>
+            <select value={form.employeeId} onChange={e => set('employeeId', e.target.value)}>
+              <option value="">Sin asignar</option>
+              {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>Notas internas</label>
+            <textarea rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Observaciones..." style={{ resize: 'vertical' }} />
+          </div>
+          <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : work ? 'Guardar cambios' : 'Registrar trabajo'}</button>
           </div>
