@@ -2,23 +2,53 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
 
-const links = [
-  { to: '/', label: 'Inicio' },
-  { to: '/cobranza', label: 'Cobranza' },
-  { to: '/clientes', label: 'Clientes' },
-  { to: '/actividades', label: 'Actividades' },
-  { to: '/agenda', label: 'Agenda' },
-  { to: '/caja', label: 'Caja del dia' },
-  { to: '/reportes', label: 'Reportes' },
-  { to: '/empleados', label: 'Empleados' },
-  { to: '/asistencias', label: 'Asistencias' },
-  { to: '/liquidaciones', label: 'Liquidaciones' },
-  { to: '/horarios', label: 'Horarios' },
-  { to: '/gastos', label: 'Gastos' },
-  { to: '/proveedores', label: 'Proveedores' },
-  { to: '/ajustes', label: 'Ajustes' },
-  { to: '/sedes', label: 'Sedes' },
+const NAV_GROUPS = [
+  {
+    label: 'Negocio',
+    icon: '🏪',
+    links: [
+      { to: '/cobranza', label: 'Cobranza' },
+      { to: '/clientes', label: 'Clientes' },
+      { to: '/actividades', label: 'Actividades' },
+      { to: '/agenda', label: 'Agenda' },
+      { to: '/caja', label: 'Caja del día' },
+      { to: '/reportes', label: 'Reportes' },
+    ],
+  },
+  {
+    label: 'Empleados',
+    icon: '👥',
+    links: [
+      { to: '/empleados', label: 'Empleados' },
+      { to: '/asistencias', label: 'Asistencias' },
+      { to: '/liquidaciones', label: 'Liquidaciones' },
+      { to: '/horarios', label: 'Horarios' },
+    ],
+  },
+  {
+    label: 'Finanzas',
+    icon: '💰',
+    links: [
+      { to: '/gastos', label: 'Gastos' },
+      { to: '/proveedores', label: 'Proveedores' },
+    ],
+  },
+  {
+    label: 'Configuración',
+    icon: '⚙️',
+    links: [
+      { to: '/ajustes', label: 'Ajustes' },
+      { to: '/sedes', label: 'Sedes' },
+    ],
+  },
 ];
+
+function activeGroup(pathname) {
+  for (const g of NAV_GROUPS) {
+    if (g.links.some(l => pathname === l.to || pathname.startsWith(l.to + '/'))) return g.label;
+  }
+  return null;
+}
 
 export default function Layout() {
   const { business, logout, user } = useAuth();
@@ -31,6 +61,15 @@ export default function Layout() {
   const [searchFocus, setSearchFocus] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Which accordion group is open
+  const [openGroup, setOpenGroup] = useState(() => activeGroup(location.pathname));
+
+  // When route changes, auto-open the relevant group
+  useEffect(() => {
+    const grp = activeGroup(location.pathname);
+    if (grp) setOpenGroup(grp);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (searchQ.length < 2) { setSearchResults(null); return; }
@@ -56,30 +95,22 @@ export default function Layout() {
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
 
-  // Close menu on route change
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
-  // Lock body scroll when menu is open
   useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [menuOpen]);
+
+  function toggleGroup(label) {
+    setOpenGroup(prev => prev === label ? null : label);
+  }
 
   return (
     <div className="app-shell">
       {/* Mobile top header */}
       <header className="mobile-header">
-        <button
-          className="hamburger-btn"
-          onClick={() => setMenuOpen(true)}
-          aria-label="Abrir menu"
-        >
+        <button className="hamburger-btn" onClick={() => setMenuOpen(true)} aria-label="Abrir menu">
           <span /><span /><span />
         </button>
         <span className="mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -106,22 +137,15 @@ export default function Layout() {
             <SearchDropdown results={searchResults} onSelect={handleSearchSelect} />
           )}
         </div>
-        <button
-          className="mobile-theme-btn"
-          onClick={() => setDark(!dark)}
-          aria-label="Cambiar tema"
-        >
+        <button className="mobile-theme-btn" onClick={() => setDark(!dark)} aria-label="Cambiar tema">
           {dark ? 'Oscuro' : 'Claro'}
         </button>
       </header>
 
-      {/* Overlay */}
-      {menuOpen && (
-        <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />
-      )}
+      {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />}
 
-      {/* Sidebar / drawer */}
       <aside className={`sidebar${menuOpen ? ' sidebar-open' : ''}`}>
+        {/* Header */}
         <div className="sidebar-header">
           <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {logoOk && (
@@ -134,15 +158,10 @@ export default function Layout() {
             )}
             <span>{business?.name || 'Mi Negocio'}</span>
           </div>
-          <button
-            className="sidebar-close-btn"
-            onClick={() => setMenuOpen(false)}
-            aria-label="Cerrar menu"
-          >
-            X
-          </button>
+          <button className="sidebar-close-btn" onClick={() => setMenuOpen(false)} aria-label="Cerrar menu">X</button>
         </div>
 
+        {/* Search */}
         <div style={{ padding: '8px 12px', position: 'relative' }}>
           <input
             value={searchQ}
@@ -157,17 +176,68 @@ export default function Layout() {
           )}
         </div>
 
-        {links.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            end={link.to === '/'}
-            className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-          >
-            {link.label}
-          </NavLink>
-        ))}
+        {/* Inicio */}
+        <NavLink to="/" end className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
+          Inicio
+        </NavLink>
 
+        {/* Accordion groups */}
+        {NAV_GROUPS.map((group) => {
+          const isOpen = openGroup === group.label;
+          const hasActive = group.links.some(l =>
+            location.pathname === l.to || location.pathname.startsWith(l.to + '/')
+          );
+          return (
+            <div key={group.label}>
+              {/* Group header button */}
+              <button
+                onClick={() => toggleGroup(group.label)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 16px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: hasActive ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.65)',
+                  fontSize: 14,
+                  fontWeight: hasActive ? 700 : 500,
+                  textAlign: 'left',
+                  transition: 'color 0.15s',
+                }}
+              >
+                <span style={{ fontSize: 15 }}>{group.icon}</span>
+                <span style={{ flex: 1 }}>{group.label}</span>
+                <span style={{
+                  fontSize: 11,
+                  opacity: 0.7,
+                  transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                  display: 'inline-block',
+                }}>▼</span>
+              </button>
+
+              {/* Sub-links */}
+              {isOpen && (
+                <div style={{ paddingBottom: 4 }}>
+                  {group.links.map((link) => (
+                    <NavLink
+                      key={link.to}
+                      to={link.to}
+                      className={({ isActive }) => `sidebar-link sidebar-sublink${isActive ? ' active' : ''}`}
+                    >
+                      {link.label}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Footer */}
         <div className="sidebar-footer">
           {business?.category && <div style={{ marginBottom: 4 }}>{business.category}</div>}
           {user?.name && <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>{user.name}</div>}
@@ -177,26 +247,16 @@ export default function Layout() {
               onClick={() => setDark(!dark)}
               style={{
                 background: dark ? 'var(--primary)' : 'var(--border)',
-                border: 'none',
-                borderRadius: 12,
-                width: 36,
-                height: 20,
-                cursor: 'pointer',
-                position: 'relative',
-                padding: 0,
-                transition: 'background .2s',
+                border: 'none', borderRadius: 12, width: 36, height: 20,
+                cursor: 'pointer', position: 'relative', padding: 0, transition: 'background .2s',
               }}
               aria-label="Modo oscuro"
             >
               <span style={{
-                position: 'absolute',
-                top: 2,
-                left: dark ? 18 : 2,
-                width: 16,
-                height: 16,
+                position: 'absolute', top: 2, left: dark ? 18 : 2,
+                width: 16, height: 16,
                 background: dark ? '#e8e8e8' : 'white',
-                borderRadius: '50%',
-                transition: 'left .2s',
+                borderRadius: '50%', transition: 'left .2s',
               }} />
             </button>
           </div>
@@ -217,8 +277,7 @@ function SearchDropdown({ results, onSelect }) {
     <div style={{
       position: 'absolute', top: '110%', left: 0, right: 0, zIndex: 9999,
       background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
-      boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden',
-      color: '#1f2937',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden', color: '#1f2937',
     }}>
       {clients.length > 0 && (
         <>
@@ -245,7 +304,6 @@ function SearchDropdown({ results, onSelect }) {
               onMouseOut={(e) => e.currentTarget.style.background = 'none'}
             >
               <span style={{ fontWeight: 600 }}>{a.name}</span>
-              {a.schedule && <span style={{ fontSize: 12, color: 'var(--ink-soft)', marginLeft: 6 }}>{a.schedule}</span>}
             </button>
           ))}
         </>

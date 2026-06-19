@@ -134,6 +134,12 @@ input, select, textarea { font-family: var(--font-body); }
   color: var(--primary);
 }
 
+.sidebar-sublink {
+  padding-left: 36px;
+  font-size: 14px;
+  border-radius: var(--radius);
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 0 8px;
