@@ -18,13 +18,11 @@ router.get('/', async (req, res) => {
     });
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    // Compute balance from enrollments + payments + manual movements
-    // NOTA: totalCharged cuenta cada inscripción UNA vez (no por cuota) — bug a corregir en paso #4.
-    const totalCharged = client.enrollments.reduce((s, e) => s + Math.max(0, e.amountDue - (e.discount || 0)), 0);
-    const totalPaid = client.enrollments.reduce(
-      (s, e) => s + e.cuotas.reduce((cs, c) => cs + c.payments.reduce((p, pay) => p + pay.amount, 0), 0),
-      0
-    );
+    // Compute balance from cuotas (cargo por período) + payments + manual movements.
+    // Se suma el neto de CADA cuota, de modo que los cargos mensuales acompañen a los pagos.
+    const allCuotas = client.enrollments.flatMap((e) => e.cuotas);
+    const totalCharged = allCuotas.reduce((s, c) => s + Math.max(0, c.amountDue - (c.discount || 0)), 0);
+    const totalPaid = allCuotas.reduce((s, c) => s + c.payments.reduce((p, pay) => p + pay.amount, 0), 0);
     const manualCargos = client.accountMovements.filter(m => m.type === 'cargo').reduce((s, m) => s + m.amount, 0);
     const manualAbonos = client.accountMovements.filter(m => m.type === 'abono').reduce((s, m) => s + m.amount, 0);
     const balance = totalCharged + manualCargos - totalPaid - manualAbonos;
