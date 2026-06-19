@@ -1,12 +1,19 @@
 /*
-  Warnings:
+  add_cuota_model — versión DATA-SAFE (con backfill de datos existentes)
 
-  - You are about to drop the column `dueDate` on the `Enrollment` table. All the data in the column will be lost.
-  - You are about to drop the column `paymentStatus` on the `Enrollment` table. All the data in the column will be lost.
-  - You are about to drop the column `enrollmentId` on the `Payment` table. All the data in the column will be lost.
-  - Added the required column `cuotaId` to the `Payment` table without a default value. This is not possible if the table is not empty.
-
+  Diferencias vs. la versión autogenerada:
+  - Antes de rebuildear Enrollment/Payment, se crea UNA cuota por inscripción
+    existente, conservando su estado/monto/descuento/vencimiento. Se reutiliza el
+    id de la inscripción como id de la cuota, lo que permite mapear los pagos sin
+    generar ids nuevos.
+  - Payment.cuotaId se rellena con el viejo enrollmentId (= id de la cuota creada),
+    evitando el error "NOT NULL constraint failed: new_Payment.cuotaId".
+  - El period se deriva de dueDate (o startDate, o el mes actual). Prisma guarda los
+    DateTime como enteros (ms epoch), por eso se convierte con /1000 + 'unixepoch'.
+  - createdAt de la cuota se setea explícito como entero ms (startDate) para no
+    quedar como texto (CURRENT_TIMESTAMP), que Prisma no leería como DateTime.
 */
+
 -- CreateTable
 CREATE TABLE "Cuota" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -23,6 +30,25 @@ CREATE TABLE "Cuota" (
 -- RedefineTables
 PRAGMA defer_foreign_keys=ON;
 PRAGMA foreign_keys=OFF;
+
+-- Backfill: una cuota por inscripción existente (lee Enrollment ANTES de rebuildearla).
+-- Cuota.id = Enrollment.id para poder mapear los pagos por enrollmentId.
+INSERT INTO "Cuota" ("id", "enrollmentId", "period", "amountDue", "discount", "paymentStatus", "dueDate", "createdAt")
+SELECT
+    "id",
+    "id",
+    COALESCE(
+        strftime('%Y-%m', "dueDate" / 1000, 'unixepoch'),
+        strftime('%Y-%m', "startDate" / 1000, 'unixepoch'),
+        strftime('%Y-%m', 'now')
+    ),
+    "amountDue",
+    "discount",
+    "paymentStatus",
+    "dueDate",
+    "startDate"
+FROM "Enrollment";
+
 CREATE TABLE "new_AccountMovement" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "clientId" TEXT NOT NULL,
@@ -107,7 +133,7 @@ CREATE TABLE "new_Payment" (
     "method" TEXT,
     CONSTRAINT "Payment_cuotaId_fkey" FOREIGN KEY ("cuotaId") REFERENCES "Cuota" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
-INSERT INTO "new_Payment" ("amount", "date", "id", "method") SELECT "amount", "date", "id", "method" FROM "Payment";
+INSERT INTO "new_Payment" ("id", "cuotaId", "amount", "date", "method") SELECT "id", "enrollmentId", "amount", "date", "method" FROM "Payment";
 DROP TABLE "Payment";
 ALTER TABLE "new_Payment" RENAME TO "Payment";
 CREATE INDEX "Payment_cuotaId_idx" ON "Payment"("cuotaId");
