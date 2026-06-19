@@ -21,6 +21,65 @@ const DAYS_L = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const SLOT_H = 60; // px per hour in week/day views
 
+// ─── Schedule expansion ───────────────────────────────────────────────────────
+const SCHED_COLORS = ['teal','blue','purple','green','orange','pink','red'];
+
+function colorForActivity(activityId, index) {
+  return SCHED_COLORS[index % SCHED_COLORS.length];
+}
+
+function parseTime(timeStr, date) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date(date);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function expandSchedules(schedules, fromDate, toDate, activityColorMap) {
+  const events = [];
+  const from = new Date(fromDate); from.setHours(0,0,0,0);
+  const to = new Date(toDate); to.setHours(23,59,59,999);
+  const cursor = new Date(from);
+  while (cursor <= to) {
+    const dow = cursor.getDay();
+    schedules.forEach(s => {
+      if (s.dayOfWeek === dow) {
+        const startAt = parseTime(s.startTime, cursor);
+        const endAt = parseTime(s.endTime, cursor);
+        events.push({
+          id: `sched-${s.id}-${cursor.toISOString().slice(0,10)}`,
+          title: s.activity?.name || 'Clase',
+          content: s.employee ? `Instructor: ${s.employee.name}` : '',
+          allDay: false,
+          startAt: startAt.toISOString(),
+          endAt: endAt.toISOString(),
+          color: activityColorMap[s.activityId] || 'teal',
+          isSchedule: true,
+          scheduleData: s,
+        });
+      }
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return events;
+}
+
+function getViewRange(view, navDate) {
+  if (view === 'month') {
+    const y = navDate.getFullYear(), m = navDate.getMonth();
+    return { from: new Date(y, m - 1, 1), to: new Date(y, m + 2, 0) };
+  }
+  if (view === 'week') {
+    const ws = startOfWeek(navDate);
+    return { from: addDays(ws, -7), to: addDays(ws, 14) };
+  }
+  if (view === 'day') {
+    return { from: addDays(navDate, -1), to: addDays(navDate, 1) };
+  }
+  // agenda: next 90 days
+  return { from: new Date(), to: addDays(new Date(), 90) };
+}
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 function sameDay(a, b) {
   return a.getFullYear() === b.getFullYear() &&
@@ -319,14 +378,18 @@ function MonthView({ navDate, events, today, onDayClick, onEventClick }) {
             <div
               key={ev.id}
               className={`cal-month-pill${ev.completed ? ' cal-pill--done' : ''}`}
-              style={{ background: colorHex(ev.color) }}
-              onClick={e => { e.stopPropagation(); onEventClick(ev); }}
-              title={ev.title}
+              style={{
+                background: colorHex(ev.color),
+                opacity: ev.isSchedule ? 0.75 : 1,
+                cursor: ev.isSchedule ? 'default' : 'pointer',
+              }}
+              onClick={e => { e.stopPropagation(); if (!ev.isSchedule) onEventClick(ev); }}
+              title={ev.isSchedule ? `${ev.title}${ev.scheduleData?.employee ? ' · ' + ev.scheduleData.employee.name : ''}` : ev.title}
             >
               {!ev.allDay && ev.startAt && (
                 <span className="cal-pill-time">{fmtTime(ev.startAt)}</span>
               )}
-              {ev.title}
+              {ev.isSchedule ? '📍 ' : ''}{ev.title}
             </div>
           ))}
           {dayEvents.length > 3 && (
@@ -463,17 +526,20 @@ function WeekView({ navDate, events, today, onSlotClick, onEventClick }) {
               {timedEventsForDay(day).map(ev => (
                 <div
                   key={ev.id}
-                  className={`cal-week-event${ev.completed ? ' cal-pill--done' : ''}`}
+                  className={`cal-week-event${ev.completed ? ' cal-pill--done' : ''}${ev.isSchedule ? ' cal-sched-event' : ''}`}
                   style={{
                     top: topPct(ev),
                     height: heightPx(ev),
                     background: colorHex(ev.color),
+                    opacity: ev.isSchedule ? 0.75 : 1,
+                    cursor: ev.isSchedule ? 'default' : 'pointer',
                   }}
                   onClick={e => { e.stopPropagation(); onEventClick(ev); }}
                 >
-                  <span className="cal-week-event-title">{ev.title}</span>
+                  <span className="cal-week-event-title">{ev.isSchedule ? '📍 ' : ''}{ev.title}</span>
                   <span className="cal-week-event-time">
                     {fmtTime(ev.startAt)}{ev.endAt ? ` - ${fmtTime(ev.endAt)}` : ''}
+                    {ev.isSchedule && ev.scheduleData?.employee ? ` · ${ev.scheduleData.employee.name}` : ''}
                   </span>
                 </div>
               ))}
@@ -564,12 +630,14 @@ function DayView({ navDate, events, today, onSlotClick, onEventClick }) {
             {timed.map(ev => (
               <div
                 key={ev.id}
-                className={`cal-week-event${ev.completed ? ' cal-pill--done' : ''}`}
+                className={`cal-week-event${ev.completed ? ' cal-pill--done' : ''}${ev.isSchedule ? ' cal-sched-event' : ''}`}
                 style={{
                   top: topPx(ev),
                   height: heightPx(ev),
                   background: colorHex(ev.color),
                   width: 'calc(100% - 8px)',
+                  opacity: ev.isSchedule ? 0.75 : 1,
+                  cursor: ev.isSchedule ? 'default' : 'pointer',
                 }}
                 onClick={e => { e.stopPropagation(); onEventClick(ev); }}
               >
@@ -617,13 +685,20 @@ function AgendaView({ events, onEventClick }) {
             )}
             <div
               className={`cal-agenda-item${ev.completed ? ' cal-pill--done' : ''}`}
-              onClick={() => onEventClick(ev)}
-              style={{ borderLeft: `4px solid ${colorHex(ev.color)}` }}
+              onClick={() => { if (!ev.isSchedule) onEventClick(ev); }}
+              style={{
+                borderLeft: `4px solid ${colorHex(ev.color)}`,
+                opacity: ev.isSchedule ? 0.85 : 1,
+                cursor: ev.isSchedule ? 'default' : 'pointer',
+              }}
             >
               <div className="cal-agenda-item-time">
                 {ev.allDay ? 'Todo el dia' : `${fmtTime(ev.startAt)}${ev.endAt ? ` - ${fmtTime(ev.endAt)}` : ''}`}
               </div>
-              <div className="cal-agenda-item-title">{ev.title}</div>
+              <div className="cal-agenda-item-title">
+                {ev.isSchedule ? '📍 ' : ''}{ev.title}
+                {ev.isSchedule && ev.scheduleData?.employee && <span style={{fontWeight:400,fontSize:12,marginLeft:6,color:'var(--muted)'}}>· {ev.scheduleData.employee.name}</span>}
+              </div>
               {ev.content && <div className="cal-agenda-item-desc">{ev.content}</div>}
             </div>
           </div>
@@ -644,10 +719,27 @@ export default function Notes() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // { event, defaultDate }
 
+  const [schedules, setSchedules] = useState([]);
+  const [activityColorMap, setActivityColorMap] = useState({});
+
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get('/notes');
-      setEvents(data);
+      const [notesRes, schedRes] = await Promise.all([
+        api.get('/notes'),
+        api.get('/schedules'),
+      ]);
+      setEvents(notesRes.data);
+      const scheds = schedRes.data;
+      setSchedules(scheds);
+      // Build activity→color map
+      const map = {};
+      let idx = 0;
+      scheds.forEach(s => {
+        if (s.activityId && !(s.activityId in map)) {
+          map[s.activityId] = colorForActivity(s.activityId, idx++);
+        }
+      });
+      setActivityColorMap(map);
     } catch (e) {
       console.error(e);
     } finally {
@@ -656,6 +748,13 @@ export default function Notes() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Merge notes with expanded schedule events for current view
+  const allEvents = (() => {
+    const range = getViewRange(view, navDate);
+    const schedEvents = expandSchedules(schedules, range.from, range.to, activityColorMap);
+    return [...events, ...schedEvents];
+  })();
 
   async function handleSave(payload, id) {
     if (id) {
@@ -677,6 +776,7 @@ export default function Notes() {
   }
 
   function openEdit(event) {
+    if (event.isSchedule) return; // schedule events are read-only
     setModal({ event, defaultDate: null });
   }
 
@@ -749,7 +849,7 @@ export default function Notes() {
         {view === 'month' && (
           <MonthView
             navDate={navDate}
-            events={events}
+            events={allEvents}
             today={today}
             onDayClick={d => { setNavDate(d); openNew(d, true); }}
             onEventClick={openEdit}
@@ -758,7 +858,7 @@ export default function Notes() {
         {view === 'week' && (
           <WeekView
             navDate={navDate}
-            events={events}
+            events={allEvents}
             today={today}
             onSlotClick={(date, allDay) => openNew(date, allDay)}
             onEventClick={openEdit}
@@ -767,14 +867,14 @@ export default function Notes() {
         {view === 'day' && (
           <DayView
             navDate={navDate}
-            events={events}
+            events={allEvents}
             today={today}
             onSlotClick={(date, allDay) => openNew(date, allDay)}
             onEventClick={openEdit}
           />
         )}
         {view === 'agenda' && (
-          <AgendaView events={events} onEventClick={openEdit} />
+          <AgendaView events={allEvents} onEventClick={openEdit} />
         )}
       </div>
 
