@@ -4,18 +4,18 @@ import { useEffect, useState } from 'react';
 
 const links = [
   { to: '/', label: 'Inicio' },
-  { to: '/actividades', label: 'Actividades' },
-  { to: '/clientes', label: 'Clientes' },
   { to: '/cobranza', label: 'Cobranza' },
-  { to: '/empleados', label: 'Empleados' },
-  { to: '/sedes', label: 'Sedes' },
-  { to: '/horarios', label: 'Horarios' },
-  { to: '/gastos', label: 'Gastos' },
-  { to: '/proveedores', label: 'Proveedores' },
+  { to: '/clientes', label: 'Clientes' },
+  { to: '/actividades', label: 'Actividades' },
   { to: '/agenda', label: 'Agenda' },
   { to: '/caja', label: 'Caja del dia' },
   { to: '/reportes', label: 'Reportes' },
+  { to: '/empleados', label: 'Empleados' },
+  { to: '/horarios', label: 'Horarios' },
+  { to: '/gastos', label: 'Gastos' },
+  { to: '/proveedores', label: 'Proveedores' },
   { to: '/ajustes', label: 'Ajustes' },
+  { to: '/sedes', label: 'Sedes' },
 ];
 
 export default function Layout() {
