@@ -5,4 +5,10 @@ function periodKey(date = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-module.exports = { periodKey };
+// Suma un mes a un período "YYYY-MM" y devuelve el período resultante.
+function addMonthToPeriod(period) {
+  const [y, m] = period.split('-').map(Number);
+  return periodKey(new Date(y, m, 1)); // m (1-based) como índice 0-based = mes siguiente
+}
+
+module.exports = { periodKey, addMonthToPeriod };

@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
-const { periodKey } = require('../lib/period');
+const { periodKey, addMonthToPeriod } = require('../lib/period');
 
 const router = express.Router();
 
@@ -245,9 +245,9 @@ router.post('/cuotas/:cuotaId/pay', async (req, res) => {
   }
 });
 
-// POST /api/enrollments/renew-month - renovar cuotas del mes siguiente
-// NOTA paso #1: porteo fiel del comportamiento actual (reusa la misma cuota, no crea una nueva
-// ni limpia los pagos). Se reescribe correctamente en el paso #3.
+// POST /api/enrollments/renew-month - genera la cuota del mes siguiente
+// Crea una cuota NUEVA por cada inscripción cuya última cuota esté pagada,
+// dejando la cuota pagada intacta como histórico (no reusa la fila ni los pagos).
 router.post('/renew-month', async (req, res) => {
   try {
     const bId = req.user.businessId;
@@ -262,22 +262,40 @@ router.post('/renew-month', async (req, res) => {
     // Inscripciones activas cuya última cuota está pagada
     const enrollments = await prisma.enrollment.findMany({
       where: { activity: { businessId: bId }, active: true },
-      include: { client: true, activity: true, cuotas: { orderBy: { period: 'desc' }, take: 1 } },
+      include: { cuotas: { orderBy: { period: 'desc' }, take: 1 } },
     });
     const toRenew = enrollments.filter((e) => e.cuotas[0]?.paymentStatus === 'paid');
 
     if (toRenew.length === 0) return res.json({ renewed: 0, message: 'No hay inscripciones pagadas para renovar' });
 
-    const nextDue = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-
+    let renewed = 0;
+    let lastDue = null;
     for (const e of toRenew) {
-      await prisma.cuota.update({
-        where: { id: e.cuotas[0].id },
-        data: { paymentStatus: 'pending', dueDate: nextDue },
-      });
+      const last = e.cuotas[0];
+      const nextPeriod = addMonthToPeriod(last.period);
+      // Vencimiento del mes siguiente: a partir del vencimiento anterior (o de hoy si no tenía)
+      const baseDue = last.dueDate ? new Date(last.dueDate) : now;
+      const nextDue = new Date(baseDue.getFullYear(), baseDue.getMonth() + 1, baseDue.getDate());
+      try {
+        await prisma.cuota.create({
+          data: {
+            enrollmentId: e.id,
+            period: nextPeriod,
+            amountDue: e.amountDue, // monto/descuento base mensual de la membresía
+            discount: e.discount,
+            paymentStatus: 'pending',
+            dueDate: nextDue,
+          },
+        });
+        renewed++;
+        lastDue = nextDue;
+      } catch (err) {
+        if (err.code === 'P2002') continue; // ya existe la cuota de ese período: no duplicar
+        throw err;
+      }
     }
 
-    res.json({ renewed: toRenew.length, newDueDate: nextDue, message: `${toRenew.length} cuotas renovadas para ${nextDue.toLocaleDateString('es-AR')}` });
+    res.json({ renewed, newDueDate: lastDue, message: `${renewed} cuotas generadas para el mes siguiente` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al renovar cuotas' });
