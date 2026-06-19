@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { DEFAULT_TEMPLATES, getTemplates } from './Collections';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, business, updateBusiness } = useAuth();
   const isOwner = user?.role === 'owner';
 
   const [users, setUsers] = useState([]);
@@ -15,6 +15,33 @@ export default function Settings() {
   const [success, setSuccess] = useState('');
   const [logoTs, setLogoTs] = useState(Date.now());
   const [logoError, setLogoError] = useState(false);
+
+  // Business info form
+  const [bizForm, setBizForm] = useState({ name: business?.name || '', category: business?.category || 'otro' });
+  const [savingBiz, setSavingBiz] = useState(false);
+  const CATEGORIES = [
+    { value: 'gym', label: 'Gimnasio' },
+    { value: 'estetica', label: 'Centro estético' },
+    { value: 'pilates', label: 'Pilates / Yoga' },
+    { value: 'danza', label: 'Academia de danza' },
+    { value: 'crossfit', label: 'CrossFit / Box' },
+    { value: 'peluqueria', label: 'Peluquería / Barbería' },
+    { value: 'otro', label: 'Otro' },
+  ];
+
+  async function saveBizInfo() {
+    if (!bizForm.name.trim()) return;
+    setSavingBiz(true);
+    try {
+      const res = await api.put('/business', bizForm);
+      updateBusiness(res.data);
+      setSuccess('Datos del negocio actualizados');
+    } catch (e) {
+      setError(e.response?.data?.error || 'No se pudo guardar');
+    } finally {
+      setSavingBiz(false);
+    }
+  }
 
   async function uploadLogo(file) {
     const fd = new FormData();
@@ -81,6 +108,36 @@ export default function Settings() {
       {success && (
         <div style={{ background: 'var(--primary-soft)', color: 'var(--primary)', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
           {success}
+        </div>
+      )}
+
+      {/* Datos del negocio */}
+      {isOwner && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 16, marginBottom: 16 }}>Datos del negocio</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Nombre del negocio</label>
+              <input
+                value={bizForm.name}
+                onChange={e => setBizForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Nombre de tu negocio"
+              />
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Tipo de negocio</label>
+              <select value={bizForm.category} onChange={e => setBizForm(f => ({ ...f, category: e.target.value }))}>
+                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={saveBizInfo}
+            disabled={savingBiz || !bizForm.name.trim()}
+          >
+            {savingBiz ? 'Guardando...' : 'Guardar cambios'}
+          </button>
         </div>
       )}
 

@@ -40,7 +40,13 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, business, login, register, logout, isAuthenticated: !!user }}>
+    function updateBusiness(data) {
+    const updated = { ...business, ...data };
+    localStorage.setItem('business', JSON.stringify(updated));
+    setBusiness(updated);
+  }
+
+  <AuthContext.Provider value={{ user, business, login, register, logout, updateBusiness, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

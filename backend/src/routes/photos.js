@@ -9,7 +9,8 @@ const { scopedWhere } = require('../middleware/tenant');
 const router = express.Router();
 router.use(authMiddleware);
 
-const PHOTOS_DIR = process.env.PHOTOS_DIR || path.join(__dirname, '../../../data/photos');
+const PHOTOS_DIR = process.env.PHOTOS_DIR ||
+  (require('fs').existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
 
 // Ensure directory exists
 if (!fs.existsSync(PHOTOS_DIR)) {

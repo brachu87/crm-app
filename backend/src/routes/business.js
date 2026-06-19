@@ -8,7 +8,8 @@ const prisma = require('../prisma');
 const router = express.Router();
 router.use(authMiddleware);
 
-const PHOTOS_DIR = process.env.PHOTOS_DIR || path.join(__dirname, '../../../data/photos');
+const PHOTOS_DIR = process.env.PHOTOS_DIR ||
+  (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
 if (!fs.existsSync(PHOTOS_DIR)) fs.mkdirSync(PHOTOS_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -57,6 +58,35 @@ router.delete('/logo', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al eliminar logo' });
+  }
+});
+
+
+// GET /api/business/info
+router.get('/info', async (req, res) => {
+  try {
+    const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
+    if (!biz) return res.status(404).json({ error: 'Negocio no encontrado' });
+    res.json({ id: biz.id, name: biz.name, category: biz.category });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener negocio' });
+  }
+});
+
+// PUT /api/business
+router.put('/', async (req, res) => {
+  try {
+    const { name, category } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'El nombre es requerido' });
+    const biz = await prisma.business.update({
+      where: { id: req.user.businessId },
+      data: { name: name.trim(), ...(category ? { category } : {}) },
+    });
+    res.json({ id: biz.id, name: biz.name, category: biz.category });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar negocio' });
   }
 });
 
