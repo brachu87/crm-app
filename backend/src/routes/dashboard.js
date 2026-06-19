@@ -1,6 +1,8 @@
 const express = require('express');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
+const { markOverdueCuotas } = require('../lib/overdue');
+const { autoRenewCuotas } = require('../lib/autoRenew');
 
 const router = express.Router();
 
@@ -10,6 +12,10 @@ router.use(authMiddleware);
 router.get('/', async (req, res) => {
   try {
     const businessId = req.user.businessId;
+
+    // Auto-generar cuotas vencidas al abrir el dashboard
+    await markOverdueCuotas({ businessId });
+    await autoRenewCuotas({ businessId });
 
     // Solo cuotas de inscripciones y clientes ACTIVOS (excluye dados de baja)
     const activeScope = { enrollment: { active: true, client: { businessId, active: true } } };

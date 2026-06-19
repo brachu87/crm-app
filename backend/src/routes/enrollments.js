@@ -3,6 +3,7 @@ const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const { periodKey, addMonthToPeriod } = require('../lib/period');
 const { markOverdueCuotas } = require('../lib/overdue');
+const { autoRenewCuotas } = require('../lib/autoRenew');
 
 const router = express.Router();
 
@@ -40,7 +41,12 @@ function shapeCuota(c) {
 router.get('/', async (req, res) => {
   try {
     const { status, partial } = req.query;
-    const baseWhere = { enrollment: { client: { businessId: req.user.businessId, active: true }, active: true } };
+    const bId = req.user.businessId;
+    const baseWhere = { enrollment: { client: { businessId: bId, active: true }, active: true } };
+
+    // Auto-generar cuotas vencidas antes de devolver datos
+    await markOverdueCuotas({ businessId: bId });
+    await autoRenewCuotas({ businessId: bId });
 
     // Caso especial: cuotas con saldo pendiente (pago parcial o sin pagos)
     if (partial === 'true') {
