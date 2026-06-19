@@ -85,10 +85,13 @@ export default function DailyCash() {
   const [loading, setLoading] = useState(true);
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [error, setError] = useState('');
   function load() {
     setLoading(true);
+    setError('');
     api.get('/daily-cash/today')
       .then((res) => setData(res.data))
+      .catch(() => setError('No se pudo cargar la caja del día. Probá de nuevo en unos minutos.'))
       .finally(() => setLoading(false));
   }
 
@@ -141,7 +144,9 @@ export default function DailyCash() {
 
       {tab === 'today' && loading ? (
         <p>Cargando...</p>
-      ) : tab === 'today' ? (
+      ) : tab === 'today' && error ? (
+        <div className="error-banner">{error}</div>
+      ) : tab === 'today' && data ? (
         <>
           {/* KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 24 }}>

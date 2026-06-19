@@ -84,18 +84,23 @@ function DonutChart({ paid, pending, overdue }) {
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [cashData, setCashData] = useState(null);
   const [notes, setNotes] = useState([]);
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
-    api.get('/dashboard').then((res) => setData(res.data)).finally(() => setLoading(false));
+    api.get('/dashboard')
+      .then((res) => setData(res.data))
+      .catch(() => setError('No se pudo cargar el resumen del negocio. Probá de nuevo en unos minutos.'))
+      .finally(() => setLoading(false));
     api.get('/daily-cash/today').then((res) => setCashData(res.data)).catch(() => {});
     api.get('/notes').then((res) => setNotes(res.data.filter((n) => !n.completed))).catch(() => {});
     api.get('/reports/summary?months=6').then((res) => setSummary(res.data)).catch(() => {});
   }, []);
 
   if (loading) return <p>Cargando...</p>;
+  if (error) return <div className="error-banner">{error}</div>;
   if (!data) return <p>No se pudo cargar el resumen.</p>;
 
   // Proximas a vencer: pending enrollments with dueDate in next 7 days

@@ -121,12 +121,15 @@ function DonutChart({ data }) {
 export default function Reports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [months, setMonths] = useState(6);
 
   function load(m) {
     setLoading(true);
+    setError('');
     api.get(`/reports/summary?months=${m}`)
       .then((res) => setData(res.data))
+      .catch(() => setError('No se pudieron cargar los reportes. Probá de nuevo en unos minutos.'))
       .finally(() => setLoading(false));
   }
 
@@ -160,7 +163,9 @@ export default function Reports() {
 
       {loading ? (
         <p>Calculando...</p>
-      ) : (
+      ) : error ? (
+        <div className="error-banner">{error}</div>
+      ) : !data ? null : (
         <>
           {/* KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
