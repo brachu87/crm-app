@@ -88,6 +88,8 @@ model Activity {
   enrollments Enrollment[]
   activityEmployees ActivityEmployee[]
   classSchedules    ClassSchedule[]
+  attendances       Attendance[]
+  payrollRecords    PayrollRecord[]
   createdAt   DateTime     @default(now())
 
   @@index([businessId])
@@ -197,8 +199,10 @@ model Employee {
   role      String
   phone     String?
   email     String?
-  salary    Float?
-  startDate DateTime @default(now())
+  salary      Float?
+  payType     String  @default("hourly")
+  payFrequency String @default("monthly")
+  startDate   DateTime @default(now())
   active    Boolean  @default(true)
   notes     String?
   businessId String
@@ -208,6 +212,8 @@ model Employee {
   createdAt DateTime @default(now())
   activityEmployees ActivityEmployee[]
   classSchedules    ClassSchedule[]
+  attendances       Attendance[]
+  payrollRecords    PayrollRecord[]
 
   @@index([businessId])
   @@index([branchId])
@@ -256,6 +262,8 @@ model Branch {
   employees      Employee[]
   activities     Activity[]
   classSchedules ClassSchedule[]
+  attendances    Attendance[]
+  payrollRecords PayrollRecord[]
 
   @@index([businessId])
 }
@@ -289,4 +297,44 @@ model ClassSchedule {
   @@index([businessId])
   @@index([branchId])
   @@index([activityId])
+  attendances Attendance[]
+}
+
+model Attendance {
+  id              String         @id @default(cuid())
+  businessId      String
+  business        Business       @relation(fields: [businessId], references: [id])
+  employeeId      String
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date            DateTime
+  status          String         @default("present")
+  hoursWorked     Float          @default(0)
+  notes           String?
+  classScheduleId String?
+  classSchedule   ClassSchedule? @relation(fields: [classScheduleId], references: [id])
+  createdAt       DateTime       @default(now())
+
+  @@index([businessId])
+  @@index([employeeId])
+}
+
+model PayrollRecord {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id])
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  periodStart DateTime
+  periodEnd   DateTime
+  totalHours  Float    @default(0)
+  payRate     Float
+  payType     String
+  totalAmount Float
+  status      String   @default("pending")
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([businessId])
+  @@index([employeeId])
 }

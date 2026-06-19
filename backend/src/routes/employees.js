@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
 // POST /api/employees
 router.post('/', async (req, res) => {
   try {
-    const { name, role, phone, email, salary, startDate, notes, branchId } = req.body;
+    const { name, role, phone, email, salary, payType, payFrequency, startDate, notes, branchId } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     if (!role) return res.status(400).json({ error: 'El rol es obligatorio' });
 
@@ -38,6 +38,8 @@ router.post('/', async (req, res) => {
         phone: phone || null,
         email: email || null,
         salary: salary ? parseFloat(salary) : null,
+        payType: payType || 'hourly',
+        payFrequency: payFrequency || 'monthly',
         startDate: startDate ? new Date(startDate) : new Date(),
         notes: notes || null,
         branchId: branchId || null,
@@ -60,7 +62,7 @@ router.put('/:id', async (req, res) => {
     });
     if (!existing) return res.status(404).json({ error: 'Empleado no encontrado' });
 
-    const { name, role, phone, email, salary, startDate, notes, active, branchId } = req.body;
+    const { name, role, phone, email, salary, payType, payFrequency, startDate, notes, active, branchId } = req.body;
     const employee = await prisma.employee.update({
       where: { id: req.params.id },
       data: {
@@ -69,6 +71,8 @@ router.put('/:id', async (req, res) => {
         phone: phone || null,
         email: email || null,
         salary: salary ? parseFloat(salary) : null,
+        payType: payType || existing.payType,
+        payFrequency: payFrequency || existing.payFrequency,
         startDate: startDate ? new Date(startDate) : undefined,
         notes: notes || null,
         active: active !== undefined ? active : existing.active,

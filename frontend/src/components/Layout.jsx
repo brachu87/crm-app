@@ -11,6 +11,8 @@ const links = [
   { to: '/caja', label: 'Caja del dia' },
   { to: '/reportes', label: 'Reportes' },
   { to: '/empleados', label: 'Empleados' },
+  { to: '/asistencias', label: 'Asistencias' },
+  { to: '/liquidaciones', label: 'Liquidaciones' },
   { to: '/horarios', label: 'Horarios' },
   { to: '/gastos', label: 'Gastos' },
   { to: '/proveedores', label: 'Proveedores' },

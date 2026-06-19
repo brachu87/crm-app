@@ -77,7 +77,8 @@ export default function Employees() {
                 <th>Sede</th>
                 <th>Actividades</th>
                 <th>Teléfono</th>
-                <th>Sueldo</th>
+                <th>Tipo pago</th>
+                <th>Tarifa</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -90,6 +91,7 @@ export default function Employees() {
                   <td>{e.branch?.name || <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
                   <td style={{fontSize:13}}>{e.activityEmployees?.length > 0 ? e.activityEmployees.map(ae => ae.activity?.name).filter(Boolean).join(', ') : <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
                   <td>{e.phone || '-'}</td>
+                  <td>{e.payType === 'hourly' ? 'Por hora' : e.payType === 'fixed' ? 'Fijo' : '-'}</td>
                   <td>{e.salary != null ? `$${Number(e.salary).toLocaleString('es-AR')}` : '-'}</td>
                   <td>
                     <span style={{
@@ -136,6 +138,8 @@ function EmployeeModal({ employee, onClose, onSaved }) {
     phone: employee?.phone || '',
     email: employee?.email || '',
     salary: employee?.salary ?? '',
+    payType: employee?.payType || 'hourly',
+    payFrequency: employee?.payFrequency || 'monthly',
     startDate: employee?.startDate ? employee.startDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
     notes: employee?.notes || '',
     active: employee?.active !== undefined ? employee.active : true,
@@ -161,6 +165,8 @@ function EmployeeModal({ employee, onClose, onSaved }) {
         phone: form.phone || undefined,
         email: form.email || undefined,
         salary: form.salary !== '' ? form.salary : undefined,
+        payType: form.payType,
+        payFrequency: form.payFrequency,
         startDate: form.startDate,
         notes: form.notes || undefined,
         active: form.active,
@@ -214,7 +220,24 @@ function EmployeeModal({ employee, onClose, onSaved }) {
           </div>
           <div className="two-col-grid">
             <div className="field">
-              <label>Sueldo mensual ($)</label>
+              <label>Tipo de pago</label>
+              <select value={form.payType} onChange={e => update('payType', e.target.value)}>
+                <option value="hourly">Por hora</option>
+                <option value="fixed">Sueldo fijo</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Frecuencia de pago</label>
+              <select value={form.payFrequency} onChange={e => update('payFrequency', e.target.value)}>
+                <option value="weekly">Semanal</option>
+                <option value="biweekly">Quincenal</option>
+                <option value="monthly">Mensual</option>
+              </select>
+            </div>
+          </div>
+          <div className="two-col-grid">
+            <div className="field">
+              <label>{form.payType === 'hourly' ? 'Valor por hora ($)' : 'Sueldo fijo ($)'}</label>
               <input type="number" min="0" step="0.01" value={form.salary} onChange={(e) => update('salary', e.target.value)} placeholder="0" />
             </div>
             <div className="field">

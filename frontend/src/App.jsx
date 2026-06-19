@@ -10,6 +10,8 @@ import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
 import Collections from './pages/Collections';
 import Employees from './pages/Employees';
+import Attendance from './pages/Attendance';
+import Payroll from './pages/Payroll';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
 import Suppliers from './pages/Suppliers';
@@ -45,6 +47,8 @@ export default function App() {
             <Route path="clientes/:id" element={<ClientDetail />} />
             <Route path="cobranza" element={<Collections />} />
             <Route path="empleados" element={<Employees />} />
+            <Route path="asistencias" element={<Attendance />} />
+            <Route path="liquidaciones" element={<Payroll />} />
             <Route path="sedes" element={<Sedes />} />
             <Route path="horarios" element={<Horarios />} />
             <Route path="gastos" element={<Expenses />} />
