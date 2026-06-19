@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '../api';
+import api from '../api/client';
 
 const STATUS_LABELS = { present: 'Presente', absent: 'Ausente', late: 'Tardanza', half: 'Medio día' };
 const STATUS_COLORS = { present: '#10b981', absent: '#ef4444', late: '#f59e0b', half: '#6366f1' };
