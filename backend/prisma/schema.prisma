@@ -25,6 +25,8 @@ model Business {
   accountMovements AccountMovement[]
   branches         Branch[]
   classSchedules   ClassSchedule[]
+  attendances      Attendance[]
+  payrollRecords   PayrollRecord[]
 }
 
 model User {
@@ -88,8 +90,6 @@ model Activity {
   enrollments Enrollment[]
   activityEmployees ActivityEmployee[]
   classSchedules    ClassSchedule[]
-  attendances       Attendance[]
-  payrollRecords    PayrollRecord[]
   createdAt   DateTime     @default(now())
 
   @@index([businessId])
@@ -262,8 +262,6 @@ model Branch {
   employees      Employee[]
   activities     Activity[]
   classSchedules ClassSchedule[]
-  attendances    Attendance[]
-  payrollRecords PayrollRecord[]
 
   @@index([businessId])
 }
