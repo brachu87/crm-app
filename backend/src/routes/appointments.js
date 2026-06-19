@@ -11,15 +11,16 @@ const INCLUDE = {
   service: { select: { id: true, name: true, duration: true } },
 };
 
-// GET /api/appointments?serviceId=&clientId=&date=&from=&to=
+// GET /api/appointments
 router.get('/', async (req, res) => {
   try {
-    const { serviceId, clientId, from, to, status, paymentStatus } = req.query;
+    const { serviceId, clientId, from, to, status, paymentStatus, isQuickWork } = req.query;
     const where = { businessId: req.user.businessId };
     if (serviceId) where.serviceId = serviceId;
     if (clientId) where.clientId = clientId;
     if (status) where.status = status;
     if (paymentStatus) where.paymentStatus = paymentStatus;
+    if (isQuickWork !== undefined) where.isQuickWork = isQuickWork === 'true';
     if (from || to) {
       where.date = {};
       if (from) where.date.gte = from;
@@ -36,7 +37,38 @@ router.get('/', async (req, res) => {
 // POST /api/appointments
 router.post('/', async (req, res) => {
   try {
-    const { serviceId, clientId, employeeId, branchId, date, startTime, endTime, price, notes } = req.body;
+    const {
+      serviceId, clientId, employeeId, branchId,
+      date, startTime, endTime, price, notes,
+      description, isQuickWork,
+    } = req.body;
+
+    if (isQuickWork) {
+      // Quick work: just needs client, description, price, date
+      if (!clientId || !date)
+        return res.status(400).json({ error: 'Faltan campos requeridos' });
+      const a = await prisma.appointment.create({
+        data: {
+          businessId: req.user.businessId,
+          clientId,
+          employeeId: employeeId || null,
+          branchId: branchId || null,
+          description: description || null,
+          date,
+          startTime: startTime || '',
+          endTime: endTime || '',
+          price: parseFloat(price) || 0,
+          notes: notes || null,
+          isQuickWork: true,
+          status: 'completed',
+          paymentStatus: 'pending',
+        },
+        include: INCLUDE,
+      });
+      return res.status(201).json(a);
+    }
+
+    // Regular appointment
     if (!serviceId || !clientId || !date || !startTime || !endTime)
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     const a = await prisma.appointment.create({
@@ -48,6 +80,7 @@ router.post('/', async (req, res) => {
         date, startTime, endTime,
         price: parseFloat(price) || 0,
         notes: notes || null,
+        isQuickWork: false,
       },
       include: INCLUDE,
     });
@@ -58,17 +91,16 @@ router.post('/', async (req, res) => {
 // PUT /api/appointments/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { status, paymentStatus, price, notes, employeeId, date, startTime, endTime } = req.body;
+    const { status, paymentStatus, price, notes, employeeId, date, startTime, endTime, description } = req.body;
     const data = {};
-    if (status !== undefined) {
-      data.status = status;
-    }
+    if (status !== undefined) data.status = status;
     if (paymentStatus !== undefined) {
       data.paymentStatus = paymentStatus;
       data.paidAt = paymentStatus === 'paid' ? new Date() : null;
     }
     if (price !== undefined) data.price = parseFloat(price);
     if (notes !== undefined) data.notes = notes || null;
+    if (description !== undefined) data.description = description || null;
     if (employeeId !== undefined) data.employeeId = employeeId || null;
     if (date !== undefined) data.date = date;
     if (startTime !== undefined) data.startTime = startTime;

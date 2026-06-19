@@ -244,7 +244,7 @@ export default function Collections() {
       {view === 'pending' && pendingAppts.length > 0 && (
         <div style={{ marginTop: 28 }}>
           <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            💆 Turnos completados sin cobrar
+            🔧 Turnos y trabajos sin cobrar
             <span style={{ background: '#fee2e2', color: '#dc2626', borderRadius: 20, padding: '2px 10px', fontSize: 13 }}>
               {pendingAppts.length}
             </span>
@@ -255,7 +255,7 @@ export default function Collections() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{a.client?.name}</div>
                   <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
-                    {a.service?.name} · {new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} · {a.startTime}–{a.endTime}
+                    {apptLabel(a)} · {apptDetail(a)}
                     {a.employee ? ` · ${a.employee.name}` : ''}
                   </div>
                 </div>
@@ -265,7 +265,7 @@ export default function Collections() {
                     <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }}
                       onClick={() => {
                         const phone = a.client.phone.replace(/\D/g, '');
-                        const msg = `Hola ${a.client.name}! Te recordamos que tenés pendiente el cobro del turno de ${a.service?.name} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmt(a.price)}. ¡Gracias!`;
+                        const msg = `Hola ${a.client.name}! Te recordamos que tenés pendiente el cobro de ${apptLabel(a)} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmt(a.price)}. ¡Gracias!`;
                         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}>📱 WA</button>
                   )}
@@ -279,21 +279,21 @@ export default function Collections() {
 
       {view === 'paid' && pendingAppts.length > 0 && (
         <div style={{ marginTop: 28 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>💆 Turnos cobrados</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>🔧 Turnos y trabajos cobrados</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pendingAppts.map(a => (
               <div key={a.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', opacity: 0.85 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{a.client?.name}</div>
                   <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
-                    {a.service?.name} · {new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} · {a.startTime}–{a.endTime}
+                    {apptLabel(a)} · {apptDetail(a)}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
                   <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>Cobrado</span>
                   <strong style={{ fontSize: 17, color: '#10b981' }}>{fmt(a.price)}</strong>
                   <button className="btn btn-sm btn-secondary" title="Reimprimir recibo"
-                    onClick={() => setRecibo({ client: a.client, activity: { name: a.service?.name }, startDate: a.date, dueDate: null, amountDue: a.price, discount: 0, metodoPago: 'Efectivo', id: a.id, isAppointment: true, appointmentDate: a.date, startTime: a.startTime, endTime: a.endTime, employeeName: a.employee?.name || null })}>
+                    onClick={() => setRecibo({ client: a.client, activity: { name: apptLabel(a) }, startDate: a.date, dueDate: null, amountDue: a.price, discount: 0, metodoPago: 'Efectivo', id: a.id, isAppointment: true, appointmentDate: a.date, startTime: a.startTime, endTime: a.endTime, employeeName: a.employee?.name || null })}>
                     🖨️ Recibo
                   </button>
                   {a.client?.phone && (
@@ -301,7 +301,7 @@ export default function Collections() {
                       onClick={() => {
                         const phone = a.client.phone.replace(/\D/g, '');
                         const num = phone.startsWith('0') ? '549' + phone.slice(1) : phone.startsWith('54') ? phone : '549' + phone;
-                        const msg = `Hola ${a.client.name}! Te enviamos el comprobante del turno de ${a.service?.name} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmt(a.price)}. ¡Gracias!`;
+                        const msg = `Hola ${a.client.name}! Te enviamos el comprobante de ${apptLabel(a)} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmt(a.price)}. ¡Gracias!`;
                         window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}>📱 WA</button>
                   )}
@@ -344,6 +344,16 @@ export default function Collections() {
   );
 }
 
+function apptLabel(a) {
+  if (a.isQuickWork) return a.description || 'Trabajo realizado';
+  return a.service?.name || 'Servicio';
+}
+function apptDetail(a) {
+  const d = new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR');
+  if (a.isQuickWork) return d;
+  return `${d}${a.startTime ? ' · ' + a.startTime + '–' + a.endTime : ''}`;
+}
+
 /* ── Cobrar turno (appointment) ────────────────────────────────── */
 function CobrarApptModal({ appointment, onClose, onSaved }) {
   const a = appointment;
@@ -359,7 +369,7 @@ function CobrarApptModal({ appointment, onClose, onSaved }) {
       await api.put(`/appointments/${a.id}`, { paymentStatus: 'paid' });
       onSaved({
         client: a.client,
-        activity: { name: a.service?.name },
+        activity: { name: apptLabel(a) },
         startDate: a.date,
         dueDate: null,
         amountDue: Number(monto),
@@ -383,11 +393,10 @@ function CobrarApptModal({ appointment, onClose, onSaved }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Cobrar turno</h2>
         <p style={{ color: 'var(--ink-soft)', marginBottom: 16, fontSize: 15 }}>
-          <strong>{a.client?.name}</strong> — {a.service?.name}
+          <strong>{a.client?.name}</strong> — {apptLabel(a)}
         </p>
         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
-          {new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} · {a.startTime}–{a.endTime}
-          {a.employee ? ` · ${a.employee.name}` : ''}
+          {apptDetail(a)}{a.employee ? ` · ${a.employee.name}` : ''}
         </p>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>

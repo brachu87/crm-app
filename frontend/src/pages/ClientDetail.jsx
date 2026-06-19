@@ -285,7 +285,7 @@ export default function ClientDetail() {
             </div>
             {account.appointmentMovements?.length > 0 && (
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                <p style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>💆 Turnos realizados</p>
+                <p style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>🔧 Turnos y trabajos realizados</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {account.appointmentMovements.map((m) => (
                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>

@@ -364,22 +364,24 @@ model Appointment {
   id            String    @id @default(cuid())
   businessId    String
   business      Business  @relation(fields: [businessId], references: [id])
-  serviceId     String
-  service       Service   @relation(fields: [serviceId], references: [id])
+  serviceId     String?
+  service       Service?  @relation(fields: [serviceId], references: [id])
   clientId      String
   client        Client    @relation(fields: [clientId], references: [id])
   employeeId    String?
   employee      Employee? @relation(fields: [employeeId], references: [id])
   branchId      String?
   branch        Branch?   @relation(fields: [branchId], references: [id])
+  description   String?
   date          String
-  startTime     String
-  endTime       String
+  startTime     String    @default("")
+  endTime       String    @default("")
   price         Float     @default(0)
   status        String    @default("scheduled")
   paymentStatus String    @default("pending")
   paidAt        DateTime?
   notes         String?
+  isQuickWork   Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

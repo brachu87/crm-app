@@ -20,6 +20,7 @@ router.get('/', async (req, res) => {
       prisma.appointment.findMany({
         where: { clientId: req.params.id, businessId: req.user.businessId, status: 'completed' },
         include: { service: { select: { name: true } }, employee: { select: { name: true } } },
+        // isQuickWork and description are scalar fields, always returned
         orderBy: { date: 'desc' },
       }),
     ]);
@@ -42,7 +43,7 @@ router.get('/', async (req, res) => {
       id: a.id,
       type: a.paymentStatus === 'paid' ? 'paid' : 'pending',
       amount: a.price || 0,
-      description: `Turno: ${a.service?.name || 'Servicio'}${a.employee ? ' · ' + a.employee.name : ''} — ${a.startTime}–${a.endTime}`,
+      description: a.isQuickWork ? `${a.description || 'Trabajo realizado'}${a.employee ? ' · ' + a.employee.name : ''}` : `Turno: ${a.service?.name || 'Servicio'}${a.employee ? ' · ' + a.employee.name : ''}${a.startTime ? ' — ' + a.startTime + '–' + a.endTime : ''}`,
       date: a.date + 'T12:00:00.000Z',
       paymentStatus: a.paymentStatus,
       isAppointment: true,

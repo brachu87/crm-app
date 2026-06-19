@@ -395,6 +395,100 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
   );
 }
 
+
+// ── QuickWorkModal ─────────────────────────────────────────────────────────────
+function QuickWorkModal({ work, clients, employees, onClose, onSaved }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState(
+    work
+      ? { clientId: work.clientId, description: work.description || '', price: work.price || '', employeeId: work.employeeId || '', date: work.date || today, notes: work.notes || '' }
+      : { clientId: '', description: '', price: '', employeeId: '', date: today, notes: '' }
+  );
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!form.clientId || !form.description || !form.date) return alert('Cliente, descripción y fecha son obligatorios');
+    setSaving(true);
+    try {
+      if (work) {
+        await api.put(`/appointments/${work.id}`, {
+          description: form.description,
+          price: parseFloat(form.price) || 0,
+          employeeId: form.employeeId || null,
+          date: form.date,
+          notes: form.notes || null,
+        });
+      } else {
+        await api.post('/appointments', {
+          isQuickWork: true,
+          clientId: form.clientId,
+          description: form.description,
+          price: parseFloat(form.price) || 0,
+          employeeId: form.employeeId || null,
+          date: form.date,
+          notes: form.notes || null,
+        });
+      }
+      onSaved();
+    } catch { alert('Error al guardar'); setSaving(false); }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 480 }}>
+        <div className="modal-header">
+          <h2 style={{ margin: 0, fontSize: 18 }}>{work ? 'Editar trabajo' : '+ Registrar trabajo realizado'}</h2>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={submit}>
+          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {!work && (
+              <label>
+                <span className="label">Cliente *</span>
+                <select className="input" value={form.clientId} onChange={e => set('clientId', e.target.value)} required>
+                  <option value="">Seleccioná un cliente...</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+            )}
+            <label>
+              <span className="label">Descripción del trabajo *</span>
+              <textarea className="input" rows={3} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Ej: Instalación cañería cocina, Reparación eléctrica, Pintura frente..." required style={{ resize: 'vertical' }} />
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label>
+                <span className="label">Monto $</span>
+                <input className="input" type="number" min="0" step="0.01" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" />
+              </label>
+              <label>
+                <span className="label">Fecha *</span>
+                <input className="input" type="date" value={form.date} onChange={e => set('date', e.target.value)} required />
+              </label>
+            </div>
+            <label>
+              <span className="label">Responsable / Empleado</span>
+              <select className="input" value={form.employeeId} onChange={e => set('employeeId', e.target.value)}>
+                <option value="">Sin asignar</option>
+                {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className="label">Notas internas</span>
+              <textarea className="input" rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Observaciones..." style={{ resize: 'vertical' }} />
+            </label>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : work ? 'Guardar cambios' : 'Registrar trabajo'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Activities() {
   const [tab, setTab] = useState('actividades');
@@ -407,6 +501,10 @@ export default function Activities() {
   const [showSvcModal, setShowSvcModal] = useState(false);
   const [editingSvc, setEditingSvc] = useState(null);
   const [activePanel, setActivePanel] = useState(null); // service for appointments panel
+  // Quick works state
+  const [quickWorks, setQuickWorks] = useState([]);
+  const [showQWModal, setShowQWModal] = useState(false);
+  const [editingQW, setEditingQW] = useState(null);
   // Shared
   const [branches, setBranches] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -422,12 +520,14 @@ export default function Activities() {
       api.get('/branches').catch(() => ({ data: [] })),
       api.get('/employees'),
       api.get('/clients'),
-    ]).then(([actR, svcR, brR, empR, cliR]) => {
+      api.get('/appointments?isQuickWork=true'),
+    ]).then(([actR, svcR, brR, empR, cliR, qwR]) => {
       setActivities(actR.data);
       setServices(svcR.data);
       setBranches(brR.data.filter(b => b.active !== false));
       setEmployees(empR.data.filter(e => e.active !== false));
       setClients(cliR.data.filter(c => c.active !== false));
+      setQuickWorks(qwR.data);
     }).finally(() => setLoading(false));
   }
   useEffect(() => { loadAll(); }, []);
@@ -439,6 +539,11 @@ export default function Activities() {
   async function toggleService(svc) {
     await api.put(`/services/${svc.id}`, { active: !svc.active });
     setServices(prev => prev.map(s => s.id === svc.id ? { ...s, active: !s.active } : s));
+  }
+  async function deleteQuickWork(id) {
+    if (!window.confirm('¿Eliminar este trabajo registrado?')) return;
+    await api.delete(`/appointments/${id}`);
+    setQuickWorks(prev => prev.filter(w => w.id !== id));
   }
 
   const visibleActivities = activities.filter(a => showInactive ? true : a.active !== false);
@@ -457,14 +562,16 @@ export default function Activities() {
           </label>
           {tab === 'actividades'
             ? <button className="btn btn-primary" onClick={() => { setEditingAct(null); setShowActModal(true); }}>+ Nueva actividad</button>
-            : <button className="btn btn-primary" onClick={() => { setEditingSvc(null); setShowSvcModal(true); }}>+ Agregar servicio</button>
+            : tab === 'servicios'
+            ? <button className="btn btn-primary" onClick={() => { setEditingSvc(null); setShowSvcModal(true); }}>+ Agregar servicio</button>
+            : <button className="btn btn-primary" onClick={() => { setEditingQW(null); setShowQWModal(true); }}>+ Registrar trabajo</button>
           }
         </div>
       </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
-        {[['actividades','🏋️ Actividades (cuota mensual)'],['servicios','💆 Servicios (por turno)']].map(([v, l]) => (
+        {[['actividades','🏋️ Actividades (cuota mensual)'],['servicios','💆 Servicios (por turno)'],['trabajos','🔧 Trabajos realizados']].map(([v, l]) => (
           <button key={v} onClick={() => setTab(v)} style={{ padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: tab === v ? 700 : 400, color: tab === v ? 'var(--primary)' : 'var(--muted)', borderBottom: `2px solid ${tab === v ? 'var(--primary)' : 'transparent'}`, marginBottom: -2 }}>{l}</button>
         ))}
       </div>
@@ -501,7 +608,7 @@ export default function Activities() {
                   </tbody>
                 </table>
               </div>
-        ) : (
+        ) : tab === 'servicios' ? (
           // ── SERVICIOS ────────────────────────────────────────────────────────
           visibleServices.length === 0
             ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--muted)' }}>No hay servicios. Agregá el primero.</div>
@@ -528,6 +635,56 @@ export default function Activities() {
                   </div>
                 ))}
               </div>
+        ) : (
+          // ── TRABAJOS ─────────────────────────────────────────────────────────
+          <div>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>
+              Registrá trabajos realizados sin turno previo: plomería, electricidad, construcción, consultas puntuales, etc. Quedan pendientes de cobro en Cobranza.
+            </p>
+            {quickWorks.length === 0
+              ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--muted)' }}>No hay trabajos registrados. Hacé clic en "+ Registrar trabajo" para comenzar.</div>
+              : <div className="card table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Descripción</th>
+                        <th>Responsable</th>
+                        <th>Monto</th>
+                        <th>Estado</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quickWorks.map(w => (
+                        <tr key={w.id}>
+                          <td style={{ whiteSpace: 'nowrap', fontSize: 13 }}>{fmtDate(w.date)}</td>
+                          <td><strong>{w.client?.name || '—'}</strong></td>
+                          <td style={{ maxWidth: 260 }}>{w.description || '—'}{w.notes && <div style={{ fontSize: 11, color: 'var(--muted)' }}>{w.notes}</div>}</td>
+                          <td style={{ fontSize: 13 }}>{w.employee?.name || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
+                          <td style={{ fontWeight: 700, color: 'var(--accent)' }}>{fmtMoney(w.price)}</td>
+                          <td>
+                            {w.paymentStatus === 'paid'
+                              ? <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>✓ Cobrado</span>
+                              : <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>⏳ Pendiente</span>
+                            }
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              {w.paymentStatus !== 'paid' && (
+                                <button className="btn btn-secondary btn-sm" onClick={() => { setEditingQW(w); setShowQWModal(true); }}>✏️</button>
+                              )}
+                              <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444' }} onClick={() => deleteQuickWork(w.id)}>🗑</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+            }
+          </div>
         )
       )}
 
@@ -543,6 +700,11 @@ export default function Activities() {
       )}
       {activePanel && (
         <AppointmentsPanel service={activePanel} clients={clients} employees={employees} onClose={() => setActivePanel(null)} />
+      )}
+      {showQWModal && (
+        <QuickWorkModal work={editingQW} clients={clients} employees={employees}
+          onClose={() => { setShowQWModal(false); setEditingQW(null); }}
+          onSaved={() => { setShowQWModal(false); setEditingQW(null); loadAll(); }} />
       )}
     </div>
   );
