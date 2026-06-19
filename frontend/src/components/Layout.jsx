@@ -7,12 +7,10 @@ const NAV_GROUPS = [
     label: 'Negocio',
     icon: '🏪',
     links: [
-      { to: '/cobranza', label: 'Cobranza' },
       { to: '/clientes', label: 'Clientes' },
       { to: '/actividades', label: 'Actividades' },
       { to: '/agenda', label: 'Agenda' },
-      { to: '/caja', label: 'Caja del día' },
-      { to: '/reportes', label: 'Reportes' },
+      { to: '/proveedores', label: 'Proveedores' },
     ],
   },
   {
@@ -29,8 +27,10 @@ const NAV_GROUPS = [
     label: 'Finanzas',
     icon: '💰',
     links: [
+      { to: '/cobranza', label: 'Cobranza' },
+      { to: '/caja', label: 'Caja del día' },
+      { to: '/reportes', label: 'Reportes' },
       { to: '/gastos', label: 'Gastos' },
-      { to: '/proveedores', label: 'Proveedores' },
     ],
   },
   {
