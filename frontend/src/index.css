@@ -140,6 +140,24 @@ input, select, textarea { font-family: var(--font-body); }
   border-radius: var(--radius);
 }
 
+/* Sidebar accordion group button */
+.sidebar-group-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+  transition: background 0.15s;
+  border-radius: var(--radius);
+}
+.sidebar-group-btn:hover { background: rgba(255,255,255,0.07); }
+
+
 .sidebar-footer {
   margin-top: auto;
   padding: 0 8px;
@@ -532,6 +550,9 @@ input, select, textarea { font-family: var(--font-body); }
 
   .sidebar-brand { font-size: 20px; padding: 0; }
 
+  /* Search in mobile header: hide on very small phones */
+  .mobile-header-search { flex: 1; max-width: 160px; }
+
   .sidebar-link { padding: 12px 12px; font-size: 15px; }
 
   /* Main content offset by fixed header */
@@ -603,6 +624,11 @@ input, select, textarea { font-family: var(--font-body); }
     box-sizing: border-box;
   }
 
+  .sidebar-sublink {
+    font-size: 14px;
+    padding-left: 32px;
+  }
+
   /* Prevent iOS zoom on inputs */
   input, select, textarea {
     font-size: 16px !important;
@@ -614,6 +640,10 @@ input, select, textarea { font-family: var(--font-body); }
   }
 }
 
+
+@media (max-width: 360px) {
+  .mobile-header-search { display: none; }
+}
 
 /* ─── Responsive utility grids ───────────────────────── */
 .chart-grid {

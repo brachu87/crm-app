@@ -253,8 +253,8 @@ export default function Payroll() {
 
       {/* New payroll modal */}
       {showForm && (
-        <div style={{ position: 'fixed', inset: 0, background: '#0008', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: 16 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 8px 32px #0004', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="modal-overlay" onClick={() => { setShowForm(false); setPreview(null); }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <h3 style={{ marginBottom: 20, fontSize: 18, fontWeight: 800 }}>Nueva liquidación</h3>
 
             <label style={{ display: 'block', marginBottom: 12 }}>

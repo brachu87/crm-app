@@ -124,7 +124,7 @@ export default function Layout() {
           )}
           {business?.name || 'Mi Negocio'}
         </span>
-        <div style={{ position: 'relative', flex: 1, maxWidth: 180, margin: '0 8px' }}>
+        <div className="mobile-header-search" style={{ position: 'relative', flex: 1, maxWidth: 180, margin: '0 8px' }}>
           <input
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
@@ -192,20 +192,10 @@ export default function Layout() {
               {/* Group header button */}
               <button
                 onClick={() => toggleGroup(group.label)}
+                className="sidebar-group-btn"
                 style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '10px 16px',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
                   color: hasActive ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.65)',
-                  fontSize: 14,
                   fontWeight: hasActive ? 700 : 500,
-                  textAlign: 'left',
-                  transition: 'color 0.15s',
                 }}
               >
                 <span style={{ fontSize: 15 }}>{group.icon}</span>
