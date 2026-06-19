@@ -175,11 +175,11 @@ export default function Dashboard() {
               <span style={{ color: '#ef4444', fontWeight: 600 }}>● Gastos</span>
             </div>
           </div>
-          <BarChart months={summary?.months || []} />
-          {summary?.months && summary.months.length > 0 && (
+          <BarChart months={summary?.monthlyData || []} />
+          {summary?.monthlyData && summary.monthlyData.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-soft)', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-              <span>Total ingresos: <strong style={{ color: '#10b981' }}>{formatMoney(summary.months.reduce((a, m) => a + (m.income || 0), 0))}</strong></span>
-              <span>Total gastos: <strong style={{ color: '#ef4444' }}>{formatMoney(summary.months.reduce((a, m) => a + (m.expenses || 0), 0))}</strong></span>
+              <span>Total ingresos: <strong style={{ color: '#10b981' }}>{formatMoney(summary.monthlyData.reduce((a, m) => a + (m.income || 0), 0))}</strong></span>
+              <span>Total gastos: <strong style={{ color: '#ef4444' }}>{formatMoney(summary.monthlyData.reduce((a, m) => a + (m.expenses || 0), 0))}</strong></span>
             </div>
           )}
         </div>
