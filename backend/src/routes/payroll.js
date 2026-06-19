@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     if (status) where.status = status;
     const records = await prisma.payrollRecord.findMany({
       where,
-      include: { employee: { select: { id: true, name: true, role: true } } },
+      include: { employee: { select: { id: true, name: true, role: true, phone: true } } },
       orderBy: { periodStart: 'desc' },
     });
     res.json(records);
@@ -95,7 +95,7 @@ router.post('/', async (req, res) => {
         notes: notes || null,
         status: 'pending',
       },
-      include: { employee: { select: { id: true, name: true, role: true } } },
+      include: { employee: { select: { id: true, name: true, role: true, phone: true } } },
     });
     res.status(201).json(record);
   } catch (err) {
@@ -118,7 +118,7 @@ router.put('/:id', async (req, res) => {
         notes: notes !== undefined ? notes : existing.notes,
         totalAmount: totalAmount !== undefined ? parseFloat(totalAmount) : existing.totalAmount,
       },
-      include: { employee: { select: { id: true, name: true, role: true } } },
+      include: { employee: { select: { id: true, name: true, role: true, phone: true } } },
     });
     res.json(record);
   } catch (err) {
