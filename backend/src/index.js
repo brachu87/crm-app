@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const prisma = require('./prisma');
+const { markOverdueCuotas } = require('./lib/overdue');
 
 const authRoutes = require('./routes/auth');
 const clientsRoutes = require('./routes/clients');
@@ -63,19 +63,15 @@ if (fs.existsSync(frontendDist)) {
 
 const PORT = process.env.PORT || 4000;
 
-// Auto-mark overdue enrollments daily
-async function markOverdueEnrollments() {
+// Barrido independiente de cuotas vencidas: al arrancar y cada hora
+async function runOverdueSweep() {
   try {
-    const now = new Date();
-    const result = await prisma.cuota.updateMany({
-      where: { paymentStatus: 'pending', dueDate: { lt: now } },
-      data: { paymentStatus: 'overdue' },
-    });
-    if (result.count > 0) console.log(`[auto-expiry] Marcadas ${result.count} cuotas como vencidas`);
+    const count = await markOverdueCuotas();
+    if (count > 0) console.log(`[auto-expiry] Marcadas ${count} cuotas como vencidas`);
   } catch (err) { console.error('[auto-expiry] Error:', err.message); }
 }
-markOverdueEnrollments();
-setInterval(markOverdueEnrollments, 1000 * 60 * 60 * 24); // cada 24h
+runOverdueSweep();
+setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);

@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const { periodKey, addMonthToPeriod } = require('../lib/period');
+const { markOverdueCuotas } = require('../lib/overdue');
 
 const router = express.Router();
 
@@ -256,11 +257,8 @@ router.post('/renew-month', async (req, res) => {
     const bId = req.user.businessId;
     const now = new Date();
 
-    // Auto-marcar vencidas primero
-    await prisma.cuota.updateMany({
-      where: { enrollment: { activity: { businessId: bId } }, paymentStatus: 'pending', dueDate: { lt: now } },
-      data: { paymentStatus: 'overdue' },
-    });
+    // Marcar vencidas primero (helper compartido)
+    await markOverdueCuotas({ businessId: bId });
 
     // Inscripciones activas cuya última cuota está pagada
     const enrollments = await prisma.enrollment.findMany({

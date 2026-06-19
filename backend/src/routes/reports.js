@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
+const { markOverdueCuotas } = require('../lib/overdue');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -69,16 +70,8 @@ router.get('/summary', async (req, res) => {
     const totalSalaries = employees.reduce((s, e) => s + (e.salary || 0), 0);
 
     // Overdue enrollments
-    const now = new Date();
-    // Auto-update overdue
-    await prisma.cuota.updateMany({
-      where: {
-        enrollment: { activity: { businessId: bId } },
-        paymentStatus: 'pending',
-        dueDate: { lt: now },
-      },
-      data: { paymentStatus: 'overdue' },
-    });
+    // Refresca las cuotas vencidas antes de contarlas
+    await markOverdueCuotas({ businessId: bId });
 
     const overdueCount = await prisma.cuota.count({
       where: {
