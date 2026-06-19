@@ -274,15 +274,35 @@ export default function ClientDetail() {
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <div>
                   <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Cargado</p>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{formatMoney(account.totalCharged + account.manualCargos)}</p>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{formatMoney(account.totalCharged + account.manualCargos + (account.apptCharged || 0))}</p>
                 </div>
                 <div>
                   <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Pagado</p>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#10b981' }}>{formatMoney(account.totalPaid + account.manualAbonos)}</p>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#10b981' }}>{formatMoney(account.totalPaid + account.manualAbonos + (account.apptPaid || 0))}</p>
                 </div>
               </div>
               <button className="btn btn-secondary" style={{ fontSize: 13 }} onClick={() => setMovModal(true)}>+ Movimiento</button>
             </div>
+            {account.appointmentMovements?.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                <p style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>💆 Turnos realizados</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {account.appointmentMovements.map((m) => (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 8, fontWeight: 600,
+                        background: m.paymentStatus === 'paid' ? '#dcfce7' : '#fee2e2',
+                        color: m.paymentStatus === 'paid' ? '#15803d' : '#dc2626' }}>
+                        {m.paymentStatus === 'paid' ? '✓ Cobrado' : '⏳ Pendiente'}
+                      </span>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{formatMoney(m.amount)}</span>
+                      <span style={{ fontSize: 13, color: 'var(--ink-soft)', flex: 1 }}>{m.description}</span>
+                      <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{formatDate(m.date)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {account.movements.length > 0 && (
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
                 <p style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Movimientos manuales</p>

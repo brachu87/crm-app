@@ -19,14 +19,25 @@ router.get('/summary', async (req, res) => {
     // Ventana alineada con el bucket más viejo que se grafica (months-1 meses atrás)
     const since = new Date(anchor.getFullYear(), anchor.getMonth() - (months - 1), 1);
 
-    // All payments in range
-    const payments = await prisma.payment.findMany({
-      where: {
-        date: { gte: since },
-        cuota: { enrollment: { activity: { businessId: bId } } },
-      },
-      select: { amount: true, date: true },
-    });
+    // All payments in range (cuotas + turnos)
+    const [payments, apptPayments] = await Promise.all([
+      prisma.payment.findMany({
+        where: {
+          date: { gte: since },
+          cuota: { enrollment: { activity: { businessId: bId } } },
+        },
+        select: { amount: true, date: true },
+      }),
+      prisma.appointment.findMany({
+        where: {
+          businessId: bId,
+          paymentStatus: 'paid',
+          paidAt: { gte: since },
+        },
+        select: { price: true, paidAt: true, clientId: true,
+          client: { select: { id: true, name: true } } },
+      }),
+    ]);
 
     // All expenses in range
     const expenses = await prisma.expense.findMany({
@@ -46,6 +57,12 @@ router.get('/summary', async (req, res) => {
       const d = new Date(p.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (monthlyMap[key]) monthlyMap[key].income += p.amount;
+    }
+
+    for (const a of apptPayments) {
+      const d = new Date(a.paidAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (monthlyMap[key]) monthlyMap[key].income += a.price || 0;
     }
 
     for (const e of expenses) {
@@ -91,6 +108,12 @@ router.get('/summary', async (req, res) => {
       const c = p.cuota.enrollment.client;
       if (!clientMap[c.id]) clientMap[c.id] = { name: c.name, total: 0 };
       clientMap[c.id].total += p.amount;
+    }
+    for (const a of apptPayments) {
+      const c = a.client;
+      if (!c) continue;
+      if (!clientMap[c.id]) clientMap[c.id] = { name: c.name, total: 0 };
+      clientMap[c.id].total += a.price || 0;
     }
     const topClients = Object.values(clientMap)
       .sort((a, b) => b.total - a.total)

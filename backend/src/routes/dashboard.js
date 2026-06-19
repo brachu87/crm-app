@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
     // Solo cuotas de inscripciones y clientes ACTIVOS (excluye dados de baja)
     const activeScope = { enrollment: { active: true, client: { businessId, active: true } } };
 
-    const [clientsCount, activitiesCount, openCuotas, upcoming] =
+    const [clientsCount, activitiesCount, openCuotas, upcoming, pendingAppts] =
       await Promise.all([
         prisma.client.count({ where: { businessId } }),
         prisma.activity.count({ where: { businessId, active: true } }),
@@ -27,6 +27,11 @@ router.get('/', async (req, res) => {
           include: { enrollment: { include: { client: true, activity: true } } },
           orderBy: { dueDate: 'asc' },
           take: 10,
+        }),
+        prisma.appointment.aggregate({
+          where: { businessId, status: 'completed', paymentStatus: 'pending' },
+          _count: { id: true },
+          _sum: { price: true },
         }),
       ]);
 
@@ -51,6 +56,10 @@ router.get('/', async (req, res) => {
       if (enrollmentStatus[st] !== undefined) enrollmentStatus[st]++;
     }
 
+    // Add pending appointment totals to pending bucket
+    const apptPendingCount = pendingAppts._count.id || 0;
+    const apptPendingTotal = pendingAppts._sum.price || 0;
+
     // Aplanar las cuotas próximas a la forma que consume el Dashboard
     const upcomingDueDates = upcoming.map((c) => ({
       id: c.id,
@@ -69,6 +78,7 @@ router.get('/', async (req, res) => {
       overdue,
       enrollmentStatus,
       upcomingDueDates,
+      pendingAppts: { count: apptPendingCount, total: apptPendingTotal },
     });
   } catch (err) {
     console.error(err);

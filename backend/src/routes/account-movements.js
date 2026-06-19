@@ -9,31 +9,55 @@ router.use(authMiddleware);
 // GET /api/clients/:id/account — saldo + movimientos
 router.get('/', async (req, res) => {
   try {
-    const client = await prisma.client.findFirst({
-      where: scopedWhere(req, { id: req.params.id }),
-      include: {
-        enrollments: { include: { cuotas: { include: { payments: true } } } },
-        accountMovements: { orderBy: { date: 'desc' } },
-      },
-    });
+    const [client, appointments] = await Promise.all([
+      prisma.client.findFirst({
+        where: scopedWhere(req, { id: req.params.id }),
+        include: {
+          enrollments: { include: { cuotas: { include: { payments: true } } } },
+          accountMovements: { orderBy: { date: 'desc' } },
+        },
+      }),
+      prisma.appointment.findMany({
+        where: { clientId: req.params.id, businessId: req.user.businessId, status: 'completed' },
+        include: { service: { select: { name: true } }, employee: { select: { name: true } } },
+        orderBy: { date: 'desc' },
+      }),
+    ]);
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    // Compute balance from cuotas (cargo por período) + payments + manual movements.
-    // Se suma el neto de CADA cuota, de modo que los cargos mensuales acompañen a los pagos.
     const allCuotas = client.enrollments.flatMap((e) => e.cuotas);
     const totalCharged = allCuotas.reduce((s, c) => s + Math.max(0, c.amountDue - (c.discount || 0)), 0);
-    const totalPaid = allCuotas.reduce((s, c) => s + c.payments.reduce((p, pay) => p + pay.amount, 0), 0);
+    const totalPaid    = allCuotas.reduce((s, c) => s + c.payments.reduce((p, pay) => p + pay.amount, 0), 0);
     const manualCargos = client.accountMovements.filter(m => m.type === 'cargo').reduce((s, m) => s + m.amount, 0);
     const manualAbonos = client.accountMovements.filter(m => m.type === 'abono').reduce((s, m) => s + m.amount, 0);
-    const balance = totalCharged + manualCargos - totalPaid - manualAbonos;
+
+    // Appointments: completed = cargo; paid = also abono (cancels it)
+    const apptCharged = appointments.reduce((s, a) => s + (a.price || 0), 0);
+    const apptPaid    = appointments.filter(a => a.paymentStatus === 'paid').reduce((s, a) => s + (a.price || 0), 0);
+
+    const balance = totalCharged + manualCargos + apptCharged - totalPaid - manualAbonos - apptPaid;
+
+    // Build appointment movements for display
+    const appointmentMovements = appointments.map(a => ({
+      id: a.id,
+      type: a.paymentStatus === 'paid' ? 'paid' : 'pending',
+      amount: a.price || 0,
+      description: `Turno: ${a.service?.name || 'Servicio'}${a.employee ? ' · ' + a.employee.name : ''} — ${a.startTime}–${a.endTime}`,
+      date: a.date + 'T12:00:00.000Z',
+      paymentStatus: a.paymentStatus,
+      isAppointment: true,
+    }));
 
     res.json({
       totalCharged,
       totalPaid,
       manualCargos,
       manualAbonos,
+      apptCharged,
+      apptPaid,
       balance,
       movements: client.accountMovements,
+      appointmentMovements,
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Error al obtener cuenta corriente' }); }
 });

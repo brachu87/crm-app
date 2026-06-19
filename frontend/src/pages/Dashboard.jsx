@@ -134,11 +134,20 @@ export default function Dashboard() {
       )}
 
       {proximas7.length > 0 && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 18px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ color: '#92400e', fontSize: 14 }}>
             ⏰ <strong>{proximas7.length}</strong> {proximas7.length === 1 ? 'cuota vence' : 'cuotas vencen'} en los próximos 7 días
           </span>
           <Link to="/cobranza" className="btn btn-secondary btn-sm">Ver próximas</Link>
+        </div>
+      )}
+
+      {data.pendingAppts?.count > 0 && (
+        <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <span style={{ color: '#9a3412', fontSize: 14 }}>
+            💆 <strong>{data.pendingAppts.count}</strong> {data.pendingAppts.count === 1 ? 'turno completado sin cobrar' : 'turnos completados sin cobrar'} — {formatMoney(data.pendingAppts.total)}
+          </span>
+          <Link to="/cobranza" className="btn btn-secondary btn-sm">Ir a Cobranza</Link>
         </div>
       )}
 
