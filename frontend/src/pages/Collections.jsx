@@ -180,7 +180,7 @@ export default function Collections() {
                             <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
                               {view === 'paid' ? (
                                 <>
-                                  {lastPayment ? `Cobrado el ${fmtDate(lastPayment.createdAt)} · ${lastPayment.method || 'Efectivo'}` : fmtDate(e.dueDate)}
+                                  {lastPayment ? `Cobrado el ${fmtDate(lastPayment.date)} · ${lastPayment.method || 'Efectivo'}` : fmtDate(e.dueDate)}
                                 </>
                               ) : (
                                 <>
@@ -422,7 +422,14 @@ function WaModal({ enrollment, onClose }) {
         <p style={{ color: 'var(--ink-soft)', marginBottom: 12, fontSize: 14 }}>
           {e.client?.name} — {e.activity?.name}
         </p>
-        {templates.length > 0 ? (
+        {e.waRecibo ? (
+          <div>
+            <p style={{ fontSize: 14, marginBottom: 12 }}>{defaultMsg}</p>
+            <a href={`https://wa.me/${phone}?text=${encodeURIComponent(defaultMsg)}`} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ background: '#25d366', color: '#fff', border: 'none' }}>
+              Enviar comprobante
+            </a>
+          </div>
+        ) : templates.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {templates.filter(t => t.id === 'cobranza' || t.id?.startsWith('custom')).map(t => (
               <div key={t.id} className="card" style={{ padding: '12px 16px' }}>
