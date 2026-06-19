@@ -166,8 +166,8 @@ export default function Reports() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
             <KPICard label="Ingresos totales" value={fmt(totalIncome)} color="#10b981" />
             <KPICard label="Gastos totales" value={fmt(totalExpenses)} color="#ef4444" />
-            <KPICard label="Resultado" value={fmt(balance)} color={balance >= 0 ? '#10b981' : '#ef4444'} />
-            <KPICard label="Costo sueldos/mes" value={fmt(data.totalSalaries)} color="#6366f1" />
+            <KPICard label="Resultado" value={fmt(balance)} color={balance >= 0 ? '#10b981' : '#ef4444'} hint="Ingresos − Gastos" />
+            <KPICard label="Costo sueldos/mes" value={fmt(data.totalSalaries)} color="#6366f1" hint="Informativo. Solo afecta el Resultado si lo cargás en Gastos." />
             {data.overdueCount > 0 && (
               <KPICard label="Cuotas vencidas" value={data.overdueCount} color="#f59e0b" />
             )}
@@ -254,11 +254,12 @@ export default function Reports() {
   );
 }
 
-function KPICard({ label, value, color }) {
+function KPICard({ label, value, color, hint }) {
   return (
     <div className="card" style={{ padding: '16px 20px' }}>
       <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>{label}</p>
       <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color }}>{value}</p>
+      {hint && <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--ink-soft)', lineHeight: 1.3 }}>{hint}</p>}
     </div>
   );
 }
