@@ -51,10 +51,11 @@ router.get('/', async (req, res) => {
         },
         orderBy: { dueDate: 'asc' },
       });
-      // NOTA: comparación contra el monto BRUTO (ignora descuento) — bug a corregir en paso #2.
+      // El saldo se compara contra el monto NETO (monto - descuento), que es lo que se cobra.
       const withBalance = all.filter((c) => {
         const totalPaid = c.payments.reduce((s, p) => s + p.amount, 0);
-        return totalPaid < c.amountDue;
+        const net = Math.max(0, c.amountDue - (c.discount || 0));
+        return totalPaid < net;
       });
       return res.json(withBalance.map(shapeCuota));
     }
@@ -227,8 +228,9 @@ router.post('/cuotas/:cuotaId/pay', async (req, res) => {
     });
     const totalPaid = agg._sum.amount || 0;
 
-    // NOTA: compara contra el monto BRUTO (ignora descuento) — bug a corregir en paso #2.
-    const newStatus = totalPaid >= existing.amountDue ? 'paid' : 'pending';
+    // Se compara contra el monto NETO (monto - descuento), que es lo que realmente se cobra.
+    const net = Math.max(0, existing.amountDue - (existing.discount || 0));
+    const newStatus = totalPaid >= net ? 'paid' : 'pending';
 
     const cuota = await prisma.cuota.update({
       where: { id: req.params.cuotaId },
