@@ -62,7 +62,6 @@ router.put('/:id', async (req, res) => {
     const data = {};
     if (status !== undefined) {
       data.status = status;
-      if (status === 'completed' && !data.paymentStatus) data.paymentStatus = 'paid';
     }
     if (paymentStatus !== undefined) {
       data.paymentStatus = paymentStatus;
