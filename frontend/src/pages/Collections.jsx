@@ -849,6 +849,7 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
   );
 }
 
+
 // ── OTROS INGRESOS ─────────────────────────────────────────────────────────
 function OtrosIngresos() {
   const [items, setItems] = useState([]);
@@ -872,15 +873,17 @@ function OtrosIngresos() {
   const fmt = (n) => '$' + Math.round(n).toLocaleString('es-AR');
   const fmtD = (s) => { if (!s) return ''; const [y,m,d] = s.slice(0,10).split('-'); return `${d}/${m}/${y}`; };
 
-  // All unique categories for filter
   const cats = [...new Set(items.map(i => i.category).filter(Boolean))].sort();
-
   const filtered = items.filter(i => {
     if (filterCat && i.category !== filterCat) return false;
-    if (search && !i.description.toLowerCase().includes(search.toLowerCase()) && !i.category.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return i.description.toLowerCase().includes(q) ||
+             i.category.toLowerCase().includes(q) ||
+             (i.client?.name || '').toLowerCase().includes(q);
+    }
     return true;
   });
-
   const total = filtered.reduce((s, i) => s + i.amount, 0);
 
   return (
@@ -892,10 +895,9 @@ function OtrosIngresos() {
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Nuevo ingreso</button>
       </div>
 
-      {/* Filters */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
-          placeholder="Buscar..."
+          placeholder="Buscar descripción, categoría o cliente..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 160, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14 }}
@@ -926,6 +928,7 @@ function OtrosIngresos() {
                   <th>Fecha</th>
                   <th>Descripción</th>
                   <th>Categoría</th>
+                  <th>Cliente</th>
                   <th style={{ textAlign: 'right' }}>Monto</th>
                   <th></th>
                 </tr>
@@ -939,6 +942,9 @@ function OtrosIngresos() {
                       <span style={{ background: 'var(--primary-soft)', color: 'var(--primary)', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
                         {item.category}
                       </span>
+                    </td>
+                    <td style={{ fontSize: 13, color: item.client ? 'var(--ink)' : 'var(--ink-soft)' }}>
+                      {item.client?.name || '—'}
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>{fmt(item.amount)}</td>
                     <td>
@@ -961,22 +967,51 @@ function OtrosIngresos() {
 
 function NuevoIngresoModal({ onClose, onSaved }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ amount: '', description: '', category: '', date: today });
+  const [form, setForm] = useState({ amount: '', description: '', category: '', date: today, clientId: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [clients, setClients] = useState([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [showClientDrop, setShowClientDrop] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+
+  // Load clients once
+  useEffect(() => {
+    api.get('/clients').then(r => setClients(r.data)).catch(() => {});
+  }, []);
 
   function set(field) { return (e) => setForm(f => ({ ...f, [field]: e.target.value })); }
 
+  const filteredClients = clients.filter(c =>
+    c.active !== false &&
+    (c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+     c.dni?.includes(clientSearch))
+  ).slice(0, 8);
+
+  function selectClient(c) {
+    setSelectedClient(c);
+    setForm(f => ({ ...f, clientId: c.id }));
+    setClientSearch(c.name);
+    setShowClientDrop(false);
+  }
+
+  function clearClient() {
+    setSelectedClient(null);
+    setForm(f => ({ ...f, clientId: '' }));
+    setClientSearch('');
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.amount || !form.description || !form.date) { setError('Completá todos los campos'); return; }
+    if (!form.amount || !form.description || !form.date) { setError('Completá todos los campos obligatorios'); return; }
     setSaving(true);
     try {
       await api.post('/manual-income', {
-        amount: parseFloat(form.amount.replace(',', '.')),
+        amount: parseFloat(String(form.amount).replace(',', '.')),
         description: form.description,
         category: form.category || 'Otro',
         date: form.date,
+        clientId: form.clientId || null,
       });
       onSaved();
     } catch (err) {
@@ -993,23 +1028,64 @@ function NuevoIngresoModal({ onClose, onSaved }) {
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="field">
-            <label>Descripción</label>
+            <label>Descripción <span style={{ color: 'var(--accent)', fontSize: 12 }}>*</span></label>
             <input value={form.description} onChange={set('description')} placeholder="Ej: Venta de suplementos" required />
           </div>
+
           <div className="field">
-            <label>Categoría <span style={{ color: 'var(--ink-soft)', fontWeight: 400 }}>(escribí la que quieras)</span></label>
+            <label>Categoría <span style={{ color: 'var(--ink-soft)', fontWeight: 400, fontSize: 12 }}>(escribí la que quieras)</span></label>
             <input value={form.category} onChange={set('category')} placeholder="Ej: Suplementos, Alquiler, Consultoría..." />
           </div>
+
+          {/* Client picker */}
+          <div className="field" style={{ position: 'relative' }}>
+            <label>Cliente <span style={{ color: 'var(--ink-soft)', fontWeight: 400, fontSize: 12 }}>(opcional)</span></label>
+            {selectedClient ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
+                <span style={{ flex: 1, fontWeight: 600, color: 'var(--primary)', fontSize: 14 }}>👤 {selectedClient.name}</span>
+                <button type="button" onClick={clearClient} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-soft)', fontSize: 16, lineHeight: 1 }}>✕</button>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={clientSearch}
+                  onChange={e => { setClientSearch(e.target.value); setShowClientDrop(true); }}
+                  onFocus={() => setShowClientDrop(true)}
+                  onBlur={() => setTimeout(() => setShowClientDrop(false), 150)}
+                  placeholder="Buscar cliente o dejar vacío..."
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+                {showClientDrop && filteredClients.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.12)', maxHeight: 200, overflowY: 'auto' }}>
+                    {filteredClients.map(c => (
+                      <div
+                        key={c.id}
+                        onMouseDown={() => selectClient(c)}
+                        style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid var(--border)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-soft)'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}
+                      >
+                        <strong>{c.name}</strong>
+                        {c.dni && <span style={{ color: 'var(--ink-soft)', fontSize: 12, marginLeft: 8 }}>DNI {c.dni}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="field">
-              <label>Monto</label>
+              <label>Monto <span style={{ color: 'var(--accent)', fontSize: 12 }}>*</span></label>
               <input value={form.amount} onChange={set('amount')} placeholder="0" inputMode="decimal" required />
             </div>
             <div className="field">
-              <label>Fecha</label>
+              <label>Fecha <span style={{ color: 'var(--accent)', fontSize: 12 }}>*</span></label>
               <input type="date" value={form.date} onChange={set('date')} required />
             </div>
           </div>
+
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar ingreso'}</button>

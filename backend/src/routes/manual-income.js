@@ -1,6 +1,6 @@
 const express = require('express');
 const prisma = require('../prisma');
-const { authMiddleware } = require('./auth');
+const authMiddleware = require('../middleware/auth');   // fix: was wrong import
 
 const router = express.Router();
 
@@ -9,13 +9,15 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const { from, to, category } = req.query;
     const where = { businessId: req.user.businessId };
-    if (from) where.date = { ...(where.date || {}), gte: from };
-    if (to)   where.date = { ...(where.date || {}), lte: to };
+    if (from || to) where.date = {};
+    if (from) where.date.gte = from;
+    if (to)   where.date.lte = to;
     if (category) where.category = category;
 
     const items = await prisma.manualIncome.findMany({
       where,
       orderBy: { date: 'desc' },
+      include: { client: { select: { id: true, name: true } } },
     });
     res.json(items);
   } catch (err) {
@@ -26,18 +28,20 @@ router.get('/', authMiddleware, async (req, res) => {
 // POST /api/manual-income
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { amount, description, category, date } = req.body;
+    const { amount, description, category, date, clientId } = req.body;
     if (!amount || !description || !date) {
       return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
     const item = await prisma.manualIncome.create({
       data: {
         businessId: req.user.businessId,
-        amount: parseFloat(amount),
+        amount: parseFloat(String(amount).replace(',', '.')),
         description,
         category: category?.trim() || 'Otro',
         date,
+        clientId: clientId || null,
       },
+      include: { client: { select: { id: true, name: true } } },
     });
     res.status(201).json(item);
   } catch (err) {

@@ -396,6 +396,8 @@ model ManualIncome {
   id          String   @id @default(cuid())
   businessId  String
   business    Business @relation(fields: [businessId], references: [id])
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
   amount      Float
   description String
   category    String   @default("Otro")
@@ -403,4 +405,5 @@ model ManualIncome {
   createdAt   DateTime @default(now())
 
   @@index([businessId])
+  @@index([clientId])
 }
