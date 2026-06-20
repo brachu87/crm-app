@@ -151,7 +151,7 @@ router.post('/google-register', async (req, res) => {
     const { business } = await prisma.$transaction(async (tx) => {
       const business = await tx.business.create({ data: { name: businessName, category: category || 'otro' } });
       await tx.user.create({
-        data: { email, password: null, name, role: 'owner', businessId: business.id },
+        data: { email, password: '', name, role: 'owner', businessId: business.id },
       });
       return { business };
     });
