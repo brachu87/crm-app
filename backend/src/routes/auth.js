@@ -51,14 +51,17 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const business = await prisma.business.create({ data: { name: businessName, category: category || 'otro' } });
+
+    // Nueva cuenta empieza como pendiente de aprobación
+    try { await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 0 WHERE id = ?`, business.id); } catch (_) {}
+
     const user = await prisma.user.create({
       data: { email, password: hashedPassword, name, role: 'owner', businessId: business.id },
     });
 
     res.status(201).json({
-      token: makeToken(user),
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      business: { id: business.id, name: business.name, category: business.category },
+      pending: true,
+      message: 'Tu cuenta fue creada y está pendiente de aprobación. Te contactaremos por WhatsApp para habilitarte el acceso.',
     });
   } catch (err) {
     console.error(err);
@@ -144,14 +147,19 @@ router.post('/google-register', async (req, res) => {
     }
 
     const business = await prisma.business.create({ data: { name: businessName, category: category || 'otro' } });
+
+    // Nueva cuenta empieza como pendiente de aprobación
+    try {
+      await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 0 WHERE id = ?`, business.id);
+    } catch (_) { /* columna no existe aún */ }
+
     const user = await prisma.user.create({
       data: { email, password: null, name, role: 'owner', businessId: business.id },
     });
 
     res.status(201).json({
-      token: makeToken(user),
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      business: { id: business.id, name: business.name, category: business.category },
+      pending: true,
+      message: 'Tu cuenta fue creada y está pendiente de aprobación. Te contactaremos por WhatsApp para habilitarte el acceso.',
     });
   } catch (err) {
     console.error(err);

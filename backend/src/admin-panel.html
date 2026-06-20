@@ -24,6 +24,8 @@
     .btn-approve:hover{background:#a7f3d0}
     .btn-reject{background:#fee2e2;color:#991b1b;padding:5px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600}
     .btn-reject:hover{background:#fecaca}
+    .btn-delete{background:#f3f4f6;color:#374151;padding:5px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid #d1d5db;font-family:inherit;font-weight:600}
+    .btn-delete:hover{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
     .error{background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:16px}
     .panel{display:none;min-height:100vh}
     nav{background:#3D5A4C;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
@@ -173,8 +175,8 @@ function renderTable(accounts) {
       ? '<span class="pill pill-green">✓ Aprobada</span>'
       : '<span class="pill pill-amber">⏳ Pendiente</span>';
     const actions = a.approved
-      ? `<button class="btn-reject" onclick="reject('${a.id}')">Revocar</button>`
-      : `<button class="btn-approve" onclick="approve('${a.id}')">Aprobar</button>`;
+      ? `<button class="btn-reject" onclick="reject('${a.id}')">Revocar</button> <button class="btn-delete" onclick="deleteAccount('${a.id}', '${a.name}')">Eliminar</button>`
+      : `<button class="btn-approve" onclick="approve('${a.id}')">Aprobar</button> <button class="btn-delete" onclick="deleteAccount('${a.id}', '${a.name}')">Eliminar</button>`;
     return `<tr>
       <td><strong>${a.name}</strong></td>
       <td><div style="font-weight:600">${owner?.name||'-'}</div><div style="font-size:12px;color:#94a3b8">${owner?.email||'-'}</div></td>
@@ -204,6 +206,13 @@ async function reject(id) {
   if (!confirm('¿Revocar acceso a esta cuenta?')) return;
   await fetch(API + `/admin/accounts/${id}/reject`, { method:'PUT', headers:{'X-Admin-Secret':secret} });
   loadAccounts();
+}
+
+async function deleteAccount(id, name) {
+  if (!confirm(`¿Eliminar la cuenta "${name}" y todos sus datos? Esta acción no se puede deshacer.`)) return;
+  const r = await fetch(API + `/admin/accounts/${id}`, { method:'DELETE', headers:{'X-Admin-Secret':secret} });
+  if (r.ok) { loadAccounts(); }
+  else { const e = await r.json(); alert('Error: ' + e.error); }
 }
 </script>
 </body>

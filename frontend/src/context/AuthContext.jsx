@@ -28,6 +28,7 @@ export function AuthProvider({ children }) {
 
   async function register(payload) {
     const res = await api.post('/auth/register', payload);
+    if (res.data.pending) return { pending: true, message: res.data.message };
     saveSession(res.data);
   }
 
@@ -41,6 +42,7 @@ export function AuthProvider({ children }) {
 
   async function googleRegister({ credential, businessName, category }) {
     const res = await api.post('/auth/google-register', { credential, businessName, category });
+    if (res.data.pending) return { pending: true, message: res.data.message };
     saveSession(res.data);
   }
 

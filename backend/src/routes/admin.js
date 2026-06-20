@@ -15,7 +15,7 @@ async function ensureApprovedColumn() {
     const info = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
     const exists = info.some(col => col.name === 'approved');
     if (!exists) {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "approved" INTEGER NOT NULL DEFAULT 1`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "approved" INTEGER NOT NULL DEFAULT 0`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "approvedAt" TEXT`);
       // Approve all existing accounts
       await prisma.$executeRawUnsafe(`UPDATE "Business" SET "approved" = 1, "approvedAt" = datetime('now')`);
@@ -79,6 +79,21 @@ router.put('/accounts/:id/reject', adminAuth, async (req, res) => {
     );
     res.json({ ok: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// DELETE /api/admin/accounts/:id
+router.delete('/accounts/:id', adminAuth, async (req, res) => {
+  try {
+    const id = req.params.id;
+    // Borrar en orden para respetar FK: primero todo lo relacionado al negocio
+    await prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE "businessId" = ?`, id);
+    await prisma.$executeRawUnsafe(`DELETE FROM "Business" WHERE id = ?`, id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Delete account error:', err);
     res.status(500).json({ error: err.message });
   }
 });

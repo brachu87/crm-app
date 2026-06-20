@@ -4,6 +4,28 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 
 function ZentricLogo({ size = 52 }) {
+  if (pending) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FAF7F2', padding: 24 }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '40px 32px', maxWidth: 440, width: '100%', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+          <h2 style={{ color: '#3D5A4C', marginBottom: 12 }}>Cuenta creada</h2>
+          <p style={{ color: '#6B7280', lineHeight: 1.6, marginBottom: 24 }}>
+            Tu cuenta está <strong>pendiente de aprobación</strong>. Te contactaremos por WhatsApp para habilitarte el acceso.
+          </p>
+          <a
+            href="https://wa.me/5491176353062?text=Hola%2C%20acabo%20de%20registrarme%20en%20Zentric%20y%20quiero%20activar%20mi%20cuenta"
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'inline-block', background: '#25D366', color: '#fff', fontWeight: 600, padding: '12px 24px', borderRadius: 8, textDecoration: 'none' }}
+          >
+            Contactar por WhatsApp
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ textAlign: 'center', marginBottom: 20 }}>
       <svg width={size} height={size} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
@@ -32,6 +54,7 @@ export default function Register() {
     password: '',
   });
   const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
   const { register, googleRegister } = useAuth();
   const navigate = useNavigate();
@@ -48,9 +71,11 @@ export default function Register() {
     setLoading(true);
     try {
       if (isGoogleFlow) {
-        await googleRegister({ credential: googleCred, businessName: form.businessName, category: form.category });
+        const result = await googleRegister({ credential: googleCred, businessName: form.businessName, category: form.category });
+        if (result?.pending) { setPending(true); return; }
       } else {
-        await register(form);
+        const result = await register(form);
+        if (result?.pending) { setPending(true); return; }
       }
       navigate('/');
     } catch (err) {
