@@ -78,6 +78,39 @@ if (fs.existsSync(frontendDist)) {
   });
 }
 
+
+const prisma = require('./prisma');
+
+async function ensureManualIncomeTable() {
+  try {
+    const tables = await prisma.$queryRawUnsafe(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='ManualIncome'`
+    );
+    if (tables.length === 0) {
+      console.log('[startup] Creando tabla ManualIncome...');
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ManualIncome" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "businessId" TEXT NOT NULL,
+          "clientId" TEXT,
+          "amount" REAL NOT NULL,
+          "description" TEXT NOT NULL,
+          "category" TEXT NOT NULL DEFAULT 'Otro',
+          "date" TEXT NOT NULL,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "ManualIncome_businessId_fkey" FOREIGN KEY ("businessId") REFERENCES "Business" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+          CONSTRAINT "ManualIncome_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+        )
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ManualIncome_businessId_idx" ON "ManualIncome"("businessId")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ManualIncome_clientId_idx" ON "ManualIncome"("clientId")`);
+      console.log('[startup] Tabla ManualIncome creada.');
+    }
+  } catch (err) {
+    console.error('[startup] ensureManualIncomeTable error:', err.message);
+  }
+}
+
 const PORT = process.env.PORT || 4000;
 
 // Barrido independiente de cuotas vencidas: al arrancar y cada hora
@@ -87,6 +120,7 @@ async function runOverdueSweep() {
     if (count > 0) console.log(`[auto-expiry] Marcadas ${count} cuotas como vencidas`);
   } catch (err) { console.error('[auto-expiry] Error:', err.message); }
 }
+ensureManualIncomeTable();
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 
