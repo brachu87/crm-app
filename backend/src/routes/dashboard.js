@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-    const [clientsCount, activitiesCount, servicesCount, employeesCount, suppliersCount, openCuotas, upcoming, pendingAppts, apptThisMonth, expensesThisMonth, manualIncomeThisMonth] =
+    const [clientsCount, activitiesCount, servicesCount, employeesCount, suppliersCount, openCuotas, upcoming, pendingAppts, paymentThisMonth, apptPaidThisMonth, expensesThisMonth, manualIncomeThisMonth] =
       await Promise.all([
         prisma.client.count({ where: { businessId, active: true } }),
         prisma.activity.count({ where: { businessId, active: true } }),
@@ -49,17 +49,28 @@ router.get('/', async (req, res) => {
           _count: { id: true },
           _sum: { price: true },
         }),
-        // Ingresos del mes (abonos registrados)
-        prisma.accountMovement.aggregate({
+        // Ingresos del mes: pagos de cuotas
+        prisma.payment.aggregate({
           where: {
-            businessId,
-            type: 'abono',
             date: {
               gte: new Date(now.getFullYear(), now.getMonth(), 1),
               lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
             },
+            cuota: { enrollment: { activity: { businessId } } },
           },
           _sum: { amount: true },
+        }),
+        // Ingresos del mes: turnos/trabajos cobrados
+        prisma.appointment.aggregate({
+          where: {
+            businessId,
+            paymentStatus: 'paid',
+            paidAt: {
+              gte: new Date(now.getFullYear(), now.getMonth(), 1),
+              lte: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
+            },
+          },
+          _sum: { price: true },
         }),
         // Gastos del mes
         prisma.expense.aggregate({
@@ -124,7 +135,7 @@ router.get('/', async (req, res) => {
       servicesCount,
       employeesCount,
       suppliersCount,
-      ingresosDelMes: (apptThisMonth._sum?.amount || 0) + (manualIncomeThisMonth._sum?.amount || 0),
+      ingresosDelMes: (paymentThisMonth._sum?.amount || 0) + (apptPaidThisMonth._sum?.price || 0) + (manualIncomeThisMonth._sum?.amount || 0),
       gastosDelMes: expensesThisMonth._sum?.amount || 0,
       pending,
       overdue,
