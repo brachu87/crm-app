@@ -312,10 +312,28 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
   }
 
   function sendWhatsApp(appt) {
-    const phone = (appt.client?.phone || '').replace(/\D/g, '');
+    const rawPhone = (appt.client?.phone || '').replace(/\D/g, '');
+    // Normalizar numero argentino: agregar prefijo 549
+    const phone = rawPhone.startsWith('0')
+      ? '549' + rawPhone.slice(1)
+      : rawPhone.startsWith('54')
+        ? rawPhone
+        : rawPhone ? '549' + rawPhone : '';
     const dateLabel = fmtDate(appt.date);
-    const lines = [`📅 *Turno confirmado — ${service.name}*`, ``, `👤 ${appt.client?.name}`, `🗓 ${dateLabel} · ${appt.startTime}–${appt.endTime}`, appt.employee ? `👩‍⚕️ ${appt.employee.name}` : '', `💵 ${fmtMoney(appt.price)}`, appt.notes ? `📝 ${appt.notes}` : ''].filter(Boolean).join('\n');
-    const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(lines)}` : `https://wa.me/?text=${encodeURIComponent(lines)}`;
+    // Usar formato de dinero sin caracteres especiales (evita \u00A0 del Intl formatter)
+    const fmtWA = (v) => '$ ' + Math.round(v || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const lines = [
+      `Turno confirmado - ${service.name}`,
+      ``,
+      `Cliente: ${appt.client?.name || ''}`,
+      `Fecha: ${dateLabel}${appt.startTime ? ' ' + appt.startTime + '-' + appt.endTime : ''}`,
+      appt.employee ? `Profesional: ${appt.employee.name}` : '',
+      `Monto: ${fmtWA(appt.price)}`,
+      appt.notes ? `Notas: ${appt.notes}` : '',
+    ].filter(Boolean).join('\n');
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(lines)}`
+      : `https://wa.me/?text=${encodeURIComponent(lines)}`;
     window.open(url, '_blank');
   }
 

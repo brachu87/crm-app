@@ -7,7 +7,7 @@ export const DEFAULT_TEMPLATES = [
   {
     id: 'cobranza',
     name: 'Recordatorio de pago',
-    text: 'Hola {nombre}! Te recordamos que tenés pendiente el pago de {actividad} por {monto}. Vencimiento: {vencimiento}. Cualquier consulta estamos a disposición. ¡Gracias!',
+    text: 'Hola {nombre}! Te recordamos que tenés pendiente el pago de {actividad} por {monto}. Vencimiento: {vencimiento}. Cualquier consulta estamos a disposición. Gracias!',
   },
 ];
 
@@ -22,6 +22,8 @@ export function getTemplates() {
 
 
 const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+// Formatter seguro para URLs de WhatsApp (sin caracteres Unicode especiales)
+const fmtWA = (v) => '$ ' + Math.round(v || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const fmtDate = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
 const statusLabels = { paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido' };
 
@@ -265,7 +267,7 @@ export default function Collections() {
                     <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }}
                       onClick={() => {
                         const phone = a.client.phone.replace(/\D/g, '');
-                        const msg = `Hola ${a.client.name}! Te recordamos que tenés pendiente el cobro de ${apptLabel(a)} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmt(a.price)}. ¡Gracias!`;
+                        const msg = `Hola ${a.client.name}! Te recordamos que tenes pendiente el cobro de ${apptLabel(a)} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmtWA(a.price)}. Gracias!`;
                         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}>📱 WA</button>
                   )}
@@ -301,7 +303,7 @@ export default function Collections() {
                       onClick={() => {
                         const phone = a.client.phone.replace(/\D/g, '');
                         const num = phone.startsWith('0') ? '549' + phone.slice(1) : phone.startsWith('54') ? phone : '549' + phone;
-                        const msg = `Hola ${a.client.name}! Te enviamos el comprobante de ${apptLabel(a)} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmt(a.price)}. ¡Gracias!`;
+                        const msg = `Hola ${a.client.name}! Te enviamos el comprobante de ${apptLabel(a)} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmtWA(a.price)}. Gracias!`;
                         window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}>📱 WA</button>
                   )}
@@ -570,7 +572,7 @@ function EditCuotaModal({ enrollment, onClose, onSaved }) {
 function WaModal({ enrollment, onClose }) {
   const templates = getTemplates();
   const e = enrollment;
-  const fmt2 = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+  const fmt2 = (v) => '$ ' + Math.round(v || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   const net = Math.max(0, (e.amountDue || 0) - (e.discount || 0));
   const fmtD = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
 
@@ -583,8 +585,8 @@ function WaModal({ enrollment, onClose }) {
   }
 
   const defaultMsg = e.waRecibo
-    ? `Hola ${e.client?.name}! Tu pago de ${e.activity?.name} por ${fmt2(e.lastPayment?.amount || net)} fue registrado. ${e.lastPayment?.method ? `Forma de pago: ${e.lastPayment.method}.` : ''} ¡Gracias!`
-    : `Hola ${e.client?.name}! Te recordamos que tenés pendiente el pago de ${e.activity?.name} por ${fmt2(net)}. Vencimiento: ${fmtD(e.dueDate)}. ¡Gracias!`;
+    ? `Hola ${e.client?.name}! Tu pago de ${e.activity?.name} por ${fmt2(e.lastPayment?.amount || net)} fue registrado. ${e.lastPayment?.method ? `Forma de pago: ${e.lastPayment.method}.` : ''} Gracias!`
+    : `Hola ${e.client?.name}! Te recordamos que tenes pendiente el pago de ${e.activity?.name} por ${fmt2(net)}. Vencimiento: ${fmtD(e.dueDate)}. Gracias!`;
   const phone = e.client?.phone?.replace(/\D/g, '');
 
   return (
@@ -631,7 +633,7 @@ function WaModal({ enrollment, onClose }) {
 
 /* ── Helpers ──────────────────────────────────────────────────── */
 function buildWaReceiptLink(recibo, net, nroRecibo, business) {
-  const fmtR = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
+  const fmtR = (v) => '$ ' + Math.round(v || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   const fmtD2 = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
   const lineDetalle = recibo.isAppointment
     ? `Turno: ${fmtD2(recibo.appointmentDate)} · ${recibo.startTime || ''}–${recibo.endTime || ''}`
@@ -641,7 +643,7 @@ function buildWaReceiptLink(recibo, net, nroRecibo, business) {
     `${lineDetalle}\n` +
     `Monto abonado: ${fmtR(net)}\n` +
     `Forma de pago: ${recibo.metodoPago || 'Efectivo'}\n\n` +
-    `¡Gracias por tu pago! ${business?.name || ''}`;
+    `Gracias por tu pago! ${business?.name || ''}`;
   const phone = recibo.client?.phone?.replace(/\D/g, '');
   const num = phone?.startsWith('0') ? '549' + phone.slice(1) : phone?.startsWith('54') ? phone : '549' + phone;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
