@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 
 function ZentricLogo({ size = 52 }) {
@@ -23,7 +24,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -40,6 +41,21 @@ export default function Login() {
     }
   }
 
+  async function handleGoogle(credentialResponse) {
+    setError('');
+    try {
+      const result = await googleLogin(credentialResponse.credential);
+      if (result?.needsRegister) {
+        // Usuario nuevo — llevar a registro con datos de Google
+        navigate('/registro', { state: { googleCredential: credentialResponse.credential, email: result.email, name: result.name } });
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al ingresar con Google');
+    }
+  }
+
   return (
     <div className="auth-page">
       <div className="auth-card">
@@ -48,26 +64,31 @@ export default function Login() {
 
         {error && <div className="error-banner">{error}</div>}
 
+        <div style={{ marginBottom: 16 }}>
+          <GoogleLogin
+            onSuccess={handleGoogle}
+            onError={() => setError('Error al ingresar con Google')}
+            width="100%"
+            text="signin_with"
+            shape="rectangular"
+            logo_alignment="left"
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0', color: 'var(--ink-soft)', fontSize: 13 }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          o ingresá con email
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
+
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
           <div className="field">
             <label htmlFor="password">Contraseña</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
             {loading ? 'Ingresando...' : 'Ingresar'}

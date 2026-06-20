@@ -31,6 +31,19 @@ export function AuthProvider({ children }) {
     saveSession(res.data);
   }
 
+  // Verifica token de Google. Devuelve { needsRegister, email, name } si es usuario nuevo.
+  async function googleLogin(credential) {
+    const res = await api.post('/auth/google', { credential });
+    if (res.data.needsRegister) return res.data;
+    saveSession(res.data);
+    return null;
+  }
+
+  async function googleRegister({ credential, businessName, category }) {
+    const res = await api.post('/auth/google-register', { credential, businessName, category });
+    saveSession(res.data);
+  }
+
   function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -46,7 +59,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, business, login, register, logout, updateBusiness, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, business, login, register, googleLogin, googleRegister, logout, updateBusiness, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
