@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-    const [clientsCount, activitiesCount, servicesCount, employeesCount, suppliersCount, openCuotas, upcoming, pendingAppts, apptThisMonth, expensesThisMonth] =
+    const [clientsCount, activitiesCount, servicesCount, employeesCount, suppliersCount, openCuotas, upcoming, pendingAppts, apptThisMonth, expensesThisMonth, manualIncomeThisMonth] =
       await Promise.all([
         prisma.client.count({ where: { businessId, active: true } }),
         prisma.activity.count({ where: { businessId, active: true } }),
@@ -72,6 +72,14 @@ router.get('/', async (req, res) => {
           },
           _sum: { amount: true },
         }),
+        // Otros ingresos manuales del mes
+        prisma.manualIncome.aggregate({
+          where: {
+            businessId,
+            date: { gte: firstOfMonth, lte: lastOfMonth },
+          },
+          _sum: { amount: true },
+        }),
       ]);
 
     // Conteos y totales por estado, sumando el NETO (amountDue - discount)
@@ -116,7 +124,7 @@ router.get('/', async (req, res) => {
       servicesCount,
       employeesCount,
       suppliersCount,
-      ingresosDelMes: apptThisMonth._sum?.amount || 0,
+      ingresosDelMes: (apptThisMonth._sum?.amount || 0) + (manualIncomeThisMonth._sum?.amount || 0),
       gastosDelMes: expensesThisMonth._sum?.amount || 0,
       pending,
       overdue,
