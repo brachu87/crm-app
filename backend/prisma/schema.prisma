@@ -13,7 +13,7 @@ model Business {
   category  String
   phone     String?
   createdAt DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   users      User[]
@@ -42,7 +42,7 @@ model User {
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
   createdAt  DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 }
 
@@ -68,7 +68,7 @@ model Client {
   accountMovements AccountMovement[]
   appointments     Appointment[]
   createdAt        DateTime     @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -80,7 +80,7 @@ model ClientNote {
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   content   String
   createdAt DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([clientId])
@@ -102,7 +102,7 @@ model Activity {
   activityEmployees ActivityEmployee[]
   classSchedules    ClassSchedule[]
   createdAt   DateTime     @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -140,7 +140,7 @@ model Cuota {
   paymentStatus String     @default("pending") // pending | paid | overdue
   dueDate       DateTime?
   createdAt     DateTime   @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   payments Payment[]
@@ -172,7 +172,7 @@ model Supplier {
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
   createdAt  DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -192,7 +192,7 @@ model Note {
   businessId String
   business   Business  @relation(fields: [businessId], references: [id])
   createdAt  DateTime  @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -207,7 +207,7 @@ model DailyCash {
   businessId     String
   business       Business @relation(fields: [businessId], references: [id])
   createdAt      DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -231,7 +231,7 @@ model Employee {
   branchId   String?
   branch     Branch?  @relation(fields: [branchId], references: [id])
   createdAt DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
   activityEmployees ActivityEmployee[]
   classSchedules    ClassSchedule[]
@@ -254,7 +254,7 @@ model Expense {
   businessId    String
   business      Business @relation(fields: [businessId], references: [id])
   createdAt     DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -269,7 +269,7 @@ model AccountMovement {
   description String?
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
   businessId  String
   business    Business @relation(fields: [businessId], references: [id])
@@ -287,7 +287,7 @@ model Branch {
   phone      String?
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   employees      Employee[]
@@ -323,7 +323,7 @@ model ClassSchedule {
   maxCapacity Int?
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -345,7 +345,7 @@ model Attendance {
   classScheduleId String?
   classSchedule   ClassSchedule? @relation(fields: [classScheduleId], references: [id])
   createdAt       DateTime       @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -368,7 +368,7 @@ model PayrollRecord {
   paidAt      DateTime?
   notes       String?
   createdAt   DateTime @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
 
   @@index([businessId])
@@ -387,7 +387,7 @@ model Service {
   employee    Employee? @relation(fields: [employeeId], references: [id])
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
   appointments Appointment[]
 
@@ -417,7 +417,7 @@ model Appointment {
   notes         String?
   isQuickWork   Boolean   @default(false)
   createdAt     DateTime  @default(now())
-  approved    Boolean  @default(false)
+  approved    Boolean?
   approvedAt  DateTime?
   updatedAt     DateTime  @updatedAt
 
