@@ -136,34 +136,38 @@ router.post('/google-register', async (req, res) => {
     const payload = await verifyGoogleToken(credential);
     const { email, name } = payload;
 
-    // Si ya existe, simplemente loguear
-    const existing = await prisma.user.findUnique({ where: { email }, include: { business: true } });
+    // Si ya existe un usuario con ese email, simplemente loguear
+    const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
+      const biz = await prisma.business.findUnique({ where: { id: existing.businessId } });
       return res.json({
         token: makeToken(existing),
         user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role },
-        business: { id: existing.business.id, name: existing.business.name, category: existing.business.category },
+        business: { id: biz.id, name: biz.name, category: biz.category },
       });
     }
 
-    const business = await prisma.business.create({ data: { name: businessName, category: category || 'otro' } });
+    // Crear business + user en una transacción para que sean atómicos
+    const { business } = await prisma.$transaction(async (tx) => {
+      const business = await tx.business.create({ data: { name: businessName, category: category || 'otro' } });
+      await tx.user.create({
+        data: { email, password: null, name, role: 'owner', businessId: business.id },
+      });
+      return { business };
+    });
 
-    // Nueva cuenta empieza como pendiente de aprobación
+    // Marcar como pendiente de aprobación (raw SQL fuera de transacción es OK)
     try {
       await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 0 WHERE id = ?`, business.id);
     } catch (_) { /* columna no existe aún */ }
-
-    const user = await prisma.user.create({
-      data: { email, password: null, name, role: 'owner', businessId: business.id },
-    });
 
     res.status(201).json({
       pending: true,
       message: 'Tu cuenta fue creada y está pendiente de aprobación. Te contactaremos por WhatsApp para habilitarte el acceso.',
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al registrar con Google' });
+    console.error('[google-register error]', err);
+    res.status(500).json({ error: 'Error al registrar con Google: ' + err.message });
   }
 });
 
