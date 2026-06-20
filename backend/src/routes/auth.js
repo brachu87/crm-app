@@ -1,4 +1,5 @@
 const express = require('express');
+const { sendWelcomeEmail } = require('../lib/mailer');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
@@ -58,6 +59,9 @@ router.post('/register', async (req, res) => {
     const user = await prisma.user.create({
       data: { email, password: hashedPassword, name, role: 'owner', businessId: business.id },
     });
+
+    // Enviar mail de bienvenida (no bloquea si falla)
+    sendWelcomeEmail({ toEmail: email, toName: name, businessName });
 
     res.status(201).json({
       pending: true,
@@ -160,6 +164,9 @@ router.post('/google-register', async (req, res) => {
     try {
       await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 0 WHERE id = ?`, business.id);
     } catch (_) { /* columna no existe aún */ }
+
+    // Enviar mail de bienvenida (no bloquea si falla)
+    sendWelcomeEmail({ toEmail: email, toName: name, businessName });
 
     res.status(201).json({
       pending: true,
