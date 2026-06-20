@@ -152,6 +152,7 @@ export default function Dashboard() {
   const [error, setError]     = useState('');
   const [summary, setSummary] = useState(null);
   const [notes, setNotes]     = useState([]);
+  const [apptTasks, setApptTasks] = useState([]);
   const [cashData, setCashData] = useState(null);
   const [showCustomize, setShowCustomize] = useState(false);
   const [activeWidgets, setActiveWidgets] = useState(loadWidgetPrefs);
@@ -163,6 +164,14 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
     api.get('/daily-cash/today').then(r => setCashData(r.data)).catch(() => {});
     api.get('/notes').then(r => setNotes(r.data.filter(n => !n.completed))).catch(() => {});
+    // Fetch turnos de hoy + próximos 7 días no completados
+    const today = new Date();
+    const in7 = new Date(); in7.setDate(today.getDate() + 7);
+    const fmt = d => d.toISOString().slice(0,10);
+    api.get(`/appointments?from=${fmt(today)}&to=${fmt(in7)}&status=scheduled`).then(r => {
+      const appts = (r.data || []).filter(a => a.status !== 'completed');
+      setApptTasks(appts);
+    }).catch(() => {});
     api.get('/reports/summary?months=6').then(r => setSummary(r.data)).catch(() => {});
   }, []);
 
@@ -300,21 +309,37 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Tareas pendientes */}
-      {notes.length > 0 && (
+      {/* Tareas pendientes + Turnos */}
+      {(notes.length > 0 || apptTasks.length > 0) && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h2 style={{ fontSize: 16, margin: 0 }}>📝 Tareas pendientes ({notes.length})</h2>
-            <Link to="/agenda" className="btn btn-secondary btn-sm">Ver todas</Link>
+            <h2 style={{ fontSize: 16, margin: 0 }}>📝 Pendientes ({notes.length + apptTasks.length})</h2>
+            <Link to="/agenda" className="btn btn-secondary btn-sm">Ver agenda</Link>
           </div>
-          {notes.slice(0, 3).map(n => {
+          {notes.slice(0, 5).map(n => {
             const isOverdue = n.dueDate && new Date(n.dueDate) < new Date();
             return (
-              <div key={n.id} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div key={`note-${n.id}`} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ color: n.priority === 'high' ? '#f59e0b' : isOverdue ? '#ef4444' : 'var(--ink-soft)' }}>●</span>
                 <span style={{ flex: 1 }}>{n.title}</span>
                 {isOverdue && <span style={{ fontSize: 11, color: '#ef4444', background: '#fee2e2', padding: '1px 6px', borderRadius: 8 }}>Vencida</span>}
                 {n.dueDate && !isOverdue && <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{formatDate(n.dueDate)}</span>}
+              </div>
+            );
+          })}
+          {apptTasks.slice(0, 5).map(a => {
+            const isToday = a.date === new Date().toISOString().slice(0,10);
+            return (
+              <div key={`appt-${a.id}`} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#6366f1' }}>●</span>
+                <span style={{ flex: 1 }}>
+                  🗓 {a.service?.name || a.description || 'Turno'}
+                  {a.client?.name ? ` — ${a.client.name}` : ''}
+                </span>
+                {isToday
+                  ? <span style={{ fontSize: 11, color: '#fff', background: '#6366f1', padding: '1px 6px', borderRadius: 8 }}>Hoy{a.startTime ? ' ' + a.startTime : ''}</span>
+                  : <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{a.date}{a.startTime ? ' ' + a.startTime : ''}</span>
+                }
               </div>
             );
           })}
