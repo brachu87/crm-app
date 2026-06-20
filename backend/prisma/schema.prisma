@@ -22,6 +22,7 @@ model Business {
   suppliers  Supplier[]
   notes            Note[]
   dailyCash        DailyCash[]
+  manualIncomes    ManualIncome[]
   accountMovements AccountMovement[]
   branches         Branch[]
   classSchedules   ClassSchedule[]
@@ -389,4 +390,17 @@ model Appointment {
   @@index([serviceId])
   @@index([clientId])
   @@index([employeeId])
+}
+
+model ManualIncome {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id])
+  amount      Float
+  description String
+  category    String   @default("Otro")
+  date        String
+  createdAt   DateTime @default(now())
+
+  @@index([businessId])
 }

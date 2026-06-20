@@ -19,8 +19,8 @@ router.get('/summary', async (req, res) => {
     // Ventana alineada con el bucket más viejo que se grafica (months-1 meses atrás)
     const since = new Date(anchor.getFullYear(), anchor.getMonth() - (months - 1), 1);
 
-    // All payments in range (cuotas + turnos)
-    const [payments, apptPayments] = await Promise.all([
+    // All payments in range (cuotas + turnos + manuales)
+    const [payments, apptPayments, manualIncomes] = await Promise.all([
       prisma.payment.findMany({
         where: {
           date: { gte: since },
@@ -36,6 +36,10 @@ router.get('/summary', async (req, res) => {
         },
         select: { price: true, paidAt: true, clientId: true,
           client: { select: { id: true, name: true } } },
+      }),
+      prisma.manualIncome.findMany({
+        where: { businessId: bId, date: { gte: since.toISOString().slice(0,10) } },
+        select: { amount: true, date: true, category: true, description: true },
       }),
     ]);
 
@@ -65,6 +69,11 @@ router.get('/summary', async (req, res) => {
       if (monthlyMap[key]) monthlyMap[key].income += a.price || 0;
     }
 
+    for (const m of manualIncomes) {
+      const key = m.date.slice(0, 7); // "YYYY-MM"
+      if (monthlyMap[key]) monthlyMap[key].income += m.amount;
+    }
+
     for (const e of expenses) {
       const d = new Date(e.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -77,6 +86,15 @@ router.get('/summary', async (req, res) => {
       categoryMap[e.category] = (categoryMap[e.category] || 0) + e.amount;
     }
     const expensesByCategory = Object.entries(categoryMap)
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total);
+
+    // Manual incomes by category
+    const manualCatMap = {};
+    for (const m of manualIncomes) {
+      manualCatMap[m.category] = (manualCatMap[m.category] || 0) + m.amount;
+    }
+    const manualIncomesByCategory = Object.entries(manualCatMap)
       .map(([category, total]) => ({ category, total }))
       .sort((a, b) => b.total - a.total);
 
@@ -122,6 +140,7 @@ router.get('/summary', async (req, res) => {
     res.json({
       monthlyData: Object.values(monthlyMap),
       expensesByCategory,
+      manualIncomesByCategory,
       totalSalaries,
       overdueCount,
       topClients,

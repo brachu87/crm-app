@@ -30,7 +30,7 @@ const statusLabels = { paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido' 
 
 
 export default function Collections() {
-  const [view, setView] = useState('pending'); // 'pending' | 'paid'
+  const [view, setView] = useState('pending'); // 'pending' | 'paid' | 'otros'
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -124,8 +124,12 @@ export default function Collections() {
         <button style={tabStyle(view === 'paid')} onClick={() => { setView('paid'); setSearch(''); }}>
           ✅ Cobradas
         </button>
+        <button style={tabStyle(view === 'otros')} onClick={() => { setView('otros'); setSearch(''); }}>
+          💰 Otros ingresos
+        </button>
       </div>
 
+      {view !== 'otros' && <>
       {/* Search */}
       <div style={{ marginBottom: 16 }}>
         <input
@@ -339,6 +343,11 @@ export default function Collections() {
       {waModal && (
         <WaModal enrollment={waModal} onClose={() => setWaModal(null)} />
       )}
+      </>
+      }
+
+      {view === 'otros' && <OtrosIngresos />}
+
       {recibo && (
         <ReciboModal recibo={recibo} business={business} onClose={() => setRecibo(null)} />
       )}
@@ -835,6 +844,177 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
           </div>
           <div className="recibo-footer">Este recibo es comprobante válido de pago.</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── OTROS INGRESOS ─────────────────────────────────────────────────────────
+function OtrosIngresos() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [filterCat, setFilterCat] = useState('');
+  const [search, setSearch] = useState('');
+
+  function load() {
+    setLoading(true);
+    api.get('/manual-income').then(r => setItems(r.data)).catch(() => {}).finally(() => setLoading(false));
+  }
+  useEffect(load, []);
+
+  async function handleDelete(id) {
+    if (!confirm('¿Eliminar este ingreso?')) return;
+    await api.delete(`/manual-income/${id}`);
+    load();
+  }
+
+  const fmt = (n) => '$' + Math.round(n).toLocaleString('es-AR');
+  const fmtD = (s) => { if (!s) return ''; const [y,m,d] = s.slice(0,10).split('-'); return `${d}/${m}/${y}`; };
+
+  // All unique categories for filter
+  const cats = [...new Set(items.map(i => i.category).filter(Boolean))].sort();
+
+  const filtered = items.filter(i => {
+    if (filterCat && i.category !== filterCat) return false;
+    if (search && !i.description.toLowerCase().includes(search.toLowerCase()) && !i.category.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const total = filtered.reduce((s, i) => s + i.amount, 0);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <p style={{ margin: 0, color: 'var(--ink-soft)', fontSize: 14 }}>
+          {filtered.length} registro{filtered.length !== 1 ? 's' : ''} · Total: <strong style={{ color: 'var(--primary)' }}>{fmt(total)}</strong>
+        </p>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Nuevo ingreso</button>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input
+          placeholder="Buscar..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1, minWidth: 160, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14 }}
+        />
+        <select
+          value={filterCat}
+          onChange={e => setFilterCat(e.target.value)}
+          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14 }}
+        >
+          <option value=''>Todas las categorías</option>
+          {cats.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+        </select>
+      </div>
+
+      {loading ? (
+        <p style={{ color: 'var(--ink-soft)' }}>Cargando...</p>
+      ) : filtered.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: 40 }}>
+          <p style={{ fontSize: 32, margin: '0 0 8px' }}>💰</p>
+          <p style={{ color: 'var(--ink-soft)', margin: 0 }}>No hay ingresos registrados{filterCat ? ` en "${filterCat}"` : ''}.</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Descripción</th>
+                  <th>Categoría</th>
+                  <th style={{ textAlign: 'right' }}>Monto</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(item => (
+                  <tr key={item.id}>
+                    <td style={{ whiteSpace: 'nowrap', color: 'var(--ink-soft)', fontSize: 13 }}>{fmtD(item.date)}</td>
+                    <td>{item.description}</td>
+                    <td>
+                      <span style={{ background: 'var(--primary-soft)', color: 'var(--primary)', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+                        {item.category}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>{fmt(item.amount)}</td>
+                    <td>
+                      <button onClick={() => handleDelete(item.id)} className="btn-danger-text" style={{ fontSize: 12 }}>Eliminar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {showModal && (
+        <NuevoIngresoModal onClose={() => setShowModal(false)} onSaved={() => { setShowModal(false); load(); }} />
+      )}
+    </div>
+  );
+}
+
+function NuevoIngresoModal({ onClose, onSaved }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({ amount: '', description: '', category: '', date: today });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  function set(field) { return (e) => setForm(f => ({ ...f, [field]: e.target.value })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.amount || !form.description || !form.date) { setError('Completá todos los campos'); return; }
+    setSaving(true);
+    try {
+      await api.post('/manual-income', {
+        amount: parseFloat(form.amount.replace(',', '.')),
+        description: form.description,
+        category: form.category || 'Otro',
+        date: form.date,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <h2>Nuevo ingreso</h2>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Descripción</label>
+            <input value={form.description} onChange={set('description')} placeholder="Ej: Venta de suplementos" required />
+          </div>
+          <div className="field">
+            <label>Categoría <span style={{ color: 'var(--ink-soft)', fontWeight: 400 }}>(escribí la que quieras)</span></label>
+            <input value={form.category} onChange={set('category')} placeholder="Ej: Suplementos, Alquiler, Consultoría..." />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label>Monto</label>
+              <input value={form.amount} onChange={set('amount')} placeholder="0" inputMode="decimal" required />
+            </div>
+            <div className="field">
+              <label>Fecha</label>
+              <input type="date" value={form.date} onChange={set('date')} required />
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar ingreso'}</button>
+          </div>
+        </form>
       </div>
     </div>
   );

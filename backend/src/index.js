@@ -7,6 +7,7 @@ const { markOverdueCuotas } = require('./lib/overdue');
 
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const manualIncomeRoutes = require('./routes/manual-income');
 const clientsRoutes = require('./routes/clients');
 const activitiesRoutes = require('./routes/activities');
 const enrollmentsRoutes = require('./routes/enrollments');
@@ -36,6 +37,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/manual-income', manualIncomeRoutes);
 
 // Panel de administración — solo accesible en /admin
 app.get('/admin', (req, res) => {
