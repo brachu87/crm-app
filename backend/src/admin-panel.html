@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Zentric Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh}
+    .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .login-card{background:#fff;border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.1)}
+    .login-card h1{font-size:22px;font-weight:800;margin-bottom:6px}
+    .login-card p{color:#64748b;font-size:14px;margin-bottom:24px}
+    .field{margin-bottom:16px}
+    .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151}
+    .field input{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;font-family:inherit}
+    .field input:focus{border-color:#3D5A4C;box-shadow:0 0 0 3px rgba(61,90,76,.1)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+    .btn-primary{background:#3D5A4C;color:#fff;width:100%}
+    .btn-primary:hover{background:#2e4438}
+    .btn-approve{background:#d1fae5;color:#065f46;padding:5px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600}
+    .btn-approve:hover{background:#a7f3d0}
+    .btn-reject{background:#fee2e2;color:#991b1b;padding:5px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600}
+    .btn-reject:hover{background:#fecaca}
+    .error{background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:16px}
+    .panel{display:none;min-height:100vh}
+    nav{background:#3D5A4C;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
+    nav .logo{display:flex;align-items:center;gap:10px;color:#fff;font-size:18px;font-weight:800}
+    nav .logout{color:#a8c5b5;font-size:13px;cursor:pointer;background:none;border:none;font-family:inherit}
+    nav .logout:hover{color:#fff}
+    .main{max-width:1100px;margin:0 auto;padding:32px 24px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+    .stat{background:#fff;border-radius:12px;padding:20px;border:1px solid #e2e8f0}
+    .stat-num{font-size:28px;font-weight:800;color:#3D5A4C}
+    .stat-label{font-size:13px;color:#64748b;margin-top:4px}
+    .card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden}
+    .card-header{padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+    .card-header h2{font-size:16px;font-weight:700}
+    .search{padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;font-family:inherit;width:220px}
+    .search:focus{border-color:#3D5A4C}
+    table{width:100%;border-collapse:collapse}
+    th{text-align:left;padding:12px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+    td{padding:12px 16px;font-size:14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+    tr:last-child td{border:none}
+    tr:hover td{background:#f8fafc}
+    .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+    .pill-green{background:#d1fae5;color:#065f46}
+    .pill-amber{background:#fef3c7;color:#92400e}
+    .actions{display:flex;gap:6px}
+    .empty{text-align:center;padding:48px;color:#94a3b8;font-size:14px}
+    @media(max-width:768px){
+      .stats{grid-template-columns:repeat(2,1fr)}
+      td:nth-child(3),th:nth-child(3){display:none}
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <svg width="32" height="32" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="#3D5A4C"/><line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/><line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/><line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/></svg>
+      <span style="font-size:20px;font-weight:800"><span style="color:#3D5A4C">z</span>entric</span>
+    </div>
+    <h1>Panel de administración</h1>
+    <p>Ingresá con tu clave de administrador</p>
+    <div id="loginError" class="error" style="display:none"></div>
+    <div class="field">
+      <label>Clave de administrador</label>
+      <input type="password" id="adminSecret" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
+
+<div class="panel" id="panel">
+  <nav>
+    <div class="logo">
+      <svg width="24" height="24" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="rgba(255,255,255,0.2)"/><line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/><line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/><line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/></svg>
+      Zentric Admin
+    </div>
+    <button class="logout" onclick="doLogout()">Cerrar sesión</button>
+  </nav>
+  <div class="main">
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Cuentas totales</div></div>
+      <div class="stat"><div class="stat-num" id="statApproved">—</div><div class="stat-label">Aprobadas</div></div>
+      <div class="stat"><div class="stat-num" id="statPending">—</div><div class="stat-label">Pendientes</div></div>
+      <div class="stat"><div class="stat-num" id="statToday">—</div><div class="stat-label">Hoy</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>Cuentas registradas</h2>
+        <input class="search" type="text" placeholder="Buscar negocio o email..." oninput="filterTable(this.value)"/>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Negocio</th><th>Propietario</th><th>Rubro</th><th>Registro</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="accountsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+let secret = '';
+let allAccounts = [];
+
+function doLogin() {
+  const val = document.getElementById('adminSecret').value.trim();
+  if (!val) return;
+  secret = val;
+  document.getElementById('loginError').style.display = 'none';
+  loadAccounts();
+}
+
+function doLogout() {
+  secret = '';
+  document.getElementById('loginWrap').style.display = 'flex';
+  document.getElementById('panel').style.display = 'none';
+  document.getElementById('adminSecret').value = '';
+}
+
+async function loadAccounts() {
+  try {
+    const res = await fetch(API + '/admin/accounts', {
+      headers: { 'X-Admin-Secret': secret }
+    });
+    if (res.status === 401) {
+      document.getElementById('loginError').textContent = 'Clave incorrecta';
+      document.getElementById('loginError').style.display = 'block';
+      return;
+    }
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      document.getElementById('loginError').textContent = 'Error del servidor: ' + (data.error || 'desconocido');
+      document.getElementById('loginError').style.display = 'block';
+      return;
+    }
+    allAccounts = data;
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    renderStats();
+    renderTable(allAccounts);
+  } catch(e) {
+    document.getElementById('loginError').textContent = 'Error de conexión: ' + e.message;
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+function renderStats() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('statTotal').textContent = allAccounts.length;
+  document.getElementById('statApproved').textContent = allAccounts.filter(a=>a.approved).length;
+  document.getElementById('statPending').textContent = allAccounts.filter(a=>!a.approved).length;
+  document.getElementById('statToday').textContent = allAccounts.filter(a=>a.createdAt?.slice(0,10)===today).length;
+}
+
+function renderTable(accounts) {
+  const tbody = document.getElementById('accountsBody');
+  if (!accounts.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin cuentas registradas</td></tr>';
+    return;
+  }
+  tbody.innerHTML = accounts.map(a => {
+    const owner = a.users?.[0];
+    const date = a.createdAt ? new Date(a.createdAt).toLocaleDateString('es-AR') : '-';
+    const pill = a.approved
+      ? '<span class="pill pill-green">✓ Aprobada</span>'
+      : '<span class="pill pill-amber">⏳ Pendiente</span>';
+    const actions = a.approved
+      ? `<button class="btn-reject" onclick="reject('${a.id}')">Revocar</button>`
+      : `<button class="btn-approve" onclick="approve('${a.id}')">Aprobar</button>`;
+    return `<tr>
+      <td><strong>${a.name}</strong></td>
+      <td><div style="font-weight:600">${owner?.name||'-'}</div><div style="font-size:12px;color:#94a3b8">${owner?.email||'-'}</div></td>
+      <td style="color:#64748b">${a.category||'-'}</td>
+      <td style="color:#64748b">${date}</td>
+      <td>${pill}</td>
+      <td><div class="actions">${actions}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTable(q) {
+  const lower = q.toLowerCase();
+  renderTable(allAccounts.filter(a =>
+    a.name?.toLowerCase().includes(lower) ||
+    a.users?.[0]?.email?.toLowerCase().includes(lower) ||
+    a.users?.[0]?.name?.toLowerCase().includes(lower)
+  ));
+}
+
+async function approve(id) {
+  await fetch(API + `/admin/accounts/${id}/approve`, { method:'PUT', headers:{'X-Admin-Secret':secret} });
+  loadAccounts();
+}
+
+async function reject(id) {
+  if (!confirm('¿Revocar acceso a esta cuenta?')) return;
+  await fetch(API + `/admin/accounts/${id}/reject`, { method:'PUT', headers:{'X-Admin-Secret':secret} });
+  loadAccounts();
+}
+</script>
+</body>
+</html>

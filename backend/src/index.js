@@ -36,6 +36,11 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Panel de administración — solo accesible en /admin
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-panel.html'));
+});
 app.use('/api/clients', clientsRoutes);
 app.use('/api/activities', activitiesRoutes);
 app.use('/api/enrollments', enrollmentsRoutes);
