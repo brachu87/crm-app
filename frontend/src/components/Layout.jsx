@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 const NAV_GROUPS = [
   {
@@ -106,8 +106,55 @@ export default function Layout() {
     setOpenGroup(prev => prev === label ? null : label);
   }
 
+  // ── Auto-logout por inactividad (2 horas) ─────────────────────────────────
+  const INACTIVITY_MS = 2 * 60 * 60 * 1000;   // 2 horas
+  const WARN_BEFORE_MS = 60 * 1000;             // aviso 1 minuto antes
+  const [showIdleWarning, setShowIdleWarning] = useState(false);
+  const idleTimer    = useRef(null);
+  const warnTimer    = useRef(null);
+
+  const resetIdleTimer = useCallback(() => {
+    setShowIdleWarning(false);
+    clearTimeout(idleTimer.current);
+    clearTimeout(warnTimer.current);
+    warnTimer.current = setTimeout(() => setShowIdleWarning(true), INACTIVITY_MS - WARN_BEFORE_MS);
+    idleTimer.current = setTimeout(() => {
+      setShowIdleWarning(false);
+      logout();
+    }, INACTIVITY_MS);
+  }, [logout]);
+
+  useEffect(() => {
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach(e => window.addEventListener(e, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+      clearTimeout(idleTimer.current);
+      clearTimeout(warnTimer.current);
+    };
+  }, [resetIdleTimer]);
+  // ──────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="app-shell">
+      {showIdleWarning && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+          background: '#92400e', color: '#fff',
+          padding: '12px 20px', fontSize: 14, display: 'flex',
+          alignItems: 'center', justifyContent: 'space-between', gap: 16,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+        }}>
+          <span>⏰ <strong>Sesión por vencer</strong> — Por inactividad, la sesión se cerrará en 1 minuto.</span>
+          <button
+            onClick={resetIdleTimer}
+            style={{ background: '#fff', color: '#92400e', border: 'none', borderRadius: 6, padding: '6px 14px', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+          >
+            Seguir conectado
+          </button>
+        </div>
+      )}
       {/* Mobile top header */}
       <header className="mobile-header">
         <button className="hamburger-btn" onClick={() => setMenuOpen(true)} aria-label="Abrir menu">
