@@ -37,8 +37,9 @@ model User {
   email      String   @unique
   password   String?
   name       String
-  role       String   @default("owner")
-  businessId String
+  role        String   @default("owner")
+  permissions String?
+  businessId  String
   business   Business @relation(fields: [businessId], references: [id])
   createdAt  DateTime @default(now())
 }

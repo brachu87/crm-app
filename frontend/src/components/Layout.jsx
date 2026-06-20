@@ -228,15 +228,21 @@ export default function Layout() {
           Inicio
         </NavLink>
 
-        {/* Accordion groups */}
+        {/* Accordion groups — filtered by user permissions */}
         {NAV_GROUPS.map((group) => {
+          // Owner y admin ven todo; staff solo ve lo que tiene habilitado
+          const perms = user?.permissions;
+          const visibleLinks = (perms && user?.role === 'staff')
+            ? group.links.filter(l => perms.includes(l.to))
+            : group.links;
+          if (visibleLinks.length === 0) return null;
+
           const isOpen = openGroup === group.label;
-          const hasActive = group.links.some(l =>
+          const hasActive = visibleLinks.some(l =>
             location.pathname === l.to || location.pathname.startsWith(l.to + '/')
           );
           return (
             <div key={group.label}>
-              {/* Group header button */}
               <button
                 onClick={() => toggleGroup(group.label)}
                 className="sidebar-group-btn"
@@ -256,10 +262,9 @@ export default function Layout() {
                 }}>▼</span>
               </button>
 
-              {/* Sub-links */}
               {isOpen && (
                 <div style={{ paddingBottom: 4 }}>
-                  {group.links.map((link) => (
+                  {visibleLinks.map((link) => (
                     <NavLink
                       key={link.to}
                       to={link.to}

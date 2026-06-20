@@ -15,6 +15,10 @@ async function verifyGoogleToken(credential) {
   return ticket.getPayload();
 }
 
+function parsePerms(user) {
+  try { return user.permissions ? JSON.parse(user.permissions) : null; } catch { return null; }
+}
+
 function makeToken(user) {
   return jwt.sign(
     { userId: user.id, businessId: user.businessId, role: user.role },
@@ -87,7 +91,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token: makeToken(user),
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: parsePerms(user) },
       business: { id: user.business.id, name: user.business.name, category: user.business.category },
     });
   } catch (err) {
@@ -117,7 +121,7 @@ router.post('/google', async (req, res) => {
 
     res.json({
       token: makeToken(user),
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: parsePerms(user) },
       business: { id: user.business.id, name: user.business.name, category: user.business.category },
     });
   } catch (err) {
@@ -142,7 +146,7 @@ router.post('/google-register', async (req, res) => {
       const biz = await prisma.business.findUnique({ where: { id: existing.businessId } });
       return res.json({
         token: makeToken(existing),
-        user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role },
+        user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role, permissions: parsePerms(existing) },
         business: { id: biz.id, name: biz.name, category: biz.category },
       });
     }
@@ -168,6 +172,27 @@ router.post('/google-register', async (req, res) => {
   } catch (err) {
     console.error('[google-register error]', err);
     res.status(500).json({ error: 'Error al registrar con Google: ' + err.message });
+  }
+});
+
+// GET /api/auth/me — refresca datos del usuario actual (incluye permissions)
+router.get('/me', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Sin token' });
+  try {
+    const jwt = require('jsonwebtoken');
+    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { business: true },
+    });
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: parsePerms(user) },
+      business: { id: user.business.id, name: user.business.name, category: user.business.category },
+    });
+  } catch (e) {
+    res.status(401).json({ error: 'Token inválido' });
   }
 });
 

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api/client';
 
 const AuthContext = createContext(null);
@@ -20,6 +20,19 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     setBusiness(data.business);
   }
+
+  // Refresca permisos del usuario al cargar la app
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    api.get('/auth/me').then(res => {
+      const fresh = res.data;
+      localStorage.setItem('user', JSON.stringify(fresh.user));
+      localStorage.setItem('business', JSON.stringify(fresh.business));
+      setUser(fresh.user);
+      setBusiness(fresh.business);
+    }).catch(() => {});
+  }, []);
 
   async function login(email, password) {
     const res = await api.post('/auth/login', { email, password });
@@ -60,8 +73,14 @@ export function AuthProvider({ children }) {
     setBusiness(updated);
   }
 
+  function updateUser(data) {
+    const updated = { ...user, ...data };
+    localStorage.setItem('user', JSON.stringify(updated));
+    setUser(updated);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, business, login, register, googleLogin, googleRegister, logout, updateBusiness, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, business, login, register, googleLogin, googleRegister, logout, updateBusiness, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

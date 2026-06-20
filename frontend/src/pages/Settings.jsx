@@ -1,11 +1,32 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { DEFAULT_TEMPLATES, getTemplates } from './Collections';
 
+// Secciones disponibles (mismo orden que el sidebar)
+const ALL_SECTIONS = [
+  { group: 'Negocio',        to: '/clientes',      label: 'Clientes' },
+  { group: 'Negocio',        to: '/actividades',   label: 'Actividades/Servicios' },
+  { group: 'Negocio',        to: '/agenda',        label: 'Agenda' },
+  { group: 'Negocio',        to: '/proveedores',   label: 'Proveedores' },
+  { group: 'Empleados',      to: '/empleados',     label: 'Empleados' },
+  { group: 'Empleados',      to: '/asistencias',   label: 'Asistencias' },
+  { group: 'Empleados',      to: '/liquidaciones', label: 'Liquidaciones' },
+  { group: 'Empleados',      to: '/horarios',      label: 'Horarios' },
+  { group: 'Finanzas',       to: '/cobranza',      label: 'Cobranza' },
+  { group: 'Finanzas',       to: '/caja',          label: 'Caja del día' },
+  { group: 'Finanzas',       to: '/reportes',      label: 'Reportes' },
+  { group: 'Finanzas',       to: '/gastos',        label: 'Gastos' },
+  { group: 'Configuración',  to: '/ajustes',       label: 'Ajustes' },
+  { group: 'Configuración',  to: '/sedes',         label: 'Sedes' },
+];
+
+const GROUPS_ORDER = ['Negocio', 'Empleados', 'Finanzas', 'Configuración'];
+
 export default function Settings() {
   const { user, business, updateBusiness } = useAuth();
   const isOwner = user?.role === 'owner';
+  const canManage = user?.role === 'owner' || user?.role === 'admin';
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +34,7 @@ export default function Settings() {
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [permEditing, setPermEditing] = useState(null); // user id being edited for perms
   const [logoTs, setLogoTs] = useState(Date.now());
   const [logoError, setLogoError] = useState(false);
 
@@ -182,7 +204,12 @@ export default function Settings() {
       )}
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 16 }}>Usuarios del negocio</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 16, margin: 0 }}>Usuarios del negocio</h2>
+          <span style={{ fontSize: 12, color: 'var(--ink-soft)', background: 'var(--surface-2)', padding: '3px 10px', borderRadius: 20 }}>
+            {users.length}/3 usuarios
+          </span>
+        </div>
         {loading ? (
           <p>Cargando...</p>
         ) : users.length === 0 ? (
@@ -199,7 +226,8 @@ export default function Settings() {
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.id}>
+                <React.Fragment key={u.id}>
+                <tr>
                   <td>
                     {u.name}
                     {u.id === user?.id && (
@@ -211,24 +239,53 @@ export default function Settings() {
                   {isOwner && (
                     <td>
                       {u.id !== user?.id && (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => { setEditing(u); setShowModal(true); }}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            className="btn-danger-text"
-                            onClick={() => deleteUser(u.id)}
-                          >
-                            Eliminar
-                          </button>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {isOwner && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => { setEditing(u); setShowModal(true); }}
+                            >
+                              Editar
+                            </button>
+                          )}
+                          {canManage && u.role !== 'owner' && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setPermEditing(permEditing === u.id ? null : u.id)}
+                              style={{ color: 'var(--primary)' }}
+                            >
+                              🔐 Permisos
+                            </button>
+                          )}
+                          {isOwner && (
+                            <button
+                              className="btn-danger-text"
+                              onClick={() => deleteUser(u.id)}
+                            >
+                              Eliminar
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
                   )}
                 </tr>
+                {permEditing === u.id && (
+                  <tr>
+                    <td colSpan={isOwner ? 4 : 3} style={{ padding: 0, border: 'none' }}>
+                      <PermissionsPanel
+                        u={u}
+                        onClose={() => setPermEditing(null)}
+                        onSaved={(updated) => {
+                          setUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
+                          setPermEditing(null);
+                          setSuccess('Permisos actualizados');
+                        }}
+                      />
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               ))}
             </tbody>
           </table></div>
@@ -447,6 +504,103 @@ function UserModal({ user, onClose, onSaved }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+
+function PermissionsPanel({ u, onClose, onSaved }) {
+  // null = acceso total; array = secciones permitidas
+  const [perms, setPerms] = useState(() => u.permissions ? [...u.permissions] : null);
+  const [restricted, setRestricted] = useState(u.permissions !== null);
+  const [saving, setSaving] = useState(false);
+
+  const groups = GROUPS_ORDER.map(g => ({
+    label: g,
+    sections: ALL_SECTIONS.filter(s => s.group === g),
+  }));
+
+  function toggleRestricted(val) {
+    setRestricted(val);
+    if (!val) setPerms(null);
+    else if (!perms) setPerms(ALL_SECTIONS.map(s => s.to)); // habilitar todo por defecto
+  }
+
+  function toggle(to) {
+    setPerms(prev => {
+      if (!prev) return [to];
+      return prev.includes(to) ? prev.filter(x => x !== to) : [...prev, to];
+    });
+  }
+
+  function toggleGroup(sections) {
+    const paths = sections.map(s => s.to);
+    const allOn = paths.every(p => perms?.includes(p));
+    setPerms(prev => {
+      const base = prev || [];
+      return allOn ? base.filter(x => !paths.includes(x)) : [...new Set([...base, ...paths])];
+    });
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await import('../api/client').then(m => m.default.put(`/users/${u.id}`, { permissions: restricted ? perms : null }));
+      onSaved(res.data);
+    } catch (e) {
+      alert(e.response?.data?.error || 'Error al guardar');
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div style={{ background: 'var(--surface-2)', borderTop: '1px solid var(--border)', padding: '16px 20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Permisos de <span style={{ color: 'var(--primary)' }}>{u.name}</span></p>
+        <button className="btn-danger-text" onClick={onClose} style={{ fontSize: 12 }}>Cerrar</button>
+      </div>
+
+      {/* Toggle acceso restringido */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)' }}>
+        <input type="checkbox" id={`restrict-${u.id}`} checked={restricted} onChange={e => toggleRestricted(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
+        <label htmlFor={`restrict-${u.id}`} style={{ fontSize: 13, cursor: 'pointer' }}>
+          Restringir acceso a secciones específicas
+          <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--ink-soft)' }}>(si no está marcado, ve todo)</span>
+        </label>
+      </div>
+
+      {restricted && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+          {groups.map(g => (
+            <div key={g.label} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+              <div
+                style={{ background: 'var(--primary)', color: '#fff', padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
+                onClick={() => toggleGroup(g.sections)}
+              >
+                <span>{g.label}</span>
+                <span style={{ fontSize: 10, opacity: 0.8 }}>todo</span>
+              </div>
+              {g.sections.map(s => (
+                <label key={s.to} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', fontSize: 13, cursor: 'pointer', borderTop: '1px solid var(--border)', background: 'var(--surface)' }}>
+                  <input
+                    type="checkbox"
+                    checked={perms?.includes(s.to) || false}
+                    onChange={() => toggle(s.to)}
+                    style={{ accentColor: 'var(--primary)', width: 14, height: 14 }}
+                  />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button className="btn btn-secondary btn-sm" onClick={onClose}>Cancelar</button>
+        <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>
+          {saving ? 'Guardando...' : 'Guardar permisos'}
+        </button>
       </div>
     </div>
   );
