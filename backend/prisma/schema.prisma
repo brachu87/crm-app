@@ -64,6 +64,7 @@ model Client {
   clientNotes      ClientNote[]
   accountMovements AccountMovement[]
   appointments     Appointment[]
+  manualIncomes    ManualIncome[]
   createdAt        DateTime     @default(now())
 
   @@index([businessId])
