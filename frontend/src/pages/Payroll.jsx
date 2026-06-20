@@ -278,7 +278,7 @@ export default function Payroll() {
               ) : null;
             })()}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div className="two-col-grid" style={{ marginBottom: 12 }}>
               <label>
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>Desde</span>
                 <input type="date" value={form.from} onChange={e => setForm(f => ({ ...f, from: e.target.value }))} className="input" style={{ marginTop: 4 }} />
@@ -296,7 +296,7 @@ export default function Payroll() {
             {preview && (
               <div style={{ background: 'var(--bg)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>Resumen del período</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
+                <div className="two-col-grid" style={{ fontSize: 13 }}>
                   <div><span style={{ color: 'var(--muted)' }}>Días presentes</span><br /><strong>{preview.presentDays}</strong></div>
                   <div><span style={{ color: 'var(--muted)' }}>Días ausentes</span><br /><strong style={{ color: '#ef4444' }}>{preview.absentDays}</strong></div>
                   <div><span style={{ color: 'var(--muted)' }}>Horas totales</span><br /><strong>{preview.totalHours.toFixed(1)} h</strong></div>

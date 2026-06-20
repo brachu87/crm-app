@@ -1584,3 +1584,95 @@ input, select, textarea { font-family: var(--font-body); }
   /* Ocultar botones de pantalla */
   .recibo-screen-header { display: none !important; }
 }
+
+/* ── Mobile responsive extra fixes ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Page header: titulo y botones en columna en pantallas muy chicas */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-header > div:last-child {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .page-header h1 {
+    font-size: 22px;
+  }
+
+  /* Stat grid: 2 columnas en mobile */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+
+  .stat-value {
+    font-size: 24px !important;
+  }
+
+  /* Inputs full-width en mobile */
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  input[type="search"],
+  select,
+  .field-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Tabs container: scroll horizontal */
+  .tabs-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  /* Cards con menos padding */
+  .card {
+    padding: 14px;
+  }
+
+  /* Quick links grid en 2 col */
+  .quick-links-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Schedule grid: 2 columnas */
+  .schedule-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Donut card en el dashboard: ancho completo */
+  .donut-card {
+    min-width: unset !important;
+    width: 100% !important;
+  }
+
+  /* Botones en page-header: full width */
+  .page-header .btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 120px;
+  }
+
+  /* Table mínimo */
+  .table { min-width: 460px; }
+
+  /* Recibo: padding reducido */
+  .recibo-print-area { padding: 16px !important; }
+}
+
+@media (max-width: 400px) {
+  .page-header h1 { font-size: 20px; }
+  .stat-value { font-size: 20px !important; }
+  .btn { font-size: 14px; padding: 9px 12px; }
+}

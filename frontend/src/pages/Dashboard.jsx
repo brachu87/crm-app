@@ -112,7 +112,7 @@ function CustomizePanel({ selected, onChange, onClose }) {
         <p style={{ color: 'var(--ink-soft)', fontSize: 14, marginBottom: 20, marginTop: -8 }}>
           Elegí las tarjetas que querés ver en tu dashboard. Podés seleccionar las que mejor se adapten a tu negocio.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 10 }}>
           {WIDGET_CATALOG.map(w => {
             const on = local.includes(w.id);
             return (
@@ -229,7 +229,7 @@ export default function Dashboard() {
 
       {/* Stat cards — selected widgets */}
       {visibleWidgets.length > 0 ? (
-        <div className="stat-grid" style={{ gridTemplateColumns: `repeat(${Math.min(visibleWidgets.length, 4)}, 1fr)` }}>
+        <div className="stat-grid">
           {visibleWidgets.map(w => <StatCard key={w.id} widget={w} data={data} />)}
         </div>
       ) : (
@@ -259,7 +259,7 @@ export default function Dashboard() {
 
         {/* Caja hoy */}
         {cashData && (cashData.totalIncome > 0 || cashData.totalExpenses > 0) && (
-          <div className="card donut-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 180, gap: 16 }}>
+          <div className="card donut-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16 }}>
             <h2 style={{ fontSize: 15, margin: 0, textAlign: 'center' }}>Caja de hoy</h2>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>Cobrado</div>

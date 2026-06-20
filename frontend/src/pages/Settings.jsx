@@ -115,7 +115,7 @@ export default function Settings() {
       {isOwner && (
         <div className="card" style={{ marginBottom: 24 }}>
           <h2 style={{ fontSize: 16, marginBottom: 16 }}>Datos del negocio</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div className="two-col-grid" style={{ marginBottom: 16 }}>
             <div className="field" style={{ margin: 0 }}>
               <label>Nombre del negocio</label>
               <input

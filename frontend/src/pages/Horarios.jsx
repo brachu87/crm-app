@@ -89,12 +89,12 @@ export default function Horarios() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
         {branches.length > 0 && (
-          <select className="field-input" value={filterBranch} onChange={e => setFilterBranch(e.target.value)} style={{ minWidth: 160 }}>
+          <select className="field-input" value={filterBranch} onChange={e => setFilterBranch(e.target.value)} style={{ minWidth: 0, width: '100%' }}>
             <option value="">Todas las sedes</option>
             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         )}
-        <select className="field-input" value={filterActivity} onChange={e => setFilterActivity(e.target.value)} style={{ minWidth: 180 }}>
+        <select className="field-input" value={filterActivity} onChange={e => setFilterActivity(e.target.value)} style={{ minWidth: 0, width: '100%' }}>
           <option value="">Todas las actividades</option>
           {activities.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>

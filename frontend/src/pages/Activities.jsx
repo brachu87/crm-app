@@ -147,7 +147,7 @@ function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="field"><label>Nombre</label><input value={form.name} onChange={e => update('name', e.target.value)} required /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field"><label>Precio</label><input type="number" min="0" step="0.01" value={form.price} onChange={e => update('price', e.target.value)} required /></div>
             <div className="field"><label>Cupo (opcional)</label><input type="number" min="0" value={form.capacity} onChange={e => update('capacity', e.target.value)} placeholder="Sin límite" /></div>
           </div>
@@ -205,7 +205,7 @@ function ServiceModal({ service, employees, onClose, onSaved }) {
         <form onSubmit={handleSubmit}>
           <div className="field"><label>Nombre del servicio</label><input value={form.name} onChange={e => update('name', e.target.value)} placeholder="Ej: Masaje 60 min, Osteopatía inicial" required /></div>
           <div className="field"><label>Descripción (opcional)</label><textarea rows="2" value={form.description} onChange={e => update('description', e.target.value)} /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field"><label>Duración (minutos)</label><input type="number" min="5" step="5" value={form.duration} onChange={e => update('duration', e.target.value)} required /></div>
             <div className="field"><label>Precio base</label><input type="number" min="0" step="0.01" value={form.price} onChange={e => update('price', e.target.value)} placeholder="0" /></div>
           </div>
@@ -271,7 +271,7 @@ function AppointmentModal({ service, appointment, clients, employees, onClose, o
           </div>
           {employees.length > 0 && <div className="field"><label>Prestador</label><select value={form.employeeId} onChange={e => update('employeeId', e.target.value)}><option value="">Sin asignar</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>}
           <div className="field"><label>Fecha</label><input type="date" value={form.date} onChange={e => update('date', e.target.value)} required /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field"><label>Inicio</label><input type="time" value={form.startTime} onChange={e => onTimeChange(e.target.value)} required /></div>
             <div className="field"><label>Fin</label><input type="time" value={form.endTime} onChange={e => update('endTime', e.target.value)} required /></div>
           </div>
@@ -453,7 +453,7 @@ function QuickWorkModal({ work, clients, employees, onClose, onSaved }) {
             <label>Descripción del trabajo *</label>
             <textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Ej: Instalación cañería cocina, Reparación eléctrica, Pintura frente..." required style={{ resize: 'vertical' }} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="two-col-grid">
             <div className="field">
               <label>Monto $</label>
               <input type="number" min="0" step="0.01" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" />
@@ -567,7 +567,7 @@ export default function Activities() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
         {[['actividades','🏋️ Actividades (cuota mensual)'],['servicios','💆 Servicios (por turno)'],['trabajos','🔧 Trabajos realizados']].map(([v, l]) => (
-          <button key={v} onClick={() => setTab(v)} style={{ padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: tab === v ? 700 : 400, color: tab === v ? 'var(--primary)' : 'var(--muted)', borderBottom: `2px solid ${tab === v ? 'var(--primary)' : 'transparent'}`, marginBottom: -2 }}>{l}</button>
+          <button key={v} onClick={() => setTab(v)} style={{ padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === v ? 700 : 400, color: tab === v ? 'var(--primary)' : 'var(--ink-soft)', borderBottom: `2px solid ${tab === v ? 'var(--primary)' : 'transparent'}`, marginBottom: -2, whiteSpace: 'nowrap', flexShrink: 0 }}>{l}</button>
         ))}
       </div>
 

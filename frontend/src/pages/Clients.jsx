@@ -81,7 +81,7 @@ export default function Clients() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, teléfono o email..."
-            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', width: 300, fontSize: 14 }}
+            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', width: '100%', maxWidth: 320, fontSize: 14 }}
           />
         </div>
       )}
