@@ -3,6 +3,22 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import ClientModal from './ClientModal';
 
+const fmtMoney = (v) => '$ ' + Math.round(v || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+function SaldoBadge({ saldo }) {
+  if (saldo == null) return null;
+  if (saldo <= 0) return (
+    <span style={{ background: '#d1fae5', color: '#065f46', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+      ✓ Al día
+    </span>
+  );
+  return (
+    <span style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+      Debe {fmtMoney(saldo)}
+    </span>
+  );
+}
+
 function exportCSV(clients) {
   const rows = [
     ['Nombre', 'Teléfono', 'Email', 'Notas'],
@@ -109,6 +125,7 @@ export default function Clients() {
                   <th>Nombre</th>
                   <th>Teléfono</th>
                   <th>Email</th>
+                  <th>Saldo</th>
                   <th></th>
                 </tr>
               </thead>
@@ -131,6 +148,7 @@ export default function Clients() {
                     </td>
                     <td>{c.phone || '-'}</td>
                     <td>{c.email || '-'}</td>
+                    <td><SaldoBadge saldo={c.saldo} /></td>
                     <td style={{ display: 'flex', gap: 6 }}>
                     {c.active !== false ? (
                       <>

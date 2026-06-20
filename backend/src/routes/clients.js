@@ -14,8 +14,35 @@ router.get('/', async (req, res) => {
     const clients = await prisma.client.findMany({
       where: scopedWhere(req, includeInactive ? {} : { active: true }),
       orderBy: { name: 'asc' },
+      include: {
+        enrollments: {
+          where: { active: true },
+          include: {
+            cuotas: {
+              where: { paymentStatus: { in: ['pending', 'overdue'] } },
+              select: { amountDue: true, discount: true },
+            },
+          },
+        },
+        appointments: {
+          where: { paymentStatus: 'pending' },
+          select: { price: true },
+        },
+      },
     });
-    res.json(clients);
+
+    // Calcular saldo pendiente por cliente y limpiar datos pesados
+    const result = clients.map((c) => {
+      const cuotaDebt = c.enrollments
+        .flatMap((e) => e.cuotas)
+        .reduce((sum, q) => sum + Math.max(0, (q.amountDue || 0) - (q.discount || 0)), 0);
+      const apptDebt = c.appointments
+        .reduce((sum, a) => sum + (a.price || 0), 0);
+      const { enrollments, appointments, ...rest } = c;
+      return { ...rest, saldo: Math.round(cuotaDebt + apptDebt) };
+    });
+
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener clientes' });
