@@ -23,6 +23,22 @@ function makeToken(user) {
   );
 }
 
+
+// Check if business is approved (uses raw SQL, safe if column doesn't exist yet)
+async function isBusinessApproved(businessId) {
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT approved FROM "Business" WHERE id = ?`, businessId
+    );
+    if (!rows.length) return true; // no row = allow
+    const val = rows[0].approved;
+    if (val === undefined || val === null) return true; // column missing = allow
+    return val === 1 || val === true;
+  } catch {
+    return true; // column doesn't exist yet = allow
+  }
+}
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
@@ -63,6 +79,9 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
+    const approved = await isBusinessApproved(user.businessId);
+    if (!approved) return res.status(403).json({ error: 'Tu cuenta está pendiente de aprobación. Contactá al administrador.' });
+
     res.json({
       token: makeToken(user),
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
@@ -90,6 +109,8 @@ router.post('/google', async (req, res) => {
       return res.json({ needsRegister: true, email, name });
     }
 
+    const approved = await isBusinessApproved(user.businessId);
+    if (!approved) return res.status(403).json({ error: 'Tu cuenta está pendiente de aprobación. Contactá al administrador.' });
 
     res.json({
       token: makeToken(user),
