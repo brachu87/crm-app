@@ -6,6 +6,7 @@ const fs = require('fs');
 const { markOverdueCuotas } = require('./lib/overdue');
 
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 const clientsRoutes = require('./routes/clients');
 const activitiesRoutes = require('./routes/activities');
 const enrollmentsRoutes = require('./routes/enrollments');
@@ -34,6 +35,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/clients', clientsRoutes);
 app.use('/api/activities', activitiesRoutes);
 app.use('/api/enrollments', enrollmentsRoutes);

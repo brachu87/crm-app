@@ -13,6 +13,8 @@ model Business {
   category  String
   phone     String?
   createdAt DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   users      User[]
   clients    Client[]
@@ -40,6 +42,8 @@ model User {
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
   createdAt  DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 }
 
 model Client {
@@ -64,6 +68,8 @@ model Client {
   accountMovements AccountMovement[]
   appointments     Appointment[]
   createdAt        DateTime     @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
 }
@@ -74,6 +80,8 @@ model ClientNote {
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   content   String
   createdAt DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([clientId])
 }
@@ -94,6 +102,8 @@ model Activity {
   activityEmployees ActivityEmployee[]
   classSchedules    ClassSchedule[]
   createdAt   DateTime     @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
   @@index([branchId])
@@ -130,6 +140,8 @@ model Cuota {
   paymentStatus String     @default("pending") // pending | paid | overdue
   dueDate       DateTime?
   createdAt     DateTime   @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   payments Payment[]
 
@@ -160,6 +172,8 @@ model Supplier {
   businessId String
   business   Business @relation(fields: [businessId], references: [id])
   createdAt  DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
 }
@@ -178,6 +192,8 @@ model Note {
   businessId String
   business   Business  @relation(fields: [businessId], references: [id])
   createdAt  DateTime  @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
 }
@@ -191,6 +207,8 @@ model DailyCash {
   businessId     String
   business       Business @relation(fields: [businessId], references: [id])
   createdAt      DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
   @@index([date])
@@ -213,6 +231,8 @@ model Employee {
   branchId   String?
   branch     Branch?  @relation(fields: [branchId], references: [id])
   createdAt DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
   activityEmployees ActivityEmployee[]
   classSchedules    ClassSchedule[]
   attendances       Attendance[]
@@ -234,6 +254,8 @@ model Expense {
   businessId    String
   business      Business @relation(fields: [businessId], references: [id])
   createdAt     DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
 }
@@ -247,6 +269,8 @@ model AccountMovement {
   description String?
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
   businessId  String
   business    Business @relation(fields: [businessId], references: [id])
 
@@ -263,6 +287,8 @@ model Branch {
   phone      String?
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   employees      Employee[]
   activities     Activity[]
@@ -297,6 +323,8 @@ model ClassSchedule {
   maxCapacity Int?
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
   @@index([branchId])
@@ -317,6 +345,8 @@ model Attendance {
   classScheduleId String?
   classSchedule   ClassSchedule? @relation(fields: [classScheduleId], references: [id])
   createdAt       DateTime       @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
   @@index([employeeId])
@@ -338,6 +368,8 @@ model PayrollRecord {
   paidAt      DateTime?
   notes       String?
   createdAt   DateTime @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
 
   @@index([businessId])
   @@index([employeeId])
@@ -355,6 +387,8 @@ model Service {
   employee    Employee? @relation(fields: [employeeId], references: [id])
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
   appointments Appointment[]
 
   @@index([businessId])
@@ -383,6 +417,8 @@ model Appointment {
   notes         String?
   isQuickWork   Boolean   @default(false)
   createdAt     DateTime  @default(now())
+  approved    Boolean  @default(false)
+  approvedAt  DateTime?
   updatedAt     DateTime  @updatedAt
 
   @@index([businessId])
