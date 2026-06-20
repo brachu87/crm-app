@@ -651,6 +651,7 @@ function buildWaReceiptLink(recibo, net, nroRecibo, business) {
 
 /* ── Recibo de pago ────────────────────────────────────────────── */
 function ReciboModal({ recibo, business, onClose }) {
+  const [waStep, setWaStep] = useState(null); // null | 'guide'
   const fmtR = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
   const fmtD = (d) => d ? new Date(d + (d.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
   const net = Math.max(0, (recibo.amountDue || 0) - (recibo.discount || 0));
@@ -749,6 +750,19 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
     iframe.src = url;
   }
 
+  function handleSendWA() {
+    // Abrir el recibo en nueva pestaña para guardar como PDF
+    const html = buildHtml();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const pdfUrl = URL.createObjectURL(blob);
+    window.open(pdfUrl, '_blank');
+    // Mostrar guia y abrir WhatsApp despues de un momento
+    setWaStep('guide');
+    setTimeout(() => {
+      window.open(buildWaReceiptLink(recibo, net, nroRecibo, business), '_blank');
+    }, 800);
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal recibo-modal" onClick={e => e.stopPropagation()}>
@@ -757,17 +771,34 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={handlePrint}>🖨️ Imprimir</button>
             {recibo.client?.phone && (
-              <a
-                href={buildWaReceiptLink(recibo, net, nroRecibo, business)}
-                target="_blank"
-                rel="noreferrer"
+              <button
                 className="btn"
-                style={{ background: '#25d366', color: '#fff', border: 'none', textDecoration: 'none' }}
-              >📱 Enviar WA</a>
+                style={{ background: '#25d366', color: '#fff', border: 'none' }}
+                onClick={handleSendWA}
+              >📱 Enviar WA + PDF</button>
             )}
             <button className="btn" onClick={onClose}>Cerrar</button>
           </div>
         </div>
+        {waStep === 'guide' && (
+          <div style={{
+            background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10,
+            padding: '14px 18px', margin: '0 0 0 0',
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#166534', marginBottom: 8 }}>
+              📎 Cómo adjuntar el recibo en WhatsApp
+            </div>
+            <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#166534', lineHeight: 1.8 }}>
+              <li>Se abrió una pestaña con el recibo — usá <strong>Ctrl+P</strong> (o Menú → Imprimir) y guardalo como <strong>PDF</strong></li>
+              <li>En WhatsApp tocá el <strong>clip 📎</strong> y seleccioná ese PDF</li>
+              <li>Enviá el mensaje de texto que ya se abrió en WhatsApp</li>
+            </ol>
+            <button
+              onClick={() => setWaStep(null)}
+              style={{ marginTop: 10, background: 'none', border: 'none', color: '#166534', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+            >✕ Cerrar guía</button>
+          </div>
+        )}
         <div className="recibo-print-area">
           <div className="recibo-header">
             <div className="recibo-logo-block">
