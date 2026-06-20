@@ -2,12 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const categories = [
-  { value: 'gym', label: 'Gimnasio' },
-  { value: 'estetica', label: 'Centro estético' },
-  { value: 'otro', label: 'Otro' },
-];
-
 function ZentricLogo({ size = 52 }) {
   return (
     <div style={{ textAlign: 'center', marginBottom: 20 }}>
@@ -27,7 +21,7 @@ function ZentricLogo({ size = 52 }) {
 export default function Register() {
   const [form, setForm] = useState({
     businessName: '',
-    category: 'gym',
+    category: '',
     name: '',
     email: '',
     password: '',
@@ -75,12 +69,14 @@ export default function Register() {
             />
           </div>
           <div className="field">
-            <label htmlFor="category">Tipo de negocio</label>
-            <select id="category" value={form.category} onChange={(e) => update('category', e.target.value)}>
-              {categories.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+            <label htmlFor="category">¿A qué se dedica tu negocio?</label>
+            <input
+              id="category"
+              value={form.category}
+              onChange={(e) => update('category', e.target.value)}
+              placeholder="Ej: Peluquería, Plomero, Gimnasio, Veterinaria..."
+              required
+            />
           </div>
           <div className="field">
             <label htmlFor="name">Tu nombre</label>
