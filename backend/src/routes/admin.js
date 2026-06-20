@@ -10,32 +10,43 @@ function adminAuth(req, res, next) {
   next();
 }
 
-// GET /api/admin/accounts — usa SQL crudo para no depender del schema de Prisma
+// Agrega columna si no existe (compatible SQLite y PostgreSQL)
+async function ensureColumn(table, column, definition) {
+  try {
+    // SQLite: PRAGMA table_info
+    const info = await prisma.$queryRawUnsafe(`PRAGMA table_info("${table}")`);
+    const exists = info.some(col => col.name === column);
+    if (!exists) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${definition}`);
+    }
+  } catch {
+    // PostgreSQL: intentar directo e ignorar si ya existe
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS "${column}" ${definition}`);
+    } catch {}
+  }
+}
+
+// GET /api/admin/accounts
 router.get('/accounts', adminAuth, async (req, res) => {
   try {
-    // Primero asegurar que la columna existe
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE "Business" ADD COLUMN IF NOT EXISTS "approved" BOOLEAN NOT NULL DEFAULT false
-    `).catch(() => {});
-    await prisma.$executeRawUnsafe(`
-      ALTER TABLE "Business" ADD COLUMN IF NOT EXISTS "approvedAt" TIMESTAMP
-    `).catch(() => {});
+    await ensureColumn('Business', 'approved', 'BOOLEAN NOT NULL DEFAULT 0');
+    await ensureColumn('Business', 'approvedAt', 'DATETIME');
 
     const businesses = await prisma.$queryRawUnsafe(`
       SELECT b.id, b.name, b.category, b."createdAt", b.approved, b."approvedAt",
-             u.name as "ownerName", u.email as "ownerEmail"
+             u.name as ownerName, u.email as ownerEmail
       FROM "Business" b
       LEFT JOIN "User" u ON u."businessId" = b.id AND u.role = 'owner'
       ORDER BY b."createdAt" DESC
     `);
 
-    // Dar formato compatible con el panel
     const result = businesses.map(b => ({
       id: b.id,
       name: b.name,
       category: b.category,
       createdAt: b.createdAt,
-      approved: b.approved,
+      approved: !!b.approved,
       approvedAt: b.approvedAt,
       users: b.ownerName ? [{ name: b.ownerName, email: b.ownerEmail }] : [],
     }));
@@ -51,12 +62,21 @@ router.get('/accounts', adminAuth, async (req, res) => {
 router.put('/accounts/:id/approve', adminAuth, async (req, res) => {
   try {
     await prisma.$executeRawUnsafe(
-      `UPDATE "Business" SET approved = true, "approvedAt" = NOW() WHERE id = $1`,
+      `UPDATE "Business" SET approved = 1, "approvedAt" = datetime('now') WHERE id = ?`,
       req.params.id
     );
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // PostgreSQL fallback
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE "Business" SET approved = true, "approvedAt" = NOW() WHERE id = $1`,
+        req.params.id
+      );
+      res.json({ ok: true });
+    } catch (err2) {
+      res.status(500).json({ error: err2.message });
+    }
   }
 });
 
@@ -64,12 +84,20 @@ router.put('/accounts/:id/approve', adminAuth, async (req, res) => {
 router.put('/accounts/:id/reject', adminAuth, async (req, res) => {
   try {
     await prisma.$executeRawUnsafe(
-      `UPDATE "Business" SET approved = false, "approvedAt" = NULL WHERE id = $1`,
+      `UPDATE "Business" SET approved = 0, "approvedAt" = NULL WHERE id = ?`,
       req.params.id
     );
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    try {
+      await prisma.$executeRawUnsafe(
+        `UPDATE "Business" SET approved = false, "approvedAt" = NULL WHERE id = $1`,
+        req.params.id
+      );
+      res.json({ ok: true });
+    } catch (err2) {
+      res.status(500).json({ error: err2.message });
+    }
   }
 });
 
