@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { DEFAULT_TEMPLATES, getTemplates } from './Collections';
 
 export default function Settings() {
-  const { user, business, updateBusiness } = useAuth();
+  const { user } = useAuth();
   const isOwner = user?.role === 'owner';
 
   const [users, setUsers] = useState([]);
@@ -13,60 +13,6 @@ export default function Settings() {
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [logoTs, setLogoTs] = useState(Date.now());
-  const [logoError, setLogoError] = useState(false);
-
-  // Business info form
-  const [bizForm, setBizForm] = useState({ name: business?.name || '', category: business?.category || 'otro' });
-  const [savingBiz, setSavingBiz] = useState(false);
-  const CATEGORIES = [
-    { value: 'gym', label: 'Gimnasio' },
-    { value: 'estetica', label: 'Centro estético' },
-    { value: 'pilates', label: 'Pilates / Yoga' },
-    { value: 'danza', label: 'Academia de danza' },
-    { value: 'crossfit', label: 'CrossFit / Box' },
-    { value: 'peluqueria', label: 'Peluquería / Barbería' },
-    { value: 'otro', label: 'Otro' },
-  ];
-
-  async function saveBizInfo() {
-    if (!bizForm.name.trim()) return;
-    setSavingBiz(true);
-    try {
-      const res = await api.put('/business', bizForm);
-      updateBusiness(res.data);
-      setSuccess('Datos del negocio actualizados');
-    } catch (e) {
-      setError(e.response?.data?.error || 'No se pudo guardar');
-    } finally {
-      setSavingBiz(false);
-    }
-  }
-
-  async function uploadLogo(file) {
-    const fd = new FormData();
-    fd.append('logo', file);
-    try {
-      await api.post('/business/logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setLogoTs(Date.now());
-      setLogoError(false);
-      setSuccess('Logo actualizado');
-    } catch (e) {
-      setError('No se pudo subir el logo');
-    }
-  }
-
-  async function deleteLogo() {
-    if (!window.confirm('¿Eliminar el logo del negocio?')) return;
-    try {
-      await api.delete('/business/logo');
-      setLogoTs(Date.now());
-      setLogoError(true);
-      setSuccess('Logo eliminado');
-    } catch (e) {
-      setError('No se pudo eliminar el logo');
-    }
-  }
 
   function load() {
     api.get('/users')
@@ -108,76 +54,6 @@ export default function Settings() {
       {success && (
         <div style={{ background: 'var(--primary-soft)', color: 'var(--primary)', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
           {success}
-        </div>
-      )}
-
-      {/* Datos del negocio */}
-      {isOwner && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 16 }}>Datos del negocio</h2>
-          <div className="two-col-grid" style={{ marginBottom: 16 }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Nombre del negocio</label>
-              <input
-                value={bizForm.name}
-                onChange={e => setBizForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Nombre de tu negocio"
-              />
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Tipo de negocio</label>
-              <select value={bizForm.category} onChange={e => setBizForm(f => ({ ...f, category: e.target.value }))}>
-                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-          </div>
-          <button
-            className="btn btn-primary"
-            onClick={saveBizInfo}
-            disabled={savingBiz || !bizForm.name.trim()}
-          >
-            {savingBiz ? 'Guardando...' : 'Guardar cambios'}
-          </button>
-        </div>
-      )}
-
-      {/* Logo del negocio */}
-      {isOwner && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 4 }}>Logo del negocio</h2>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
-            Aparece en la barra lateral de la aplicación. Recomendado: imagen cuadrada, mínimo 128×128px.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--border)', overflow: 'hidden', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              {!logoError ? (
-                <img
-                  src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`}
-                  alt="Logo"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={() => setLogoError(true)}
-                />
-              ) : (
-                <span style={{ fontSize: 28 }}>🏢</span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <label className="btn btn-secondary" style={{ cursor: 'pointer', marginBottom: 0 }}>
-                📷 {logoError ? 'Subir logo' : 'Cambiar logo'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={(e) => e.target.files[0] && uploadLogo(e.target.files[0])}
-                />
-              </label>
-              {!logoError && (
-                <button className="btn btn-secondary" onClick={deleteLogo} style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>
-                  Eliminar
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       )}
 
@@ -254,6 +130,28 @@ export default function Settings() {
       </div>
 
       <WhatsAppTemplates />
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ fontSize: 36 }}>📖</div>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Manual de usuario</h2>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
+              Guía completa de Zentric con todas las secciones, consejos y preguntas frecuentes.
+            </p>
+          </div>
+          <a
+            href="https://brachu87.github.io/-zentric-landing/manual-zentric.pdf"
+            target="_blank"
+            rel="noreferrer"
+            download="Manual-Zentric.pdf"
+            className="btn btn-primary"
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            ⬇ Descargar PDF
+          </a>
+        </div>
+      </div>
 
       {showModal && (
         <UserModal
@@ -409,23 +307,4 @@ function UserModal({ user, onClose, onSaved }) {
           <div className="field">
             <label>Rol</label>
             <select value={form.role} onChange={set('role')}>
-              <option value="staff">Personal</option>
-              <option value="admin">Administrador</option>
-              <option value="owner">Propietario</option>
-            </select>
-          </div>
-          <div className="field">
-            <label>{isEdit ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña'}</label>
-            <input type="password" value={form.password} onChange={set('password')} minLength={isEdit ? 0 : 6} />
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear usuario'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+  
