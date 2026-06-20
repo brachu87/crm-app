@@ -111,6 +111,21 @@ async function ensureManualIncomeTable() {
   }
 }
 
+
+async function ensurePermissionsColumn() {
+  try {
+    const info = await prisma.$queryRawUnsafe(`PRAGMA table_info("User")`);
+    const exists = info.some(col => col.name === 'permissions');
+    if (!exists) {
+      console.log('[startup] Agregando columna permissions a User...');
+      await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN "permissions" TEXT`);
+      console.log('[startup] Columna permissions agregada.');
+    }
+  } catch (err) {
+    console.error('[startup] ensurePermissionsColumn error:', err.message);
+  }
+}
+
 const PORT = process.env.PORT || 4000;
 
 // Barrido independiente de cuotas vencidas: al arrancar y cada hora
@@ -121,6 +136,7 @@ async function runOverdueSweep() {
   } catch (err) { console.error('[auto-expiry] Error:', err.message); }
 }
 ensureManualIncomeTable();
+ensurePermissionsColumn();
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 
