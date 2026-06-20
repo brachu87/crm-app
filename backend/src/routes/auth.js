@@ -58,10 +58,7 @@ router.post('/login', async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { email }, include: { business: true } });
     if (!user || !user.password) return res.status(401).json({ error: 'Credenciales inválidas' });
-    // Verificar aprobación solo si la columna existe (puede no existir aún)
-    if (user.business && user.business.approved === false) {
-      return res.status(403).json({ error: 'Tu cuenta está pendiente de aprobación. Te avisaremos cuando esté activa.' });
-    }
+
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
@@ -69,7 +66,7 @@ router.post('/login', async (req, res) => {
     res.json({
       token: makeToken(user),
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      business: { id: user.business.id, name: user.business.name, category: user.business.category },
+      business: { id: business.id, name: business.name, category: business.category },
     });
   } catch (err) {
     console.error(err);
@@ -92,9 +89,7 @@ router.post('/google', async (req, res) => {
     if (!user) {
       return res.json({ needsRegister: true, email, name });
     }
-    if (user.business && user.business.approved === false) {
-      return res.status(403).json({ error: 'Tu cuenta está pendiente de aprobación. Te avisaremos cuando esté activa.' });
-    }
+
 
     res.json({
       token: makeToken(user),
