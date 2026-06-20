@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
           },
         },
         appointments: {
-          where: { paymentStatus: 'pending' },
+          where: { status: 'completed', paymentStatus: 'pending' },
           select: { price: true },
         },
       },
