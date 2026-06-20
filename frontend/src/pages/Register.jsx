@@ -82,11 +82,10 @@ export default function Register() {
 
         {!isGoogleFlow && (
           <>
-            <div style={{ marginBottom: 16 }}>
+            <div className="google-btn-wrap">
               <GoogleLogin
                 onSuccess={handleGoogle}
                 onError={() => setError('Error al continuar con Google')}
-                width="100%"
                 text="signup_with"
                 shape="rectangular"
                 logo_alignment="left"

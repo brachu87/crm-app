@@ -64,11 +64,10 @@ export default function Login() {
 
         {error && <div className="error-banner">{error}</div>}
 
-        <div style={{ marginBottom: 16 }}>
+        <div className="google-btn-wrap">
           <GoogleLogin
             onSuccess={handleGoogle}
             onError={() => setError('Error al ingresar con Google')}
-            width="100%"
             text="signin_with"
             shape="rectangular"
             logo_alignment="left"

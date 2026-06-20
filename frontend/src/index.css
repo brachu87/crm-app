@@ -1676,3 +1676,10 @@ input, select, textarea { font-family: var(--font-body); }
   .stat-value { font-size: 20px !important; }
   .btn { font-size: 14px; padding: 9px 12px; }
 }
+
+/* ── Google OAuth button ── */
+.google-btn-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
