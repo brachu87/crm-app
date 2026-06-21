@@ -253,7 +253,7 @@ export default function Payroll() {
 
       {/* New payroll modal */}
       {showForm && (
-        <div className="modal-overlay"}>
+        <div className="modal-overlay">
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <h3 style={{ marginBottom: 20, fontSize: 18, fontWeight: 800 }}>Nueva liquidación</h3>
 
