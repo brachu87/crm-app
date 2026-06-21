@@ -88,9 +88,34 @@ router.put('/accounts/:id/reject', adminAuth, async (req, res) => {
 router.delete('/accounts/:id', adminAuth, async (req, res) => {
   try {
     const id = req.params.id;
-    // Borrar en orden para respetar FK: primero todo lo relacionado al negocio
-    await prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE "businessId" = ?`, id);
-    await prisma.$executeRawUnsafe(`DELETE FROM "Business" WHERE id = ?`, id);
+    const D = (sql, ...args) => prisma.$executeRawUnsafe(sql, ...args);
+
+    // Borrar en orden respetando FK (hijos antes que padres)
+    await D(`DELETE FROM "ManualIncome" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Appointment" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Service" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "PayrollRecord" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Attendance" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "ClassSchedule" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "ActivityEmployee" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Branch" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "AccountMovement" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Expense" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Employee" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "DailyCash" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Note" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Supplier" WHERE "businessId" = ?`, id);
+    // Pagos → Cuotas → Enrollments → Activities
+    await D(`DELETE FROM "Payment" WHERE "cuotaId" IN (SELECT c.id FROM "Cuota" c JOIN "Enrollment" e ON c."enrollmentId" = e.id JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = ?)`, id);
+    await D(`DELETE FROM "Cuota" WHERE "enrollmentId" IN (SELECT e.id FROM "Enrollment" e JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = ?)`, id);
+    await D(`DELETE FROM "Enrollment" WHERE "activityId" IN (SELECT id FROM "Activity" WHERE "businessId" = ?)`, id);
+    await D(`DELETE FROM "Activity" WHERE "businessId" = ?`, id);
+    // Notas de clientes → Clientes
+    await D(`DELETE FROM "ClientNote" WHERE "clientId" IN (SELECT id FROM "Client" WHERE "businessId" = ?)`, id);
+    await D(`DELETE FROM "Client" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "User" WHERE "businessId" = ?`, id);
+    await D(`DELETE FROM "Business" WHERE id = ?`, id);
+
     res.json({ ok: true });
   } catch (err) {
     console.error('Delete account error:', err);
