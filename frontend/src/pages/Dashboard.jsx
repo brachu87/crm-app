@@ -106,7 +106,7 @@ function CustomizePanel({ selected, onChange, onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
         <h2>Personalizar inicio</h2>
         <p style={{ color: 'var(--ink-soft)', fontSize: 14, marginBottom: 20, marginTop: -8 }}>

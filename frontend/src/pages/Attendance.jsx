@@ -239,7 +239,7 @@ function EditModal({ record, onClose, onSave }) {
   const [hours, setHours] = useState(record.hoursWorked);
   const [notes, setNotes] = useState(record.notes || '');
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
         <h3 style={{ marginBottom: 16 }}>Editar asistencia</h3>
         <label style={{ display: 'block', marginBottom: 12 }}>

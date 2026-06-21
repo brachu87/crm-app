@@ -131,7 +131,7 @@ export default function Horarios() {
       </div>
 
       {modal && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
+        <div className="modal-overlay">
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>{modal === 'new' ? 'Nuevo horario' : 'Editar horario'}</h2>
             <div className="two-col-grid">

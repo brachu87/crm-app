@@ -235,7 +235,7 @@ function ImportModal({ onClose, onImported }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
         <h2>Importar clientes desde CSV</h2>
         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>

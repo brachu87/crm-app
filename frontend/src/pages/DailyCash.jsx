@@ -311,7 +311,7 @@ function CashModal({ title, field, fieldLabel, existingId, isClose, onClose, onS
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
         <h2>{title}</h2>
         {error && <div className="error-banner">{error}</div>}

@@ -163,7 +163,7 @@ function EnrollModal({ activity, onClose, onCreated }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Inscribir cliente</h2>
         {error && <div className="error-banner">{error}</div>}
@@ -275,7 +275,7 @@ function EditActivityModal({ activity, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Editar actividad</h2>
         {error && <div className="error-banner">{error}</div>}

@@ -400,7 +400,7 @@ function CobrarApptModal({ appointment, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Cobrar turno</h2>
         <p style={{ color: 'var(--ink-soft)', marginBottom: 16, fontSize: 15 }}>
@@ -463,7 +463,7 @@ function CobrarModal({ enrollment, business, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Registrar cobro</h2>
         <p style={{ color: 'var(--ink-soft)', marginBottom: 16, fontSize: 15 }}>
@@ -536,7 +536,7 @@ function EditCuotaModal({ enrollment, onClose, onSaved }) {
   const net = Math.max(0, Number(form.amountDue) - Number(form.discount || 0));
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Editar cuota</h2>
         <p style={{ color: 'var(--ink-soft)', marginBottom: 16, fontSize: 15 }}>
@@ -599,7 +599,7 @@ function WaModal({ enrollment, onClose }) {
   const phone = e.client?.phone?.replace(/\D/g, '');
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={ev => ev.stopPropagation()}>
         <h2>Mensaje WhatsApp</h2>
         <p style={{ color: 'var(--ink-soft)', marginBottom: 12, fontSize: 14 }}>
@@ -773,7 +773,7 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal recibo-modal" onClick={e => e.stopPropagation()}>
         <div className="recibo-screen-header">
           <h2 style={{ margin: 0 }}>Recibo de pago</h2>
@@ -1022,7 +1022,7 @@ function NuevoIngresoModal({ onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2>Nuevo ingreso</h2>
         {error && <div className="error-banner">{error}</div>}

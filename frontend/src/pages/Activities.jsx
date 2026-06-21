@@ -141,7 +141,7 @@ function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
         <h2>{isEdit ? 'Editar actividad' : 'Nueva actividad'}</h2>
         {error && <div className="error-banner">{error}</div>}
@@ -198,7 +198,7 @@ function ServiceModal({ service, employees, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <h2>{isEdit ? 'Editar servicio' : 'Nuevo servicio'}</h2>
         {error && <div className="error-banner">{error}</div>}
@@ -258,7 +258,7 @@ function AppointmentModal({ service, appointment, clients, employees, onClose, o
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
         <h2>{isEdit ? 'Editar turno' : `Nuevo turno — ${service?.name}`}</h2>
         {error && <div className="error-banner">{error}</div>}
@@ -454,7 +454,7 @@ function QuickWorkModal({ work, clients, employees, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <h2>{work ? 'Editar trabajo' : 'Registrar trabajo realizado'}</h2>
         <form onSubmit={submit}>

@@ -86,7 +86,7 @@ export default function Sedes() {
       )}
 
       {modal && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
+        <div className="modal-overlay">
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>{modal === 'new' ? 'Nueva sede' : 'Editar sede'}</h2>
             <div className="field">

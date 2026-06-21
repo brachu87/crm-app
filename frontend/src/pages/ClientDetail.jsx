@@ -413,7 +413,7 @@ function AccountStatement({ client, account, onClose }) {
   }
 
   return (
-    <div className="modal-overlay no-print" onClick={onClose}>
+    <div className="modal-overlay no-print">
       <div
         className="modal"
         id="statement-modal"
@@ -563,7 +563,7 @@ function QuickEditMontoModal({ enrollment, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
         <h2>Editar monto — {enrollment.activity.name}</h2>
         {error && <div className="error-banner">{error}</div>}
@@ -633,7 +633,7 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
         <h2 style={{ marginBottom: 4 }}>Bonificación — {enrollment.activity.name}</h2>
         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 20 }}>
@@ -721,7 +721,7 @@ function MovimientoModal({ clientId, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
         <h2>Nuevo movimiento</h2>
         {error && <div className="error-banner">{error}</div>}

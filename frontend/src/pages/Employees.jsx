@@ -186,7 +186,7 @@ function EmployeeModal({ employee, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{isEdit ? 'Editar empleado' : 'Nuevo empleado'}</h2>
         {error && <div className="error-banner">{error}</div>}
