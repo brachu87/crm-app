@@ -1683,3 +1683,122 @@ input, select, textarea { font-family: var(--font-body); }
   justify-content: center;
   margin-bottom: 16px;
 }
+
+/* ═══════════════════════════════════════════════════
+   COBRANZA — responsive fixes
+═══════════════════════════════════════════════════ */
+
+/* Tabs de cobranza: wrap en mobile */
+.cobranza-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.cobranza-tabs button {
+  flex: 1;
+  min-width: 100px;
+  white-space: nowrap;
+}
+
+/* Fila de cuota expandida */
+.cuota-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px 12px 40px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cuota-row-info {
+  min-width: 0;
+  flex: 1;
+}
+.cuota-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Turnos card */
+.appt-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  flex-wrap: wrap;
+}
+.appt-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Tabla OtrosIngresos → cards en mobile */
+.otros-table-wrap {
+  overflow-x: auto;
+}
+
+@media (max-width: 640px) {
+  /* Tabs ocupan ancho completo */
+  .cobranza-tabs button {
+    flex: 1 1 calc(50% - 4px);
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  /* Menos indent en las filas expandidas */
+  .cuota-row {
+    padding: 10px 12px 10px 16px;
+  }
+
+  /* Acciones van abajo del nombre en mobile */
+  .cuota-row-actions {
+    width: 100%;
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+
+  /* Monto queda a la derecha del nombre */
+  .cuota-row-monto {
+    font-size: 15px;
+  }
+
+  /* Turnos: acciones abajo */
+  .appt-card-actions {
+    width: 100%;
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+
+  /* Tabla OtrosIngresos: ocultar columnas secundarias */
+  .otros-table th:nth-child(3),
+  .otros-table td:nth-child(3),
+  .otros-table th:nth-child(4),
+  .otros-table td:nth-child(4) {
+    display: none;
+  }
+
+  /* Modal recibo: botones en columna */
+  .recibo-screen-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  .recibo-screen-header > div {
+    width: 100%;
+  }
+  .recibo-screen-header .btn {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+  }
+}

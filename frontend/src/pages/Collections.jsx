@@ -107,17 +107,17 @@ export default function Collections() {
       <div className="page-header">
         <div>
           <h1>Cobranza</h1>
-          <p className="page-subtitle">
+          <p className="page-subtitle" style={{ fontSize: 13 }}>
             {view === 'pending'
-              ? `${filtered.length} ${filtered.length === 1 ? 'cliente' : 'clientes'} con deuda · Total: `
-              : `${filtered.length} ${filtered.length === 1 ? 'cliente' : 'clientes'} cobrados · Total: `}
-            <strong>{fmt(totalGeneral)}</strong>
+              ? `${filtered.length} ${filtered.length === 1 ? 'cliente' : 'clientes'} con deuda`
+              : `${filtered.length} ${filtered.length === 1 ? 'cliente' : 'clientes'} cobrados`}
+            {' · '}Total: <strong>{fmt(totalGeneral)}</strong>
           </p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div className="cobranza-tabs">
         <button style={tabStyle(view === 'pending')} onClick={() => { setView('pending'); setSearch(''); }}>
           ⏳ Pendientes
         </button>
@@ -190,8 +190,8 @@ export default function Collections() {
                     {g.enrollments.map(e => {
                       const lastPayment = e.payments?.[0];
                       return (
-                        <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px 12px 40px', borderBottom: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
-                          <div style={{ minWidth: 0 }}>
+                        <div key={e.id} className="cuota-row">
+                          <div className="cuota-row-info">
                             <div style={{ fontWeight: 600, fontSize: 15 }}>{e.activity?.name}</div>
                             <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
                               {view === 'paid' ? (
@@ -206,8 +206,8 @@ export default function Collections() {
                               )}
                             </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
-                            <strong style={{ fontSize: 16, minWidth: 80, textAlign: 'right' }}>{fmt(e.net)}</strong>
+                          <div className="cuota-row-actions">
+                            <strong className="cuota-row-monto" style={{ fontSize: 16, minWidth: 60, textAlign: 'right' }}>{fmt(e.net)}</strong>
                             {view === 'paid' ? (
                               <>
                                 <button
@@ -257,7 +257,7 @@ export default function Collections() {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pendingAppts.map(a => (
-              <div key={a.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div key={a.id} className="card appt-card">
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{a.client?.name}</div>
                   <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
@@ -265,7 +265,7 @@ export default function Collections() {
                     {a.employee ? ` · ${a.employee.name}` : ''}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <div className="appt-card-actions">
                   <strong style={{ fontSize: 17 }}>{fmt(a.price)}</strong>
                   {a.client?.phone && (
                     <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }}
@@ -288,14 +288,14 @@ export default function Collections() {
           <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>🔧 Turnos y trabajos cobrados</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pendingAppts.map(a => (
-              <div key={a.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', opacity: 0.85 }}>
+              <div key={a.id} className="card appt-card" style={{ opacity: 0.85 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{a.client?.name}</div>
                   <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 2 }}>
                     {apptLabel(a)} · {apptDetail(a)}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                <div className="appt-card-actions">
                   <span style={{ background: '#d1fae5', color: '#065f46', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>Cobrado</span>
                   <strong style={{ fontSize: 17, color: '#10b981' }}>{fmt(a.price)}</strong>
                   <button className="btn btn-sm btn-secondary" title="Reimprimir recibo"
@@ -922,7 +922,7 @@ function OtrosIngresos() {
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div className="table-wrap">
-            <table className="table">
+            <table className="table otros-table">
               <thead>
                 <tr>
                   <th>Fecha</th>
