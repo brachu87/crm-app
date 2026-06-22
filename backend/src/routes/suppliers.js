@@ -8,11 +8,17 @@ router.use(authMiddleware);
 
 router.get('/', async (req, res) => {
   try {
-    const suppliers = await prisma.supplier.findMany({
-      where: scopedWhere(req),
-      orderBy: { name: 'asc' },
-    });
-    res.json(suppliers);
+    const [suppliers, totals] = await Promise.all([
+      prisma.supplier.findMany({ where: scopedWhere(req), orderBy: { name: 'asc' } }),
+      prisma.expense.groupBy({
+        by: ['supplierId'],
+        where: { businessId: req.user.businessId, supplierId: { not: null } },
+        _sum: { amount: true },
+      }),
+    ]);
+    const totalsMap = Object.fromEntries(totals.map(t => [t.supplierId, t._sum.amount || 0]));
+    const result = suppliers.map(s => ({ ...s, totalExpenses: totalsMap[s.id] || 0 }));
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener proveedores' });
@@ -21,7 +27,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, contact, phone, email, cuit, category, notes } = req.body;
+    const { name, contact, phone, email, cuit, dni, category, notes } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const supplier = await prisma.supplier.create({
       data: {
@@ -68,6 +74,19 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al eliminar proveedor' });
+  }
+});
+
+// GET /api/suppliers/:id — detalle del proveedor
+router.get('/:id', async (req, res) => {
+  try {
+    const supplier = await prisma.supplier.findFirst({
+      where: scopedWhere(req, { id: req.params.id }),
+    });
+    if (!supplier) return res.status(404).json({ error: 'Proveedor no encontrado' });
+    res.json(supplier);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
