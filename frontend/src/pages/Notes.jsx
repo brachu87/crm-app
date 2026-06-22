@@ -1044,10 +1044,30 @@ function ApptDetailModal({ appt, onClose, onUpdated }) {
           </div>
         </div>
 
-        <div className="cal-modal-footer">
+        <div className="cal-modal-footer" style={{ flexWrap: 'wrap', gap: 8 }}>
           {appt.status !== 'cancelled' && (
             <button className="btn-danger-sm" onClick={handleCancel} disabled={saving}>Cancelar turno</button>
           )}
+          {appt.client?.phone && (() => {
+            const phone = appt.client.phone.replace(/\D/g, '');
+            const intlPhone = phone.startsWith('54') ? phone : `54${phone}`;
+            const fmtDateShort = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long' }) : '';
+            const msg = `Hola ${appt.client.name}, te recordamos tu turno de ${appt.service?.name || 'servicio'} el ${fmtDateShort(appt.date)}${appt.startTime ? ' a las ' + appt.startTime : ''}. ¡Te esperamos! 🙌`;
+            return (
+              <a
+                href={`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
+                  background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 13,
+                }}
+              >
+                📱 Recordatorio WA
+              </a>
+            );
+          })()}
           <div style={{ flex: 1 }} />
           <button className="btn-secondary-sm" onClick={onClose}>Cerrar</button>
           <button className="btn-primary-sm" onClick={handleSave} disabled={saving}>
