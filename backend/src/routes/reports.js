@@ -202,7 +202,7 @@ router.get('/overdue-detail', async (req, res) => {
         client: q.enrollment.client,
         activity: q.enrollment.activity.name,
         dueDate: q.dueDate,
-        amount: q.amount,
+        amount: q.amountDue,
         daysOverdue: days,
       };
     });
@@ -322,7 +322,7 @@ router.get('/cash-projection', async (req, res) => {
         paymentStatus: { in: ['pending', 'overdue'] },
         dueDate: { gte: now, lte: until },
       },
-      select: { amount: true, dueDate: true, paymentStatus: true },
+      select: { amountDue: true, dueDate: true, paymentStatus: true },
       orderBy: { dueDate: 'asc' },
     });
 
@@ -334,7 +334,7 @@ router.get('/cash-projection', async (req, res) => {
       weekStart.setDate(d.getDate() - d.getDay()); // Sunday
       const key = weekStart.toISOString().slice(0, 10);
       if (!weekMap[key]) weekMap[key] = { week: key, expected: 0, count: 0 };
-      weekMap[key].expected += q.amount;
+      weekMap[key].expected += q.amountDue;
       weekMap[key].count += 1;
     }
 
@@ -347,7 +347,7 @@ router.get('/cash-projection', async (req, res) => {
 
     res.json({
       weeks: Object.values(weekMap),
-      totalExpected: upcoming.reduce((s, q) => s + q.amount, 0),
+      totalExpected: upcoming.reduce((s, q) => s + q.amountDue, 0),
       overdueCount: upcoming.filter(q => q.paymentStatus === 'overdue').length,
       lastMonthCollected: collected._sum.amount || 0,
       lastMonthExpenses: spent._sum.amount || 0,
