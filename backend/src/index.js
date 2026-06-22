@@ -272,13 +272,13 @@ async function ensureLastAccessAndBonificado() {
 
 async function sweepExpiredTrials() {
   try {
-    // Trial = 14 days from createdAt. Auto-expire if still 'trial' and 14+ days old.
+    // Trial = 15 days from createdAt. Auto-expire and block access.
     const result = await prisma.$executeRawUnsafe(`
       UPDATE "Business"
-      SET "subscriptionStatus" = 'expired'
+      SET "subscriptionStatus" = 'expired', "approved" = 0
       WHERE "subscriptionStatus" = 'trial'
         AND "bonificado" = 0
-        AND datetime("createdAt", '+14 days') < datetime('now')
+        AND datetime("createdAt", '+15 days') < datetime('now')
     `);
     if (result > 0) console.log(`[trial-sweep] Expired ${result} trial account(s)`);
   } catch (err) {

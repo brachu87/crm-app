@@ -76,16 +76,17 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const business = await prisma.business.create({ data: { name: businessName, category: category || 'otro', phone: sPhone || null } });
 
-    // Nueva cuenta empieza como pendiente de aprobación
-    try { await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 0 WHERE id = ?`, business.id); } catch (_) {}
+    // Auto-approve: la cuenta empieza con acceso inmediato en período de prueba
+    try { await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 1 WHERE id = ?`, business.id); } catch (_) {}
 
     const user = await prisma.user.create({
       data: { email: sEmail, password: hashedPassword, name: sName, role: 'owner', businessId: business.id },
     });
 
     res.status(201).json({
-      pending: true,
-      message: 'Tu cuenta fue creada y está pendiente de aprobación. Te contactaremos por WhatsApp para habilitarte el acceso.',
+      token: makeToken(user),
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: null },
+      business: { id: business.id, name: business.name, category: business.category },
     });
   } catch (err) {
     console.error(err);
@@ -107,7 +108,12 @@ router.post('/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     const approved = await isBusinessApproved(user.businessId);
-    if (!approved) return res.status(403).json({ error: 'Tu cuenta está pendiente de aprobación. Contactá al administrador.' });
+    if (!approved) return res.status(403).json({ error: 'Tu período de prueba venció. Suscribite en Ajustes → Facturación para continuar.' });
+
+    // Check subscription status
+    if (user.business.subscriptionStatus === 'expired' && !user.business.bonificado) {
+      return res.status(403).json({ error: 'Tu período de prueba venció. Suscribite en Ajustes → Facturación para continuar.' });
+    }
 
     // Update last access timestamp
     await prisma.user.update({ where: { id: user.id }, data: { lastAccessAt: new Date() } }).catch(() => {});
@@ -140,7 +146,11 @@ router.post('/google', async (req, res) => {
     }
 
     const approved = await isBusinessApproved(user.businessId);
-    if (!approved) return res.status(403).json({ error: 'Tu cuenta está pendiente de aprobación. Contactá al administrador.' });
+    if (!approved) return res.status(403).json({ error: 'Tu período de prueba venció. Suscribite en Ajustes → Facturación para continuar.' });
+
+    if (user.business.subscriptionStatus === 'expired' && !user.business.bonificado) {
+      return res.status(403).json({ error: 'Tu período de prueba venció. Suscribite en Ajustes → Facturación para continuar.' });
+    }
 
     res.json({
       token: makeToken(user),
@@ -184,14 +194,16 @@ router.post('/google-register', async (req, res) => {
       return { business };
     });
 
-    // Marcar como pendiente de aprobación (raw SQL fuera de transacción es OK)
+    // Auto-approve: acceso inmediato con período de prueba
     try {
-      await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 0 WHERE id = ?`, business.id);
+      await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 1 WHERE id = ?`, business.id);
     } catch (_) { /* columna no existe aún */ }
 
+    const newUser = await prisma.user.findUnique({ where: { email }, include: { business: true } });
     res.status(201).json({
-      pending: true,
-      message: 'Tu cuenta fue creada y está pendiente de aprobación. Te contactaremos por WhatsApp para habilitarte el acceso.',
+      token: makeToken(newUser),
+      user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, permissions: null },
+      business: { id: business.id, name: business.name, category: business.category },
     });
   } catch (err) {
     console.error('[google-register error]', err);
