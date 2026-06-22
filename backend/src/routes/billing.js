@@ -112,6 +112,12 @@ router.post('/webhook', express.json(), async (req, res) => {
       },
     });
 
+    // Also approve the account if it was pending
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Business" SET approved = 1, "approvedAt" = datetime('now') WHERE id = ? AND approved = 0`,
+      businessId
+    );
+
     console.log(`[billing] Pago aprobado para negocio ${businessId} — activo hasta ${expires.toISOString()}`);
   } catch (e) {
     console.error('[billing] webhook error:', e.message);
