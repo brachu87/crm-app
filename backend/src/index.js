@@ -29,6 +29,7 @@ const branchesRoutes = require('./routes/branches');
 const schedulesRoutes = require('./routes/schedules');
 const servicesRoutes = require('./routes/services');
 const appointmentsRoutes = require('./routes/appointments');
+const billingRoutes = require('./routes/billing');
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/branches', branchesRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/appointments', appointmentsRoutes);
+app.use('/api/billing', billingRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
@@ -129,6 +131,23 @@ async function ensurePermissionsColumn() {
 const PORT = process.env.PORT || 4000;
 
 // Barrido independiente de cuotas vencidas: al arrancar y cada hora
+async function ensureSubscriptionFields() {
+  try {
+    const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
+    const names = cols.map(r => r.name);
+    if (!names.includes('subscriptionStatus')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "subscriptionStatus" TEXT NOT NULL DEFAULT 'trial'`);
+      console.log('[startup] Added subscriptionStatus column');
+    }
+    if (!names.includes('subscriptionExpires')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "subscriptionExpires" DATETIME`);
+      console.log('[startup] Added subscriptionExpires column');
+    }
+  } catch (err) {
+    console.error('[startup] ensureSubscriptionFields error:', err.message);
+  }
+}
+
 async function runOverdueSweep() {
   try {
     const count = await markOverdueCuotas();
@@ -137,6 +156,7 @@ async function runOverdueSweep() {
 }
 ensureManualIncomeTable();
 ensurePermissionsColumn();
+ensureSubscriptionFields();
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 

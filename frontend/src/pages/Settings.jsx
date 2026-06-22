@@ -37,6 +37,8 @@ export default function Settings() {
   const [permEditing, setPermEditing] = useState(null); // user id being edited for perms
   const [logoTs, setLogoTs] = useState(Date.now());
   const [logoError, setLogoError] = useState(false);
+  const [billing, setBilling] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   // Business info form
   const [bizForm, setBizForm] = useState({ name: business?.name || '', category: business?.category || 'otro' });
@@ -89,6 +91,12 @@ export default function Settings() {
       setError('No se pudo eliminar el logo');
     }
   }
+
+  useEffect(() => {
+    if (isOwner) {
+      api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});
+    }
+  }, [isOwner]);
 
   function load() {
     api.get('/users')
@@ -333,6 +341,10 @@ export default function Settings() {
           </a>
         </div>
       </div>
+
+      {isOwner && (
+        <BillingCard billing={billing} onRefresh={() => api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {})} />
+      )}
 
       {showModal && (
         <UserModal
@@ -601,6 +613,104 @@ function PermissionsPanel({ u, onClose, onSaved }) {
         <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>
           {saving ? 'Guardando...' : 'Guardar permisos'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Facturación ─────────────────────────────────────────────── */
+function BillingCard({ billing, onRefresh }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const status = billing?.status || 'trial';
+  const expires = billing?.expires ? new Date(billing.expires) : null;
+
+  // Check URL param after MP redirect
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentResult = urlParams.get('payment');
+
+  const STATUS_INFO = {
+    active:  { label: 'Activa', color: '#10b981', icon: '✅' },
+    trial:   { label: 'Prueba gratuita', color: '#f59e0b', icon: '🕐' },
+    expired: { label: 'Vencida', color: '#ef4444', icon: '❌' },
+    pending: { label: 'Pago pendiente', color: '#6366f1', icon: '⏳' },
+  };
+
+  const info = STATUS_INFO[status] || STATUS_INFO.trial;
+
+  const fmtDate = (d) => d.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  async function handlePay() {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.post('/billing/preference');
+      window.location.href = res.data.init_point;
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error al generar el link de pago');
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 24 }}>
+      <h2 style={{ fontSize: 16, margin: '0 0 16px', fontWeight: 700 }}>💳 Facturación</h2>
+
+      {paymentResult === 'success' && (
+        <div style={{ background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#065f46', fontSize: 14 }}>
+          ¡Pago recibido! Tu suscripción será activada en instantes.
+          <button onClick={onRefresh} style={{ marginLeft: 12, fontSize: 12, background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', textDecoration: 'underline' }}>Actualizar</button>
+        </div>
+      )}
+      {paymentResult === 'failure' && (
+        <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#991b1b', fontSize: 14 }}>
+          El pago no pudo procesarse. Podés intentarlo nuevamente.
+        </div>
+      )}
+      {paymentResult === 'pending' && (
+        <div style={{ background: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#5b21b6', fontSize: 14 }}>
+          Tu pago está siendo procesado. Te notificaremos cuando se acredite.
+        </div>
+      )}
+
+      {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        {/* Estado */}
+        <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 20px', flex: 1, minWidth: 160 }}>
+          <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Estado del plan</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 20 }}>{info.icon}</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: info.color }}>{info.label}</span>
+          </div>
+          {expires && (
+            <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4 }}>
+              {status === 'active' ? 'Vence el' : 'Venció el'}: {fmtDate(expires)}
+            </div>
+          )}
+        </div>
+
+        {/* Plan */}
+        <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 20px', flex: 1, minWidth: 160 }}>
+          <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Plan</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>Plan Mensual</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>$75.000 / mes</div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button
+          className="btn btn-primary"
+          onClick={handlePay}
+          disabled={loading}
+          style={{ minWidth: 180 }}
+        >
+          {loading ? 'Generando link...' : status === 'active' ? '🔄 Renovar plan' : '💳 Pagar ahora'}
+        </button>
+        <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
+          Serás redirigido a Mercado Pago para completar el pago de forma segura.
+        </span>
       </div>
     </div>
   );
