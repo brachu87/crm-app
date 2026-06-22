@@ -31,6 +31,7 @@ const NAV_GROUPS = [
       { to: '/caja', label: 'Caja del día' },
       { to: '/reportes', label: 'Reportes' },
       { to: '/gastos', label: 'Gastos' },
+      { to: '/precios', label: 'Grilla de precios' },
     ],
   },
   {

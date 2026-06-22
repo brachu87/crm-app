@@ -14,6 +14,7 @@ import Attendance from './pages/Attendance';
 import Payroll from './pages/Payroll';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
+import Prices from './pages/Prices';
 import Suppliers from './pages/Suppliers';
 import Notes from './pages/Notes';
 import DailyCash from './pages/DailyCash';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="horarios" element={<Horarios />} />
             <Route path="gastos" element={<Expenses />} />
             <Route path="reportes" element={<Reports />} />
+            <Route path="precios" element={<Prices />} />
             <Route path="proveedores" element={<Suppliers />} />
             <Route path="agenda" element={<Notes />} />
             <Route path="caja" element={<DailyCash />} />

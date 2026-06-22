@@ -34,6 +34,7 @@ const schedulesRoutes = require('./routes/schedules');
 const servicesRoutes = require('./routes/services');
 const appointmentsRoutes = require('./routes/appointments');
 const billingRoutes = require('./routes/billing');
+const pricesRoutes = require('./routes/prices');
 
 const app = express();
 
@@ -138,6 +139,7 @@ app.use('/api/schedules', schedulesRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/prices', pricesRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
