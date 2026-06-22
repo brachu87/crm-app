@@ -858,7 +858,7 @@ export default function Notes() {
     return 'Agenda';
   }
 
-  if (loading) return <div className="page-loading">Cargando...</div>;
+  if (loading) return <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>;
 
   return (
     <div className="cal-shell">

@@ -103,7 +103,7 @@ export default function Clients() {
       )}
 
       {loading ? (
-        <p>Cargando...</p>
+        <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
       ) : clients.length === 0 ? (
         <div className="card">
           <div className="empty-state">

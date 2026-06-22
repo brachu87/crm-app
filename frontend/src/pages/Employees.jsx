@@ -56,7 +56,7 @@ export default function Employees() {
       </div>
 
       {loading ? (
-        <p>Cargando...</p>
+        <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
       ) : employees.length === 0 ? (
         <div className="card">
           <div className="empty-state">
@@ -108,7 +108,7 @@ export default function Employees() {
                     <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(e); setShowModal(true); }}>
                       Editar
                     </button>
-                    <button className="btn btn-secondary btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(e.id)}>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>
                       Eliminar
                     </button>
                   </td>

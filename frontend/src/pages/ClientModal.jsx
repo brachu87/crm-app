@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 
 function getAge(birthday) {
@@ -30,6 +31,7 @@ export default function ClientModal({ client, onClose, onSaved }) {
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
   const [showExtra, setShowExtra] = useState(
     !!(client?.emergencyContact || client?.emergencyPhone || client?.medicalNotes)
   );
@@ -66,6 +68,7 @@ export default function ClientModal({ client, onClose, onSaved }) {
       } else {
         await api.post('/clients', payload);
       }
+      toast(isEdit ? 'Cliente actualizado' : 'Cliente creado', 'success');
       onSaved();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo guardar el cliente');

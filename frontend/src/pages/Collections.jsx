@@ -142,7 +142,7 @@ export default function Collections() {
       </div>
 
       {loading ? (
-        <p>Cargando...</p>
+        <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
       ) : filtered.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--ink-soft)' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>{view === 'paid' ? '📋' : '✅'}</div>

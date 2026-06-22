@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 
 const CATEGORIAS = ['Alquiler', 'Sueldos', 'Servicios', 'Mantenimiento', 'Marketing', 'Equipamiento', 'Limpieza', 'Impuestos', 'Otro'];
@@ -81,7 +82,7 @@ export default function Expenses() {
       )}
 
       {loading ? (
-        <p>Cargando...</p>
+        <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
       ) : expenses.length === 0 ? (
         <div className="card">
           <div className="empty-state">
@@ -131,7 +132,7 @@ export default function Expenses() {
                     <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(e); setShowModal(true); }}>
                       Editar
                     </button>
-                    <button className="btn btn-secondary btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(e.id)}>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>
                       Eliminar
                     </button>
                   </td>

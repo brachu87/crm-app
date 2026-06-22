@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 
@@ -73,10 +74,11 @@ export default function Suppliers() {
       )}
 
       {loading ? (
-        <p>Cargando...</p>
+        <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
       ) : filtered.length === 0 && !search ? (
         <div className="card">
           <div className="empty-state">
+            <span className="empty-state-icon">🏭</span>
             <h3>Todavía no hay proveedores</h3>
             <p>Registrá tus proveedores para tener sus datos a mano.</p>
             <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12 }}>
@@ -112,7 +114,7 @@ export default function Suppliers() {
                     </td>
                     <td onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowModal(true); }}>Editar</button>
-                      <button className="btn btn-secondary btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(s.id)}>Eliminar</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(s.id)}>Eliminar</button>
                     </td>
                   </tr>
                 ))}
@@ -142,6 +144,7 @@ export default function Suppliers() {
 
 function SupplierModal({ supplier, onClose, onSaved }) {
   const isEdit = !!supplier;
+  const toast = useToast();
   const [form, setForm] = useState({
     name: supplier?.name || '',
     contact: supplier?.contact || '',
@@ -169,6 +172,7 @@ function SupplierModal({ supplier, onClose, onSaved }) {
       } else {
         await api.post('/suppliers', form);
       }
+      toast(isEdit ? 'Proveedor actualizado' : 'Proveedor creado', 'success');
       onSaved();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo guardar');
@@ -281,7 +285,7 @@ function SupplierAccountModal({ supplier, onClose }) {
         </div>
 
         {loading ? (
-          <p>Cargando...</p>
+          <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
         ) : !data ? null : data.expenses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 32, color: 'var(--ink-soft)' }}>
             <p>No hay gastos registrados para este proveedor{from || to ? ' en ese período' : ''}.</p>

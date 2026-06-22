@@ -90,7 +90,7 @@ export default function Login() {
             <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-            {loading ? 'Ingresando...' : 'Ingresar'}
+            {loading ? <><div className="spinner" style={{width:16,height:16,borderWidth:'2px',borderTopColor:'rgba(255,255,255,0.8)',borderColor:'rgba(255,255,255,0.3)'}}></div>Ingresando...</> : 'Ingresar'}
           </button>
         </form>
 

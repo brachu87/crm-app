@@ -52,8 +52,8 @@ export default function SupplierDetail() {
     navigate('/proveedores');
   }
 
-  if (loading) return <div style={{ padding: 32 }}>Cargando...</div>;
-  if (!supplier) return <div style={{ padding: 32 }}>Proveedor no encontrado.</div>;
+  if (loading) return <div className="page-spinner" style={{ height: 320 }}><div className="spinner spinner-lg"></div><span>Cargando...</span></div>;
+  if (!supplier) return <div className="empty-state"><span className="empty-state-icon">🔍</span><h3>Proveedor no encontrado</h3></div>;
 
   const initials = supplier.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
@@ -81,14 +81,14 @@ export default function SupplierDetail() {
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setShowModal(true)}>Editar</button>
-            <button className="btn btn-secondary btn-sm" style={{ color: '#dc2626' }} onClick={handleDelete}>Eliminar</button>
+            <button className="btn btn-danger btn-sm" onClick={handleDelete}>Eliminar</button>
           </div>
         </div>
       </div>
 
       {/* Info */}
       <div className="card" style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 16, marginTop: 0 }}>Información</h2>
+        <h2 style={{ fontSize: 15, marginBottom: 16, marginTop: 0, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink-soft)', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.06em' }}>Información</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px 24px' }}>
           <InfoField label="Teléfono" value={supplier.phone ? (
             <a href={`https://wa.me/${supplier.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
@@ -110,7 +110,7 @@ export default function SupplierDetail() {
       </div>
 
       {/* Cuenta / Gastos */}
-      <h2 style={{ fontSize: 18, marginBottom: 12 }}>Cuenta corriente</h2>
+      <h2 style={{ fontSize: 16, marginBottom: 12, fontWeight: 700, letterSpacing: '-0.01em' }}>Cuenta corriente</h2>
       <div className="card" style={{ marginBottom: 20 }}>
         {/* Filtros */}
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 16, flexWrap: 'wrap' }}>

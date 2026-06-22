@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   --bg: #FAF7F2;
@@ -14,14 +14,15 @@
   --border: #E7E2D9;
 
   --radius: 10px;
-  --font-display: Arial, sans-serif;
-  --font-body: Arial, sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
 
   --sidebar-w: 220px;
   --mobile-header-h: 56px;
 }
 
 [data-theme="dark"] {
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
   --bg: #0f1117;
   --surface: #1a1d27;
   --ink: #e8e6e1;
@@ -207,6 +208,8 @@ input, select, textarea { font-family: var(--font-body); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  transition: box-shadow 0.15s;
 }
 
 .stat-grid {
@@ -221,7 +224,10 @@ input, select, textarea { font-family: var(--font-body); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: box-shadow 0.15s;
 }
+.stat-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 
 .stat-label {
   font-size: 15px;
@@ -243,20 +249,23 @@ input, select, textarea { font-family: var(--font-body); }
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 10px 18px;
   border-radius: var(--radius);
   border: 1px solid transparent;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  transition: transform 0.1s, opacity 0.15s;
+  transition: transform 0.1s, background 0.15s, opacity 0.15s, box-shadow 0.15s;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
-.btn:active { transform: scale(0.98); }
+.btn:active { transform: scale(0.97); }
+.btn:disabled, .btn[disabled] { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 
 .btn-primary { background: var(--primary); color: white; }
-.btn-primary:hover { opacity: 0.9; }
+.btn-primary:hover { background: #334d41; box-shadow: 0 2px 8px rgba(61,90,76,0.3); }
 
 .btn-secondary {
   background: var(--surface);
@@ -264,6 +273,13 @@ input, select, textarea { font-family: var(--font-body); }
   color: var(--ink);
 }
 .btn-secondary:hover { background: var(--bg); }
+
+.btn-danger {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+.btn-danger:hover { background: #dc2626; color: white; border-color: #dc2626; }
 
 .btn-sm { padding: 5px 10px; font-size: 13px; }
 
@@ -302,12 +318,13 @@ input, select, textarea { font-family: var(--font-body); }
 }
 
 .table td {
-  padding: 13px 12px;
+  padding: 12px 12px;
   border-bottom: 1px solid var(--border);
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .table tr:last-child td { border-bottom: none; }
+.table td { transition: background 0.1s; }
 .table tr:hover td { background: var(--bg); }
 
 /* ── Pills ───────────────────────────────────────────── */
@@ -369,6 +386,8 @@ input, select, textarea { font-family: var(--font-body); }
 
 .field input:focus, .field select:focus, .field textarea:focus {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(61, 90, 76, 0.12);
+  outline: none;
 }
 
 /* ── Auth ────────────────────────────────────────────── */
@@ -425,7 +444,9 @@ input, select, textarea { font-family: var(--font-body); }
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(28, 27, 26, 0.4);
+  background: rgba(28, 27, 26, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -436,7 +457,7 @@ input, select, textarea { font-family: var(--font-body); }
 
 .modal {
   background: var(--surface);
-  border-radius: var(--radius);
+  border-radius: 16px;
   padding: 32px;
   width: min(600px, calc(100vw - 32px));
   max-width: 100%;
@@ -444,6 +465,7 @@ input, select, textarea { font-family: var(--font-body); }
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08);
 }
 
 .modal h2 { font-size: 24px; margin-bottom: 16px; }
@@ -1895,4 +1917,147 @@ input, select, textarea { font-family: var(--font-body); }
 
   /* DateBar: hide months dropdown label, just show select */
   .datebar-label { display: none; }
+}
+
+[data-theme="dark"] .field input:focus,
+[data-theme="dark"] .field select:focus,
+[data-theme="dark"] .field textarea:focus {
+  box-shadow: 0 0 0 3px rgba(90, 138, 110, 0.2);
+}
+
+[data-theme="dark"] .card {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.15);
+}
+
+[data-theme="dark"] .modal {
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  background: #6aa87e;
+  box-shadow: 0 2px 8px rgba(90,138,110,0.35);
+}
+
+/* ── Custom scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-soft); }
+
+/* ── Page fade-in ──────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.main > * { animation: fadeUp 0.18s ease; }
+
+/* ── Spinner ───────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  display: inline-block;
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+.spinner-lg { width: 32px; height: 32px; border-width: 3px; }
+.page-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 240px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* ── Toast notifications ───────────────────────────────── */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes toastOut {
+  to   { opacity: 0; transform: translateY(4px) scale(0.96); }
+}
+.toast-container {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  animation: toastIn 0.2s ease;
+  pointer-events: all;
+  max-width: 320px;
+  min-width: 200px;
+}
+.toast-success { background: var(--primary); color: #fff; }
+.toast-error   { background: #dc2626;       color: #fff; }
+.toast-info    { background: var(--ink);    color: var(--surface); }
+
+/* ── Sidebar accordion animation ──────────────────────── */
+.sidebar-accordion-body {
+  overflow: hidden;
+  transition: max-height 0.22s ease, opacity 0.18s ease;
+  max-height: 0;
+  opacity: 0;
+}
+.sidebar-accordion-body.open {
+  max-height: 400px;
+  opacity: 1;
+}
+
+/* ── Better empty states ───────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 56px 20px;
+  color: var(--ink-soft);
+}
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+  display: block;
+}
+.empty-state h3 { color: var(--ink); margin-bottom: 6px; font-size: 18px; }
+.empty-state p  { font-size: 14px; margin-top: 0; }
+
+/* ── Input label: slightly darker ─────────────────────── */
+.field label { color: var(--ink-soft); font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
+
+/* ── h1 font-weight ────────────────────────────────────── */
+h1 { font-weight: 700; }
+h2 { font-weight: 600; }
+
+/* ── Page header: tighter ──────────────────────────────── */
+.page-header h1 { font-size: 28px; }
+
+/* ── Table th: improved ────────────────────────────────── */
+.table th {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+/* ── Pill: slightly tighter ────────────────────────────── */
+.pill { font-size: 12px; padding: 3px 9px; }
+
+/* ── Mobile modal: rounded top ─────────────────────────── */
+@media (max-width: 768px) {
+  .modal { border-radius: 20px 20px 0 0; }
+  .toast-container { bottom: 16px; right: 16px; left: 16px; }
+  .toast { max-width: 100%; }
 }

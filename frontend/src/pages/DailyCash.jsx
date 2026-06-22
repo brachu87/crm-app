@@ -143,7 +143,7 @@ export default function DailyCash() {
       {tab === 'history' && <HistorialTab />}
 
       {tab === 'today' && loading ? (
-        <p>Cargando...</p>
+        <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
       ) : tab === 'today' && error ? (
         <div className="error-banner">{error}</div>
       ) : tab === 'today' && data ? (

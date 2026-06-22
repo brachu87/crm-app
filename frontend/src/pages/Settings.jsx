@@ -24,6 +24,7 @@ const ALL_SECTIONS = [
 const GROUPS_ORDER = ['Negocio', 'Empleados', 'Finanzas', 'Configuración'];
 
 export default function Settings() {
+  const toast = useToast();
   const { user, business, updateBusiness } = useAuth();
   const isOwner = user?.role === 'owner';
   const canManage = user?.role === 'owner' || user?.role === 'admin';
@@ -313,7 +314,7 @@ export default function Settings() {
           </span>
         </div>
         {loading ? (
-          <p>Cargando...</p>
+          <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
         ) : users.length === 0 ? (
           <p style={{ color: 'var(--ink-soft)' }}>No hay usuarios.</p>
         ) : (

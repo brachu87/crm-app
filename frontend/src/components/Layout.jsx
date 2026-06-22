@@ -179,7 +179,7 @@ export default function Layout() {
             onFocus={() => setSearchFocus(true)}
             onBlur={() => setTimeout(() => setSearchFocus(false), 200)}
             placeholder="Buscar..."
-            style={{ width: '100%', padding: '5px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, background: 'var(--bg-card)' }}
+            style={{ width: '100%', padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }}
           />
           {searchFocus && searchResults && (searchResults.clients.length > 0 || searchResults.activities.length > 0) && (
             <SearchDropdown results={searchResults} onSelect={handleSearchSelect} />
@@ -195,7 +195,7 @@ export default function Layout() {
       <aside className={`sidebar${menuOpen ? ' sidebar-open' : ''}`}>
         {/* Header */}
         <div className="sidebar-header">
-          <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, letterSpacing: '-0.02em' }}>
             {logoOk && (
               <img
                 src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`}
@@ -206,7 +206,7 @@ export default function Layout() {
             )}
             <span>{business?.name || 'Mi Negocio'}</span>
           </div>
-          <button className="sidebar-close-btn" onClick={() => setMenuOpen(false)} aria-label="Cerrar menu">X</button>
+          <button className="sidebar-close-btn" onClick={() => setMenuOpen(false)} aria-label="Cerrar menu" style={{ fontSize: 20, lineHeight: 1, color: "var(--ink-soft)" }}>✕</button>
         </div>
 
         {/* Search */}
@@ -303,7 +303,14 @@ export default function Layout() {
               }} />
             </button>
           </div>
-          <button onClick={logout}>Cerrar sesion</button>
+          <button onClick={logout} style={{
+            background: 'none', border: '1px solid var(--border)', borderRadius: 8,
+            color: 'var(--ink-soft)', padding: '6px 12px', fontSize: 13, cursor: 'pointer',
+            width: '100%', transition: 'background 0.15s, color 0.15s',
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; }}
+          onMouseOut={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--ink-soft)'; }}
+          >Cerrar sesión</button>
           <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
             <span style={{ fontSize: 11, opacity: 0.4, letterSpacing: '0.03em' }}>
               <span style={{ fontWeight: 700 }}>z</span>entric

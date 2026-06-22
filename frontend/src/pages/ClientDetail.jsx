@@ -78,7 +78,7 @@ export default function ClientDetail() {
     }
   }
 
-  if (loading) return <p>Cargando...</p>;
+  if (loading) return <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>;
   if (!client) return <p>Cliente no encontrado.</p>;
 
   return (
@@ -212,7 +212,7 @@ export default function ClientDetail() {
         </div>
       )}
 
-      <h2 style={{ fontSize: 18, marginBottom: 12 }}>Historial de pagos</h2>
+      <h2 style={{ fontSize: 16, marginBottom: 12, fontWeight: 700, letterSpacing: '-0.01em' }}>Historial de pagos</h2>
       <div className="card">
         {(() => {
           // Unificar todos los movimientos: cuotas + trabajos/turnos + manuales
@@ -294,7 +294,7 @@ export default function ClientDetail() {
       </div>
 
       {/* Cuenta Corriente — saldo y acción */}
-      <h2 style={{ fontSize: 18, marginBottom: 12, marginTop: 24 }}>Cuenta corriente</h2>
+      <h2 style={{ fontSize: 16, marginBottom: 12, marginTop: 24, fontWeight: 700, letterSpacing: '-0.01em' }}>Cuenta corriente</h2>
       <div className="card" style={{ marginBottom: 24 }}>
         {account ? (
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -322,7 +322,7 @@ export default function ClientDetail() {
       </div>
 
       {/* Notas del cliente */}
-      <h2 style={{ fontSize: 18, marginBottom: 12, marginTop: 24 }}>Notas</h2>
+      <h2 style={{ fontSize: 16, marginBottom: 12, marginTop: 24, fontWeight: 700, letterSpacing: '-0.01em' }}>Notas</h2>
       <div className="card" style={{ marginBottom: 24 }}>
         <form onSubmit={addNote} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <input

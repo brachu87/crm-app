@@ -138,7 +138,7 @@ export default function Register() {
           )}
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: 8 }} disabled={loading}>
-            {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+            {loading ? <><div className="spinner" style={{width:16,height:16,borderWidth:'2px',borderTopColor:'rgba(255,255,255,0.8)',borderColor:'rgba(255,255,255,0.3)'}}></div>Creando...</> : 'Crear cuenta'}
           </button>
         </form>
 

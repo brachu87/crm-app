@@ -41,7 +41,7 @@ export default function ActivityDetail() {
     }
   }
 
-  if (loading) return <p>Cargando...</p>;
+  if (loading) return <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>;
   if (!activity) return <p>Actividad no encontrada.</p>;
 
   return (
