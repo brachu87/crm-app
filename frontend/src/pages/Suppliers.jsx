@@ -9,6 +9,7 @@ export default function Suppliers() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState('');
+  const [accountSupplier, setAccountSupplier] = useState(null);
 
   function load() {
     setLoading(true);
@@ -112,6 +113,7 @@ export default function Suppliers() {
                       </span>
                     ) : '-'}</td>
                     <td style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn btn-secondary btn-sm" style={{ color: 'var(--primary)' }} onClick={() => setAccountSupplier(s)}>Cuenta corriente</button>
                       <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowModal(true); }}>Editar</button>
                       <button className="btn btn-secondary btn-sm" style={{ color: '#dc2626' }} onClick={() => handleDelete(s.id)}>Eliminar</button>
                     </td>
@@ -121,6 +123,13 @@ export default function Suppliers() {
             </table></div>
           )}
         </div>
+      )}
+
+      {accountSupplier && (
+        <SupplierAccountModal
+          supplier={accountSupplier}
+          onClose={() => setAccountSupplier(null)}
+        />
       )}
 
       {showModal && (
@@ -218,6 +227,93 @@ function SupplierModal({ supplier, onClose, onSaved }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function SupplierAccountModal({ supplier, onClose }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  function load() {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    api.get(`/suppliers/${supplier.id}/account?${params}`)
+      .then((res) => setData(res.data))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(load, []);
+
+  const fmt = (n) => '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2 });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 640, width: '95%' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ margin: 0 }}>Cuenta corriente — {supplier.name}</h2>
+          <button className="btn btn-secondary btn-sm" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Date filters */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 16 }}>
+          <div className="field" style={{ margin: 0, flex: 1 }}>
+            <label style={{ fontSize: 12, marginBottom: 4 }}>Desde</label>
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', width: '100%' }} />
+          </div>
+          <div className="field" style={{ margin: 0, flex: 1 }}>
+            <label style={{ fontSize: 12, marginBottom: 4 }}>Hasta</label>
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', width: '100%' }} />
+          </div>
+          <button className="btn btn-primary" onClick={load} style={{ whiteSpace: 'nowrap' }}>Filtrar</button>
+        </div>
+
+        {loading ? (
+          <p>Cargando...</p>
+        ) : !data ? null : data.expenses.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 32, color: 'var(--ink-soft)' }}>
+            <p>No hay gastos registrados para este proveedor{from || to ? ' en ese período' : ''}.</p>
+          </div>
+        ) : (
+          <>
+            {/* Total */}
+            <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Total adeudado / gastado</span>
+              <span style={{ fontSize: 22, fontWeight: 700, color: '#dc2626' }}>{fmt(data.total)}</span>
+            </div>
+
+            {/* Expense list */}
+            <div className="table-wrap" style={{ maxHeight: 360, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ position: 'sticky', top: 0, background: 'var(--surface)' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--ink-soft)', fontWeight: 500 }}>Fecha</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--ink-soft)', fontWeight: 500 }}>Categoría</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--ink-soft)', fontWeight: 500 }}>Descripción</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--ink-soft)', fontWeight: 500 }}>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.expenses.map((e) => (
+                    <tr key={e.id} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px' }}>{new Date(e.date).toLocaleDateString('es-AR')}</td>
+                      <td style={{ padding: '8px' }}>{e.category}</td>
+                      <td style={{ padding: '8px', color: 'var(--ink-soft)' }}>{e.description || '-'}</td>
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>{fmt(e.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -71,3 +71,28 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+
+// GET /api/suppliers/:id/account — cuenta corriente del proveedor
+router.get('/:id/account', async (req, res) => {
+  try {
+    const supplier = await prisma.supplier.findFirst({
+      where: { id: req.params.id, businessId: req.user.businessId },
+    });
+    if (!supplier) return res.status(404).json({ error: 'Proveedor no encontrado' });
+
+    const where = { supplierId: req.params.id };
+    if (req.query.from) where.date = { ...where.date, gte: new Date(req.query.from) };
+    if (req.query.to)   where.date = { ...where.date, lte: new Date(req.query.to + 'T23:59:59') };
+
+    const expenses = await prisma.expense.findMany({
+      where,
+      orderBy: { date: 'desc' },
+    });
+
+    const total = expenses.reduce((s, e) => s + e.amount, 0);
+
+    res.json({ supplier, expenses, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});

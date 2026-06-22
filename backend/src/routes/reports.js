@@ -23,7 +23,7 @@ router.get('/summary', async (req, res) => {
     const [payments, apptPayments, manualIncomes] = await Promise.all([
       prisma.payment.findMany({
         where: {
-          date: { gte: since },
+          date: { gte: since, lte: until },
           cuota: { enrollment: { activity: { businessId: bId } } },
         },
         select: { amount: true, date: true },
@@ -32,27 +32,28 @@ router.get('/summary', async (req, res) => {
         where: {
           businessId: bId,
           paymentStatus: 'paid',
-          paidAt: { gte: since },
+          paidAt: { gte: since, lte: until },
         },
         select: { price: true, paidAt: true, clientId: true,
           client: { select: { id: true, name: true } } },
       }),
       prisma.manualIncome.findMany({
-        where: { businessId: bId, date: { gte: since.toISOString().slice(0,10) } },
+        where: { businessId: bId, date: { gte: since.toISOString().slice(0,10), lte: until.toISOString().slice(0,10) } },
         select: { amount: true, date: true, category: true, description: true },
       }),
     ]);
 
     // All expenses in range
     const expenses = await prisma.expense.findMany({
-      where: { businessId: bId, date: { gte: since } },
-      select: { amount: true, date: true, category: true },
+      where: { businessId: bId, date: { gte: since, lte: until } },
+      select: { amount: true, date: true, category: true, supplierId: true },
     });
 
-    // Build monthly buckets
+    // Build monthly buckets dynamically based on the date range
     const monthlyMap = {};
-    for (let i = months - 1; i >= 0; i--) {
-      const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
+    const rangeStart = new Date(since.getFullYear(), since.getMonth(), 1);
+    const rangeEnd   = new Date(until.getFullYear(), until.getMonth(), 1);
+    for (let d = new Date(rangeStart); d <= rangeEnd; d.setMonth(d.getMonth() + 1)) {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       monthlyMap[key] = { month: key, income: 0, expenses: 0 };
     }
@@ -137,6 +138,23 @@ router.get('/summary', async (req, res) => {
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
 
+    // Top suppliers by expense (only expenses with supplierId)
+    const supplierExpenses = await prisma.expense.findMany({
+      where: { businessId: bId, supplierId: { not: null }, date: { gte: since, lte: until } },
+      include: { supplier: { select: { id: true, name: true } } },
+      select: { amount: true, supplierId: true, supplier: true },
+    });
+    const supplierMap = {};
+    for (const e of supplierExpenses) {
+      const sid = e.supplierId;
+      if (!supplierMap[sid]) supplierMap[sid] = { name: e.supplier.name, total: 0, count: 0 };
+      supplierMap[sid].total += e.amount;
+      supplierMap[sid].count += 1;
+    }
+    const topSuppliers = Object.values(supplierMap)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+
     res.json({
       monthlyData: Object.values(monthlyMap),
       expensesByCategory,
@@ -144,6 +162,7 @@ router.get('/summary', async (req, res) => {
       totalSalaries,
       overdueCount,
       topClients,
+      topSuppliers,
       employees,
     });
   } catch (err) {

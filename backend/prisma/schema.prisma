@@ -157,7 +157,7 @@ model Payment {
 }
 
 model Supplier {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   name       String
   contact    String?
   phone      String?
@@ -166,8 +166,9 @@ model Supplier {
   category   String?
   notes      String?
   businessId String
-  business   Business @relation(fields: [businessId], references: [id])
-  createdAt  DateTime @default(now())
+  business   Business  @relation(fields: [businessId], references: [id])
+  expenses   Expense[]
+  createdAt  DateTime  @default(now())
 
   @@index([businessId])
 }
@@ -233,17 +234,20 @@ model Employee {
 }
 
 model Expense {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   amount        Float
-  date          DateTime @default(now())
+  date          DateTime  @default(now())
   category      String
   description   String?
   paymentMethod String?
+  supplierId    String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id])
   businessId    String
-  business      Business @relation(fields: [businessId], references: [id])
-  createdAt     DateTime @default(now())
+  business      Business  @relation(fields: [businessId], references: [id])
+  createdAt     DateTime  @default(now())
 
   @@index([businessId])
+  @@index([supplierId])
 }
 
 model AccountMovement {

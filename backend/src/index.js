@@ -223,6 +223,18 @@ async function ensureSubscriptionFields() {
   }
 }
 
+async function ensureSupplierIdOnExpense() {
+  try {
+    const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Expense")`);
+    if (!cols.some(r => r.name === 'supplierId')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Expense" ADD COLUMN "supplierId" TEXT REFERENCES "Supplier"("id") ON DELETE SET NULL`);
+      console.log('[startup] Added supplierId to Expense');
+    }
+  } catch (err) {
+    console.error('[startup] ensureSupplierIdOnExpense error:', err.message);
+  }
+}
+
 async function ensureLastAccessAndBonificado() {
   try {
     const userCols = await prisma.$queryRawUnsafe(`PRAGMA table_info("User")`);
@@ -268,6 +280,7 @@ ensureManualIncomeTable();
 ensurePermissionsColumn();
 ensureSubscriptionFields();
 ensureLastAccessAndBonificado();
+ensureSupplierIdOnExpense();
 sweepExpiredTrials();
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora

@@ -25,9 +25,17 @@ export default function Expenses() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
 
+  const [suppliers, setSuppliers] = useState([]);
+
   function load() {
     setLoading(true);
-    api.get('/expenses').then((res) => setExpenses(res.data)).finally(() => setLoading(false));
+    Promise.all([
+      api.get('/expenses'),
+      api.get('/suppliers'),
+    ]).then(([expRes, supRes]) => {
+      setExpenses(expRes.data);
+      setSuppliers(supRes.data || []);
+    }).finally(() => setLoading(false));
   }
 
   useEffect(load, []);
@@ -92,6 +100,7 @@ export default function Expenses() {
                 <th>Fecha</th>
                 <th>Categoría</th>
                 <th>Descripción</th>
+                <th>Proveedor</th>
                 <th>Método de pago</th>
                 <th>Monto</th>
                 <th></th>
@@ -113,6 +122,7 @@ export default function Expenses() {
                     </span>
                   </td>
                   <td style={{ color: 'var(--text-secondary)' }}>{e.description || '-'}</td>
+                  <td style={{ color: 'var(--ink-soft)', fontSize: 13 }}>{e.supplier?.name || '-'}</td>
                   <td>{e.paymentMethod || '-'}</td>
                   <td style={{ fontWeight: 600, color: '#dc2626' }}>
                     ${Number(e.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
@@ -135,6 +145,7 @@ export default function Expenses() {
       {showModal && (
         <ExpenseModal
           expense={editing}
+          suppliers={suppliers}
           onClose={() => setShowModal(false)}
           onSaved={() => { setShowModal(false); load(); }}
         />
@@ -143,7 +154,7 @@ export default function Expenses() {
   );
 }
 
-function ExpenseModal({ expense, onClose, onSaved }) {
+function ExpenseModal({ expense, suppliers = [], onClose, onSaved }) {
   const isEdit = !!expense;
   const [form, setForm] = useState({
     amount: expense?.amount ?? '',
@@ -151,6 +162,7 @@ function ExpenseModal({ expense, onClose, onSaved }) {
     category: expense?.category || '',
     description: expense?.description || '',
     paymentMethod: expense?.paymentMethod || '',
+    supplierId: expense?.supplierId || '',
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -177,6 +189,7 @@ function ExpenseModal({ expense, onClose, onSaved }) {
         category: form.category,
         description: form.description || undefined,
         paymentMethod: form.paymentMethod || undefined,
+        supplierId: form.supplierId || null,
       };
       if (isEdit) {
         await api.put(`/expenses/${expense.id}`, payload);
@@ -231,6 +244,15 @@ function ExpenseModal({ expense, onClose, onSaved }) {
               {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
+          {suppliers.length > 0 && (
+            <div className="field">
+              <label>Proveedor asociado <span style={{ fontWeight: 400, color: 'var(--ink-soft)', fontSize: 12 }}>(opcional)</span></label>
+              <select value={form.supplierId} onChange={(e) => update('supplierId', e.target.value)}>
+                <option value="">— Sin proveedor —</option>
+                {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>

@@ -118,24 +118,36 @@ function DonutChart({ data }) {
   );
 }
 
+function today() { return new Date().toISOString().slice(0, 10); }
+function monthsAgo(n) {
+  const d = new Date();
+  d.setMonth(d.getMonth() - n);
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function Reports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [months, setMonths] = useState(6);
+  const [useCustom, setUseCustom] = useState(false);
+  const [from, setFrom] = useState(monthsAgo(6));
+  const [to, setTo] = useState(today());
 
-  function load(m) {
+  function load() {
     setLoading(true);
     setError('');
-    api.get(`/reports/summary?months=${m}`)
+    const params = useCustom
+      ? `from=${from}&to=${to}`
+      : `months=${months}`;
+    api.get(`/reports/summary?${params}`)
       .then((res) => setData(res.data))
       .catch(() => setError('No se pudieron cargar los reportes. Probá de nuevo en unos minutos.'))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => {
-    load(months);
-  }, [months]);
+  useEffect(() => { load(); }, [months, useCustom]);
 
   const totalIncome = data?.monthlyData?.reduce((s, d) => s + d.income, 0) || 0;
   const totalExpenses = data?.monthlyData?.reduce((s, d) => s + d.expenses, 0) || 0;
@@ -148,16 +160,34 @@ export default function Reports() {
           <h1>Reportes</h1>
           <p className="page-subtitle">Resumen financiero del negocio</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <select
-            value={months}
-            onChange={(e) => setMonths(Number(e.target.value))}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 14 }}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {!useCustom ? (
+            <select
+              value={months}
+              onChange={(e) => setMonths(Number(e.target.value))}
+              style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 14 }}
+            >
+              <option value={3}>Últimos 3 meses</option>
+              <option value={6}>Últimos 6 meses</option>
+              <option value={12}>Últimos 12 meses</option>
+            </select>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13 }} />
+              <span style={{ color: 'var(--ink-soft)', fontSize: 13 }}>→</span>
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13 }} />
+              <button className="btn btn-primary" onClick={load} style={{ fontSize: 13 }}>Ver</button>
+            </div>
+          )}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setUseCustom(!useCustom)}
+            style={{ fontSize: 13 }}
           >
-            <option value={3}>Últimos 3 meses</option>
-            <option value={6}>Últimos 6 meses</option>
-            <option value={12}>Últimos 12 meses</option>
-          </select>
+            {useCustom ? '← Volver a período' : '📅 Rango personalizado'}
+          </button>
         </div>
       </div>
 
@@ -222,6 +252,33 @@ export default function Reports() {
               )}
             </div>
           </div>
+
+          {/* Top suppliers by expense */}
+          {data.topSuppliers && data.topSuppliers.length > 0 && (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <h3 style={{ marginBottom: 16 }}>Top proveedores por gasto</h3>
+              <div className="table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>#</th>
+                    <th style={{ textAlign: 'left', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Proveedor</th>
+                    <th style={{ textAlign: 'right', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Cantidad</th>
+                    <th style={{ textAlign: 'right', paddingBottom: 8, color: 'var(--ink-soft)', fontWeight: 500 }}>Total gastado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.topSuppliers.map((s, i) => (
+                    <tr key={s.name} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px 0', color: 'var(--ink-soft)' }}>{i + 1}</td>
+                      <td style={{ padding: '8px 0' }}>{s.name}</td>
+                      <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--ink-soft)' }}>{s.count}</td>
+                      <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>{fmt(s.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            </div>
+          )}
 
           {/* Employees salary breakdown */}
           {data.employees.length > 0 && (
