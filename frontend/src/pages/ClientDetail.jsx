@@ -213,43 +213,76 @@ export default function ClientDetail() {
 
       <h2 style={{ fontSize: 18, marginBottom: 12 }}>Historial de pagos</h2>
       <div className="card">
-        {client.enrollments.every((e) => e.payments.length === 0) ? (
-          <div className="empty-state">
-            <h3>Sin pagos registrados</h3>
-          </div>
-        ) : (() => {
-          const allPayments = client.enrollments
-            .flatMap((e) => e.payments.map((p) => ({ ...p, activityName: e.activity.name })))
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
-          const totalPaid = allPayments.reduce((s, p) => s + p.amount, 0);
+        {(() => {
+          // Unificar todos los movimientos: cuotas + trabajos/turnos + manuales
+          const entries = [];
+          client.enrollments.forEach((e) => {
+            e.payments.forEach((p) => {
+              entries.push({ id: `pay-${p.id}`, date: p.date, kind: 'cuota', label: e.activity.name, amount: p.amount, method: p.method, positive: true });
+            });
+          });
+          if (account?.appointmentMovements) {
+            account.appointmentMovements.forEach((m) => {
+              entries.push({ id: `appt-${m.id}`, date: m.date, kind: m.paymentStatus === 'paid' ? 'trabajo' : 'turno-pendiente', label: m.description, amount: m.amount, positive: m.paymentStatus === 'paid', pending: m.paymentStatus !== 'paid' });
+            });
+          }
+          if (account?.movements) {
+            account.movements.forEach((m) => {
+              entries.push({ id: `mov-${m.id}`, date: m.date, kind: m.type === 'abono' ? 'abono' : 'cargo', label: m.description || (m.type === 'abono' ? 'Abono manual' : 'Cargo manual'), amount: m.amount, positive: m.type === 'abono', isManual: true, movId: m.id });
+            });
+          }
+          entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+          if (entries.length === 0) return <div className="empty-state"><h3>Sin movimientos registrados</h3></div>;
+
+          const totalPaid = entries.filter(e => e.positive).reduce((s, e) => s + e.amount, 0);
+          const kindLabel = { cuota: 'Cuota', trabajo: 'Trabajo', 'turno-pendiente': 'Turno pendiente', abono: 'Abono', cargo: 'Cargo' };
+          const kindStyle = {
+            cuota:            { background: '#dcfce7', color: '#15803d' },
+            trabajo:          { background: '#dcfce7', color: '#15803d' },
+            'turno-pendiente':{ background: '#fef9c3', color: '#92400e' },
+            abono:            { background: '#dbeafe', color: '#1d4ed8' },
+            cargo:            { background: '#fee2e2', color: '#dc2626' },
+          };
           return (
             <>
               <div style={{ display: 'flex', gap: 24, marginBottom: 16, flexWrap: 'wrap' }}>
                 <div>
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>Total pagado</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>Total cobrado</p>
                   <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#10b981' }}>{formatMoney(totalPaid)}</p>
                 </div>
                 <div>
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>Cantidad de pagos</p>
-                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{allPayments.length}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>Movimientos</p>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{entries.length}</p>
                 </div>
               </div>
               <div className="table-wrap"><table className="table">
                 <thead>
                   <tr>
                     <th>Fecha</th>
-                    <th>Actividad</th>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
                     <th>Monto</th>
                     <th>Método</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {allPayments.map((p) => (
-                    <tr key={p.id}>
-                      <td>{formatDate(p.date)}</td>
-                      <td>{p.activityName}</td>
-                      <td style={{ fontWeight: 600, color: '#10b981' }}>{formatMoney(p.amount)}</td>
-                      <td>{p.method || '-'}</td>
+                  {entries.map((e) => (
+                    <tr key={e.id}>
+                      <td>{formatDate(e.date)}</td>
+                      <td><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, fontWeight: 600, ...kindStyle[e.kind] }}>{kindLabel[e.kind]}</span></td>
+                      <td style={{ fontSize: 13 }}>{e.label || '-'}</td>
+                      <td style={{ fontWeight: 600, color: e.positive ? '#10b981' : e.pending ? '#d97706' : '#dc2626' }}>
+                        {e.positive ? '+' : e.pending ? '' : '-'}{formatMoney(e.amount)}
+                      </td>
+                      <td>{e.method || '-'}</td>
+                      <td>
+                        {e.isManual && (
+                          <button onClick={async () => { await api.delete(`/clients/${id}/account/${e.movId}`); loadAccount(); }}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 16, padding: '0 2px' }}>×</button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -259,69 +292,31 @@ export default function ClientDetail() {
         })()}
       </div>
 
-      {/* Cuenta Corriente */}
+      {/* Cuenta Corriente — saldo y acción */}
       <h2 style={{ fontSize: 18, marginBottom: 12, marginTop: 24 }}>Cuenta corriente</h2>
       <div className="card" style={{ marginBottom: 24 }}>
-        {account && (
-          <>
-            <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ flex: 1, minWidth: 120 }}>
-                <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Saldo</p>
-                <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: account.balance > 0 ? '#dc2626' : '#10b981' }}>
-                  {account.balance > 0 ? `Debe ${formatMoney(account.balance)}` : account.balance < 0 ? `A favor ${formatMoney(Math.abs(account.balance))}` : 'Al día ✓'}
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Cargado</p>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{formatMoney(account.totalCharged + account.manualCargos + (account.apptCharged || 0))}</p>
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Pagado</p>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#10b981' }}>{formatMoney(account.totalPaid + account.manualAbonos + (account.apptPaid || 0))}</p>
-                </div>
-              </div>
-              <button className="btn btn-secondary" style={{ fontSize: 13 }} onClick={() => setMovModal(true)}>+ Movimiento</button>
+        {account ? (
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Saldo</p>
+              <p style={{ margin: 0, fontSize: 26, fontWeight: 700, color: account.balance > 0 ? '#dc2626' : '#10b981' }}>
+                {account.balance > 0 ? `Debe ${formatMoney(account.balance)}` : account.balance < 0 ? `A favor ${formatMoney(Math.abs(account.balance))}` : 'Al día ✓'}
+              </p>
             </div>
-            {account.appointmentMovements?.length > 0 && (
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                <p style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>🔧 Turnos y trabajos realizados</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {account.appointmentMovements.map((m) => (
-                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 8, fontWeight: 600,
-                        background: m.paymentStatus === 'paid' ? '#dcfce7' : '#fee2e2',
-                        color: m.paymentStatus === 'paid' ? '#15803d' : '#dc2626' }}>
-                        {m.paymentStatus === 'paid' ? '✓ Cobrado' : '⏳ Pendiente'}
-                      </span>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{formatMoney(m.amount)}</span>
-                      <span style={{ fontSize: 13, color: 'var(--ink-soft)', flex: 1 }}>{m.description}</span>
-                      <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{formatDate(m.date)}</span>
-                    </div>
-                  ))}
-                </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Cargado</p>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{formatMoney(account.totalCharged + account.manualCargos + (account.apptCharged || 0))}</p>
               </div>
-            )}
-
-            {account.movements.length > 0 && (
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                <p style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Movimientos manuales</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {account.movements.map((m) => (
-                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 8, fontWeight: 600, background: m.type === 'cargo' ? '#fee2e2' : '#dcfce7', color: m.type === 'cargo' ? '#dc2626' : '#15803d' }}>
-                        {m.type === 'cargo' ? '↑ Cargo' : '↓ Abono'}
-                      </span>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{formatMoney(m.amount)}</span>
-                      {m.description && <span style={{ fontSize: 13, color: 'var(--ink-soft)', flex: 1 }}>{m.description}</span>}
-                      <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{formatDate(m.date)}</span>
-                      <button onClick={async () => { await api.delete(`/clients/${id}/account/${m.id}`); loadAccount(); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 16, padding: '0 2px' }}>×</button>
-                    </div>
-                  ))}
-                </div>
+              <div>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-soft)' }}>Pagado</p>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#10b981' }}>{formatMoney(account.totalPaid + account.manualAbonos + (account.apptPaid || 0))}</p>
               </div>
-            )}
-          </>
+            </div>
+            <button className="btn btn-secondary" style={{ fontSize: 13 }} onClick={() => setMovModal(true)}>+ Movimiento</button>
+          </div>
+        ) : (
+          <p style={{ color: 'var(--ink-soft)', fontSize: 14, textAlign: 'center', margin: 0 }}>Cargando...</p>
         )}
       </div>
 
