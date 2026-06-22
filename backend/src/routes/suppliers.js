@@ -70,8 +70,6 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // GET /api/suppliers/:id/account — cuenta corriente del proveedor
 router.get('/:id/account', async (req, res) => {
   try {
@@ -96,3 +94,5 @@ router.get('/:id/account', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+module.exports = router;
