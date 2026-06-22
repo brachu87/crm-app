@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import OnboardingWizard from './OnboardingWizard';
+import ChatBot from './ChatBot';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState, useCallback, useRef } from 'react';
 
@@ -332,6 +333,7 @@ export default function Layout() {
         }} />
       )}
       <Outlet />
+      <ChatBot />
       </main>
     </div>
   );
