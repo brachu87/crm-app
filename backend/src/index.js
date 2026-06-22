@@ -239,6 +239,30 @@ async function ensureSubscriptionFields() {
   }
 }
 
+async function ensureClientCuit() {
+  try {
+    const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Client")`);
+    if (!cols.some(r => r.name === 'cuit')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Client" ADD COLUMN "cuit" TEXT`);
+      console.log('[startup] Added cuit to Client');
+    }
+  } catch (err) {
+    console.error('[startup] ensureClientCuit error:', err.message);
+  }
+}
+
+async function ensureSupplierDni() {
+  try {
+    const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Supplier")`);
+    if (!cols.some(r => r.name === 'dni')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Supplier" ADD COLUMN "dni" TEXT`);
+      console.log('[startup] Added dni to Supplier');
+    }
+  } catch (err) {
+    console.error('[startup] ensureSupplierDni error:', err.message);
+  }
+}
+
 async function ensureSupplierIdOnExpense() {
   try {
     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Expense")`);
@@ -292,6 +316,8 @@ async function runOverdueSweep() {
     if (count > 0) console.log(`[auto-expiry] Marcadas ${count} cuotas como vencidas`);
   } catch (err) { console.error('[auto-expiry] Error:', err.message); }
 }
+ensureClientCuit();
+ensureSupplierDni();
 ensureBusinessExtraFields();
 ensureManualIncomeTable();
 ensurePermissionsColumn();

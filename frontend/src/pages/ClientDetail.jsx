@@ -122,6 +122,7 @@ export default function ClientDetail() {
           {client.phone && <InfoField label="Teléfono" value={client.phone} />}
           {client.email && <InfoField label="Email" value={client.email} />}
           {client.dni && <InfoField label="DNI" value={client.dni} />}
+          {client.cuit && <InfoField label="CUIT / CUIL" value={client.cuit} />}
           {client.birthday && <InfoField label="Cumpleaños" value={formatDate(client.birthday)} />}
           {client.globalDiscount > 0 && <InfoField label="Bonificación general" value={`${client.globalDiscount}%`} />}
           {client.notes && <InfoField label="Notas" value={client.notes} />}

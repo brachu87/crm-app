@@ -30,6 +30,7 @@ router.post('/', async (req, res) => {
         phone: phone || null,
         email: email || null,
         cuit: cuit || null,
+        dni: dni || null,
         category: category || null,
         notes: notes || null,
         businessId: req.user.businessId,
@@ -49,7 +50,7 @@ router.put('/:id', async (req, res) => {
     const { name, contact, phone, email, cuit, category, notes } = req.body;
     const supplier = await prisma.supplier.update({
       where: { id: req.params.id },
-      data: { name, contact: contact || null, phone: phone || null, email: email || null, cuit: cuit || null, category: category || null, notes: notes || null },
+      data: { name, contact: contact || null, phone: phone || null, email: email || null, cuit: cuit || null, dni: dni || null, category: category || null, notes: notes || null },
     });
     res.json(supplier);
   } catch (err) {

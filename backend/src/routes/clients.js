@@ -94,7 +94,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/clients - crear cliente
 router.post('/', async (req, res) => {
   try {
-    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, responsableName, responsablePhone, globalDiscount } = req.body;
+    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, cuit, responsableName, responsablePhone, globalDiscount } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const client = await prisma.client.create({
       data: {
@@ -107,6 +107,7 @@ router.post('/', async (req, res) => {
         emergencyPhone: emergencyPhone || null,
         medicalNotes: medicalNotes || null,
         dni: dni || null,
+        cuit: cuit || null,
         responsableName: responsableName || null,
         responsablePhone: responsablePhone || null,
         globalDiscount: globalDiscount != null ? Number(globalDiscount) : 0,

@@ -26,8 +26,8 @@ export default function Suppliers() {
 
   function exportCSV() {
     const rows = [
-      ['Nombre', 'Contacto', 'Teléfono', 'Email', 'CUIT', 'Categoría', 'Notas'],
-      ...suppliers.map((s) => [s.name, s.contact || '', s.phone || '', s.email || '', s.cuit || '', s.category || '', s.notes || '']),
+      ['Nombre', 'Contacto', 'Teléfono', 'Email', 'CUIT', 'DNI', 'Categoría', 'Notas'],
+      ...suppliers.map((s) => [s.name, s.contact || '', s.phone || '', s.email || '', s.cuit || '', s.dni || '', s.category || '', s.notes || '']),
     ];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -95,6 +95,7 @@ export default function Suppliers() {
                   <th>Teléfono</th>
                   <th>Email</th>
                   <th>CUIT</th>
+                  <th>DNI</th>
                   <th>Categoría</th>
                   <th></th>
                 </tr>
@@ -107,6 +108,7 @@ export default function Suppliers() {
                     <td>{s.phone || '-'}</td>
                     <td>{s.email || '-'}</td>
                     <td>{s.cuit || '-'}</td>
+                    <td>{s.dni || '-'}</td>
                     <td>{s.category ? (
                       <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }}>
                         {s.category}
@@ -151,6 +153,7 @@ function SupplierModal({ supplier, onClose, onSaved }) {
     phone: supplier?.phone || '',
     email: supplier?.email || '',
     cuit: supplier?.cuit || '',
+    dni: supplier?.dni || '',
     category: supplier?.category || '',
     notes: supplier?.notes || '',
   });
@@ -208,6 +211,13 @@ function SupplierModal({ supplier, onClose, onSaved }) {
               <label>CUIT</label>
               <input value={form.cuit} onChange={(e) => update('cuit', e.target.value)} placeholder="XX-XXXXXXXX-X" />
             </div>
+          </div>
+          <div className="two-col-grid">
+            <div className="field">
+              <label>DNI</label>
+              <input value={form.dni} onChange={(e) => update('dni', e.target.value)} placeholder="Ej: 12345678" />
+            </div>
+            <div />
           </div>
           <div className="field">
             <label>Categoría</label>

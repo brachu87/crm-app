@@ -18,6 +18,7 @@ export default function ClientModal({ client, onClose, onSaved }) {
     phone: client?.phone || '',
     email: client?.email || '',
     dni: client?.dni || '',
+    cuit: client?.cuit || '',
     notes: client?.notes || '',
     birthday: client?.birthday ? client.birthday.slice(0, 10) : '',
     emergencyContact: client?.emergencyContact || '',
@@ -50,6 +51,7 @@ export default function ClientModal({ client, onClose, onSaved }) {
         phone: form.phone || undefined,
         email: form.email || undefined,
         dni: form.dni || undefined,
+        cuit: form.cuit || undefined,
         notes: form.notes || undefined,
         birthday: form.birthday || undefined,
         emergencyContact: form.emergencyContact || undefined,
@@ -101,6 +103,13 @@ export default function ClientModal({ client, onClose, onSaved }) {
               <label>DNI</label>
               <input value={form.dni} onChange={(e) => update('dni', e.target.value)} placeholder="Ej: 12345678" />
             </div>
+          </div>
+          <div className="two-col-grid">
+            <div className="field">
+              <label>CUIT / CUIL</label>
+              <input value={form.cuit} onChange={(e) => update('cuit', e.target.value)} placeholder="XX-XXXXXXXX-X" />
+            </div>
+            <div />
           </div>
           <div className="two-col-grid">
             <div className="field">
