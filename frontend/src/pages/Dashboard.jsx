@@ -27,7 +27,7 @@ function Sparkline({ data, field, color }) {
 // ── Big KPI Card ──────────────────────────────────────────────────────────────
 function BigKPI({ label, value, color, sparkData, sparkField, change, hint, icon }) {
   return (
-    <div className="card" style={{ padding:'20px 24px', position:'relative', overflow:'hidden' }}>
+    <div className="card kpi-card" style={{ padding:'20px 24px', position:'relative', overflow:'hidden' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
         <div style={{ flex:1 }}>
           <p style={{ margin:0, fontSize:12, color:'var(--ink-soft)', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:500 }}>{label}</p>
@@ -192,7 +192,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Row 1: Big KPIs ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:16, marginBottom:24 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:20 }}>
         <BigKPI
           label="Ingresos este mes"
           value={fmt(data.ingresosDelMes)}
@@ -228,7 +228,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Row 2: Entity counts ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:12, marginBottom:24 }}>
+      <div className="entity-count-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))', gap:10, marginBottom:20 }}>
         {[
           { label:'Clientes activos', value:data.clientsCount, color:'#6366f1', link:'/clientes' },
           { label:'Actividades',      value:data.activitiesCount, color:'#3b82f6', link:'/actividades' },
@@ -246,7 +246,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Row 3: Flujo de caja + Inscripciones ── */}
-      <div className="two-col-grid" style={{ gap:20, marginBottom:20 }}>
+      <div className="two-col-grid" style={{ gap:16, marginBottom:16 }}>
         <div className="card">
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
             <h3 style={{ margin:0 }}>Flujo financiero — 6 meses</h3>

@@ -1802,3 +1802,97 @@ input, select, textarea { font-family: var(--font-body); }
     justify-content: center;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE FIXES — Dashboard Pro + Reports (added 2026-06)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── KPI Cards (Dashboard pro) ─────────────────────────────── */
+.kpi-card { transition: transform 0.1s; }
+
+@media (max-width: 768px) {
+  /* BigKPI cards: tighter padding + smaller numbers */
+  .kpi-card { padding: 14px 16px !important; }
+  .kpi-card p { font-size: 22px !important; }
+
+  /* Reports tab bar: hide native scrollbar */
+  .reports-tabs::-webkit-scrollbar { display: none; }
+  .reports-tabs { scrollbar-width: none; }
+
+  /* Reports KPI summary cards: 2×2 grid */
+  .report-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* DateBar: inputs full-width when wrapping */
+  .datebar-custom input[type="date"] {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Donut chart + legend: stack vertically on small screens */
+  .donut-flex {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  .donut-flex svg {
+    align-self: center;
+  }
+
+  /* BarChart card: ensure horizontal scroll */
+  .barchart-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Comparativo table: compact font */
+  .comparativo-table td,
+  .comparativo-table th {
+    font-size: 12px !important;
+    padding: 8px 6px !important;
+  }
+
+  /* Proyección: KPI cards in 2×2 */
+  .proyeccion-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Retention sparkline card: reduce height */
+  .retention-spark svg {
+    max-height: 100px;
+  }
+
+  /* Suppliers: cuenta corriente modal – dates in column */
+  .supplier-account-dates {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .supplier-account-dates input { width: 100%; box-sizing: border-box; }
+
+  /* Entity count cards: 3 cols → wrap nicely */
+  .entity-count-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* On very small phones: entity count 2×3 */
+  .entity-count-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Reports KPI: font even smaller */
+  .kpi-card p { font-size: 19px !important; }
+
+  /* Hide secondary columns in Gastos/Proveedores tables */
+  .table-gastos th:nth-child(5),
+  .table-gastos td:nth-child(5),
+  .table-proveedores th:nth-child(4),
+  .table-proveedores td:nth-child(4) {
+    display: none;
+  }
+
+  /* DateBar: hide months dropdown label, just show select */
+  .datebar-label { display: none; }
+}

@@ -22,7 +22,7 @@ function DateBar({ months, setMonths, useCustom, setUseCustom, from, setFrom, to
           <option value={12}>Últimos 12 meses</option>
         </select>
       ) : (
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
             style={{ padding:'6px 10px', borderRadius:8, border:'1px solid var(--border)', fontSize:13 }} />
           <span style={{ color:'var(--ink-soft)' }}>→</span>
@@ -97,7 +97,7 @@ function DonutChart({ data }) {
     return { path:`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${large} 0 ${ix1} ${iy1} Z`, color:COLORS[i%COLORS.length], label:d.category||d.name, pct:((d.total/total)*100).toFixed(1), total:d.total };
   });
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:24, flexWrap:'wrap' }}>
+    <div className="donut-flex" style={{ display:'flex', alignItems:'center', gap:24, flexWrap:'wrap' }}>
       <svg viewBox="0 0 200 200" style={{ width:160, flexShrink:0 }}>
         {slices.map((s,i) => <path key={i} d={s.path} fill={s.color} />)}
         <text x={cx} y={cy-6} textAnchor="middle" fontSize="12" fill="#374151" fontWeight="600">Total</text>
@@ -240,8 +240,8 @@ export default function Reports() {
       </div>
 
       {/* Tab bar */}
-      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:20, overflowX:'auto', paddingBottom:4 }}>
-        {tabs.map(t => <button key={t.id} style={tabStyle(t.id)} onClick={() => setActiveTab(t.id)}>{t.label}</button>)}
+      <div style={{ display:'flex', gap:6, flexWrap:'nowrap', marginBottom:20, overflowX:'auto', paddingBottom:6, scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
+        {tabs.map(t => <button key={t.id} style={{...tabStyle(t.id), flexShrink:0, whiteSpace:'nowrap'}} onClick={() => setActiveTab(t.id)}>{t.label}</button>)}
       </div>
 
       {/* Date filter — only for date-sensitive tabs */}
@@ -286,7 +286,7 @@ function ResumenTab({ data }) {
   const balance = totalIncome - totalExpenses;
   return (
     <>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:16, marginBottom:24 }}>
+      <div className="report-kpi-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:16, marginBottom:24 }}>
         <KPICard label="Ingresos totales" value={fmt(totalIncome)} color="#10b981" />
         <KPICard label="Gastos totales"   value={fmt(totalExpenses)} color="#ef4444" />
         <KPICard label="Resultado"        value={fmt(balance)} color={balance>=0?'#10b981':'#ef4444'} hint="Ingresos − Gastos" />
@@ -294,7 +294,7 @@ function ResumenTab({ data }) {
         {data.overdueCount > 0 && <KPICard label="Cuotas vencidas" value={data.overdueCount} color="#f59e0b" />}
       </div>
 
-      <div className="card" style={{ marginBottom:20 }}>
+      <div className="card barchart-wrap" style={{ marginBottom:20 }}>
         <h3 style={{ marginBottom:16 }}>Ingresos vs Gastos por mes</h3>
         <BarChart data={data.monthlyData} />
       </div>
@@ -565,7 +565,7 @@ function ComparativoTab({ data }) {
       </div>
       <div className="card">
         <div className="table-wrap">
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <table className="comparativo-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead style={{ position:'sticky', top:0, background:'var(--surface)' }}>
               <tr>
                 <th style={{ textAlign:'left', padding:'8px', color:'var(--ink-soft)', fontWeight:500 }}>Mes</th>
