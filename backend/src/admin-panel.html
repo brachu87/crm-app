@@ -247,11 +247,12 @@ function renderTable(accounts) {
       <td>
         <div style="font-weight:600">${a.name}</div>
         <div style="font-size:11px;color:#94a3b8">${a.category || ''}</div>
-        ${a.phone ? `<div style="font-size:11px;color:#64748b;margin-top:2px">📞 ${a.phone}</div>` : ''}
+
       </td>
       <td>
         <div style="font-weight:500">${a.owner?.name || '—'}</div>
         <div style="font-size:11px;color:#94a3b8">${a.owner?.email || '—'}</div>
+        ${a.phone ? `<a href="https://wa.me/${a.phone.replace(/\D/g,'')}" target="_blank" style="font-size:11px;color:#25d366;text-decoration:none;display:inline-flex;align-items:center;gap:3px;margin-top:2px">📞 ${a.phone}</a>` : '<div style="font-size:11px;color:#cbd5e1;margin-top:2px">Sin teléfono</div>'}
       </td>
       <td style="color:#64748b;white-space:nowrap">${lastAccess}</td>
       <td style="text-align:center">
