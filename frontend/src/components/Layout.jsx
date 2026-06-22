@@ -252,7 +252,6 @@ export default function Layout() {
                   fontWeight: hasActive ? 700 : 500,
                 }}
               >
-                <span style={{ fontSize: 15 }}>{group.icon}</span>
                 <span style={{ flex: 1 }}>{group.label}</span>
                 <span style={{
                   fontSize: 11,
@@ -289,7 +288,7 @@ export default function Layout() {
             <button
               onClick={() => setDark(!dark)}
               style={{
-                background: dark ? 'var(--primary)' : 'var(--border)',
+                background: dark ? 'var(--primary)' : '#94a3b8',
                 border: 'none', borderRadius: 12, width: 36, height: 20,
                 cursor: 'pointer', position: 'relative', padding: 0, transition: 'background .2s',
               }}

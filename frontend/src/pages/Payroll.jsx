@@ -234,7 +234,7 @@ export default function Payroll() {
       {/* Pending */}
       {pending.length > 0 && (
         <section style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: '#f59e0b' }}>⏳ Pendientes de pago</h2>
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: '#f59e0b' }}>Pendientes de pago</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pending.map(r => <RecordRow key={r.id} r={r} onPay={markPaid} onDelete={deleteRecord} businessName={businessName} />)}
           </div>
@@ -243,7 +243,7 @@ export default function Payroll() {
 
       {/* Paid */}
       <section>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: '#10b981' }}>✅ Pagados</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: '#10b981' }}>Pagados</h2>
         {loading ? <div style={{ color: 'var(--muted)', fontSize: 14 }}>Cargando...</div>
           : paid.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 14 }}>No hay liquidaciones pagadas.</div>
           : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

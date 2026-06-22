@@ -52,8 +52,7 @@ export default function Sedes() {
 
       {branches.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--ink-soft)' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🏢</div>
-          <p>No hay sedes cargadas todavía.</p>
+                    <p>No hay sedes cargadas todavía.</p>
           <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={openNew}>Crear primera sede</button>
         </div>
       ) : (

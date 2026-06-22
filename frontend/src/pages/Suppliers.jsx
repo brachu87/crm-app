@@ -78,7 +78,7 @@ export default function Suppliers() {
       ) : filtered.length === 0 && !search ? (
         <div className="card">
           <div className="empty-state">
-            <span className="empty-state-icon">🏭</span>
+            
             <h3>Todavía no hay proveedores</h3>
             <p>Registrá tus proveedores para tener sus datos a mano.</p>
             <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12 }}>
