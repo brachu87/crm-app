@@ -33,7 +33,7 @@ function makeToken(user) {
   return jwt.sign(
     { userId: user.id, businessId: user.businessId, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '8h' }
   );
 }
 

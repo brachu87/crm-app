@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/client';
 
 const AuthContext = createContext(null);
+
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutos sin actividad → logout
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -12,6 +14,52 @@ export function AuthProvider({ children }) {
     const stored = localStorage.getItem('business');
     return stored ? JSON.parse(stored) : null;
   });
+
+  const inactivityTimer = useRef(null);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('business');
+    setUser(null);
+    setBusiness(null);
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+  }, []);
+
+  // Reinicia el timer de inactividad
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      logout();
+    }, INACTIVITY_TIMEOUT_MS);
+  }, [logout]);
+
+  // Escuchar eventos de actividad del usuario
+  useEffect(() => {
+    if (!user) return;
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    const handler = () => resetInactivityTimer();
+    events.forEach(e => window.addEventListener(e, handler, { passive: true }));
+    resetInactivityTimer(); // Arrancar el timer al loguearse
+    return () => {
+      events.forEach(e => window.removeEventListener(e, handler));
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, [user, resetInactivityTimer]);
+
+  // Interceptor 401: si el token expiró → logout automático
+  useEffect(() => {
+    const interceptorId = api.interceptors.response.use(
+      res => res,
+      err => {
+        if (err.response?.status === 401) {
+          logout();
+        }
+        return Promise.reject(err);
+      }
+    );
+    return () => api.interceptors.response.eject(interceptorId);
+  }, [logout]);
 
   function saveSession(data) {
     localStorage.setItem('token', data.token);
@@ -44,7 +92,6 @@ export function AuthProvider({ children }) {
     saveSession(res.data);
   }
 
-  // Verifica token de Google. Devuelve { needsRegister, email, name } si es usuario nuevo.
   async function googleLogin(credential) {
     const res = await api.post('/auth/google', { credential });
     if (res.data.needsRegister) return res.data;
@@ -55,14 +102,6 @@ export function AuthProvider({ children }) {
   async function googleRegister({ credential, businessName, category, businessPhone }) {
     const res = await api.post('/auth/google-register', { credential, businessName, category, businessPhone });
     saveSession(res.data);
-  }
-
-  function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('business');
-    setUser(null);
-    setBusiness(null);
   }
 
   function updateBusiness(data) {
