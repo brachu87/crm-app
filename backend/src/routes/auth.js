@@ -64,7 +64,7 @@ router.post('/register', async (req, res) => {
     const sCategory = sanitize(category, 50);
     const sPhone = sanitize(businessPhone || '', 30);
 
-    if (!sBusinessName || !sName || !sEmail || !password) {
+    if (!sBusinessName || !sName || !sEmail || !password || !sPhone) {
       return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
     if (!validateEmail(sEmail)) return res.status(400).json({ error: 'Email inválido' });

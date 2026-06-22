@@ -142,7 +142,7 @@ export default function Register() {
           </div>
           <div className="field">
             <label htmlFor="businessPhone">Teléfono del negocio</label>
-            <input id="businessPhone" type="tel" value={form.businessPhone} onChange={(e) => update('businessPhone', e.target.value)} placeholder="Ej: 1176353062" />
+            <input id="businessPhone" type="tel" value={form.businessPhone} onChange={(e) => update('businessPhone', e.target.value)} placeholder="Ej: 1176353062" required />
           </div>
 
           {!isGoogleFlow && (
