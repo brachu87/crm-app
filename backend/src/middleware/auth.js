@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 // Photo endpoints need token in query param (for <img src="...?token=...">)
 // Only allow it for that specific pattern.
-const QUERY_TOKEN_PATHS = ['/photo'];
+const QUERY_TOKEN_PATHS = ['/photo', '/logo'];
 
 function authMiddleware(req, res, next) {
   let token = null;

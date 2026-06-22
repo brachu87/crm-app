@@ -39,7 +39,9 @@ const app = express();
 
 // ── Security headers ───────────────────────────────────────────
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow fonts/images
+  contentSecurityPolicy: false,              // app uses inline scripts/styles
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow logo/photo serving
+  crossOriginEmbedderPolicy: false,          // avoid breaking image loads
 }));
 app.disable('x-powered-by');
 
