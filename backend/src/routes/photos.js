@@ -19,7 +19,7 @@ if (!fs.existsSync(PHOTOS_DIR)) {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, PHOTOS_DIR),
-  filename: (req, file, cb) => cb(null, `${req.params.id}.jpg`),
+  filename: (req, file, cb) => { const safeId = req.params.id.replace(/[^a-zA-Z0-9_-]/g, ''); cb(null, `${safeId}.jpg`); },
 });
 
 const upload = multer({
@@ -56,7 +56,10 @@ router.get('/:id/photo', async (req, res) => {
     });
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    const filePath = path.join(PHOTOS_DIR, `${req.params.id}.jpg`);
+    // Sanitize ID to prevent path traversal
+    const safeId = req.params.id.replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!safeId || safeId !== req.params.id) return res.status(400).json({ error: 'ID inválido' });
+    const filePath = path.join(PHOTOS_DIR, `${safeId}.jpg`);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Sin foto' });
     }

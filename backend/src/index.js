@@ -1,10 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 const { markOverdueCuotas } = require('./lib/overdue');
 
+const authMiddleware = require('./middleware/auth');
+const { subscriptionCheck } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const manualIncomeRoutes = require('./routes/manual-income');
@@ -33,39 +37,80 @@ const billingRoutes = require('./routes/billing');
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+// ── Security headers ───────────────────────────────────────────
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow fonts/images
+}));
+app.disable('x-powered-by');
 
-app.use('/api/auth', authRoutes);
+// ── CORS ───────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  process.env.APP_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (curl, mobile apps, same-origin)
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+
+// ── Global rate limiting (DDoS / scraping protection) ──────────
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes. Intenta en unos minutos.' },
+});
+app.use('/api/', globalLimiter);
+
+// ── Strict rate limit on auth endpoints ────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // max 20 login/register attempts per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Esperá 15 minutos.' },
+});
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/manual-income', manualIncomeRoutes);
+app.use('/api/manual-income', subscriptionCheck, manualIncomeRoutes);
 
 // Panel de administración — solo accesible en /admin
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-panel.html'));
 });
-app.use('/api/clients', clientsRoutes);
-app.use('/api/activities', activitiesRoutes);
-app.use('/api/enrollments', enrollmentsRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/employees', employeesRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/payroll', payrollRoutes);
-app.use('/api/expenses', expensesRoutes);
-app.use('/api/suppliers', suppliersRoutes);
-app.use('/api/notes', notesRoutes);
-app.use('/api/daily-cash', dailyCashRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/search', searchRoutes);
-app.use('/api/clients', photosRoutes);
-app.use('/api/business', businessRoutes);
-app.use('/api/branches', branchesRoutes);
-app.use('/api/schedules', schedulesRoutes);
-app.use('/api/services', servicesRoutes);
-app.use('/api/appointments', appointmentsRoutes);
+app.use('/api/clients', subscriptionCheck, clientsRoutes);
+app.use('/api/activities', subscriptionCheck, activitiesRoutes);
+app.use('/api/enrollments', subscriptionCheck, enrollmentsRoutes);
+app.use('/api/dashboard', subscriptionCheck, dashboardRoutes);
+app.use('/api/employees', subscriptionCheck, employeesRoutes);
+app.use('/api/attendance', subscriptionCheck, attendanceRoutes);
+app.use('/api/payroll', subscriptionCheck, payrollRoutes);
+app.use('/api/expenses', subscriptionCheck, expensesRoutes);
+app.use('/api/suppliers', subscriptionCheck, suppliersRoutes);
+app.use('/api/notes', subscriptionCheck, notesRoutes);
+app.use('/api/daily-cash', subscriptionCheck, dailyCashRoutes);
+app.use('/api/reports', subscriptionCheck, reportsRoutes);
+app.use('/api/users', subscriptionCheck, usersRoutes);
+app.use('/api/search', subscriptionCheck, searchRoutes);
+app.use('/api/clients', subscriptionCheck, photosRoutes);
+app.use('/api/business', subscriptionCheck, businessRoutes);
+app.use('/api/branches', subscriptionCheck, branchesRoutes);
+app.use('/api/schedules', subscriptionCheck, schedulesRoutes);
+app.use('/api/services', subscriptionCheck, servicesRoutes);
+app.use('/api/appointments', subscriptionCheck, appointmentsRoutes);
 app.use('/api/billing', billingRoutes);
-app.use('/api/clients/:id/account', accountMovementsRoutes);
+app.use('/api/clients/:id/account', subscriptionCheck, accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -177,7 +222,7 @@ async function sweepExpiredTrials() {
         AND "bonificado" = 0
         AND datetime("createdAt", '+14 days') < datetime('now')
     `);
-    if (result > 0) console.log(\`[trial-sweep] Expired \${result} trial account(s)\`);
+    if (result > 0) console.log(`[trial-sweep] Expired ${result} trial account(s)`);
   } catch (err) {
     console.error('[trial-sweep] error:', err.message);
   }

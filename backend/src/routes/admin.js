@@ -5,9 +5,15 @@ const router = express.Router();
 const TRIAL_DAYS = 14;
 
 function adminAuth(req, res, next) {
+  const envSecret = process.env.ADMIN_SECRET;
+  if (!envSecret || envSecret.length < 12) {
+    // Block all access if secret is not configured or too weak
+    return res.status(503).json({ error: 'Panel de admin no configurado' });
+  }
   const secret = req.headers['x-admin-secret'];
-  if (!secret || secret !== process.env.ADMIN_SECRET) {
-    return res.status(401).json({ error: 'No autorizado' });
+  if (!secret || secret !== envSecret) {
+    // Slow down brute force attempts with a small delay
+    return setTimeout(() => res.status(401).json({ error: 'No autorizado' }), 500);
   }
   next();
 }

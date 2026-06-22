@@ -5,6 +5,16 @@ const { OAuth2Client } = require('google-auth-library');
 const prisma = require('../prisma');
 
 const router = express.Router();
+
+// Input sanitization helper
+function sanitize(val, maxLen = 200) {
+  if (typeof val !== 'string') return '';
+  return val.trim().slice(0, maxLen);
+}
+
+function validateEmail(email) {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+}
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 async function verifyGoogleToken(credential) {
@@ -47,10 +57,19 @@ async function isBusinessApproved(businessId) {
 router.post('/register', async (req, res) => {
   try {
     const { businessName, category, name, email, password } = req.body;
-    if (!businessName || !name || !email || !password) {
+    // Sanitize inputs
+    const sBusinessName = sanitize(businessName, 100);
+    const sName = sanitize(name, 100);
+    const sEmail = sanitize(email, 200).toLowerCase();
+    const sCategory = sanitize(category, 50);
+
+    if (!sBusinessName || !sName || !sEmail || !password) {
       return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
-    const existing = await prisma.user.findUnique({ where: { email } });
+    if (!validateEmail(sEmail)) return res.status(400).json({ error: 'Email inválido' });
+    if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+
+    const existing = await prisma.user.findUnique({ where: { email: sEmail } });
     if (existing) return res.status(409).json({ error: 'El email ya está registrado' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -60,7 +79,7 @@ router.post('/register', async (req, res) => {
     try { await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 0 WHERE id = ?`, business.id); } catch (_) {}
 
     const user = await prisma.user.create({
-      data: { email, password: hashedPassword, name, role: 'owner', businessId: business.id },
+      data: { email: sEmail, password: hashedPassword, name: sName, role: 'owner', businessId: business.id },
     });
 
     res.status(201).json({
@@ -184,7 +203,7 @@ router.get('/me', async (req, res) => {
   if (!token) return res.status(401).json({ error: 'Sin token' });
   try {
     const jwt = require('jsonwebtoken');
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       include: { business: true },
