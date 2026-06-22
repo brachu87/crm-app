@@ -154,7 +154,7 @@ export default function Clients() {
                       <>
                         <Link to={`/clientes/${c.id}`} className="btn btn-secondary btn-sm">Ver</Link>
                         <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(c); setShowModal(true); }}>Editar</button>
-                        <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444' }} onClick={() => handleDeactivate(c)}>Dar de baja</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(c)}>Dar de baja</button>
                       </>
                     ) : (
                       <button className="btn btn-secondary btn-sm" style={{ color: '#10b981' }} onClick={() => handleReactivate(c)}>Reactivar</button>

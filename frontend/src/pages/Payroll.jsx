@@ -356,7 +356,7 @@ function RecordRow({ r, onPay, onDelete, businessName }) {
             {r.status === 'pending' && (
               <button className="btn btn-primary btn-sm" onClick={() => onPay(r.id)}>✅ Marcar pagado</button>
             )}
-            <button className="btn btn-secondary btn-sm" style={{ color: '#ef4444', marginLeft: 'auto' }} onClick={() => onDelete(r.id)}>Eliminar</button>
+            <button className="btn btn-danger btn-sm" style={{ marginLeft: 'auto' }} onClick={() => onDelete(r.id)}>Eliminar</button>
           </div>
         </div>
       )}
