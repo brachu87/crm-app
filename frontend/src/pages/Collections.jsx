@@ -119,13 +119,13 @@ export default function Collections() {
       {/* Tabs */}
       <div className="cobranza-tabs">
         <button style={tabStyle(view === 'pending')} onClick={() => { setView('pending'); setSearch(''); }}>
-          Pendientes
+          ⏳ Pendientes
         </button>
         <button style={tabStyle(view === 'paid')} onClick={() => { setView('paid'); setSearch(''); }}>
-          Cobradas
+          ✅ Cobradas
         </button>
         <button style={tabStyle(view === 'otros')} onClick={() => { setView('otros'); setSearch(''); }}>
-          Otros ingresos
+          💰 Otros ingresos
         </button>
       </div>
 
@@ -428,7 +428,7 @@ function CobrarApptModal({ appointment, onClose, onSaved }) {
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando…' : 'Confirmar cobro'}
+              {saving ? 'Guardando…' : '✅ Confirmar cobro'}
             </button>
             <button type="button" className="btn" onClick={onClose}>Cancelar</button>
           </div>
@@ -493,7 +493,7 @@ function CobrarModal({ enrollment, business, onClose, onSaved }) {
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando…' : 'Confirmar cobro'}
+              {saving ? 'Guardando…' : '✅ Confirmar cobro'}
             </button>
             <button type="button" className="btn" onClick={onClose}>Cancelar</button>
           </div>

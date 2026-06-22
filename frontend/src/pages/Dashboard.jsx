@@ -166,7 +166,6 @@ export default function Dashboard() {
 
   if (loading) return (
     <div style={{ padding:40, textAlign:'center' }}>
-      <div style={{ fontSize:32, marginBottom:12 }}>📊</div>
       <p style={{ color:'var(--ink-soft)' }}>Calculando métricas...</p>
     </div>
   );
@@ -200,7 +199,6 @@ export default function Dashboard() {
           sparkData={data.monthlyTrend}
           sparkField="income"
           change={ingresosChange}
-          icon="💰"
         />
         <BigKPI
           label="Gastos este mes"
@@ -209,21 +207,18 @@ export default function Dashboard() {
           sparkData={data.monthlyTrend}
           sparkField="expenses"
           change={gastosChange ? { ...gastosChange, up: !gastosChange.up } : null}
-          icon="📤"
         />
         <BigKPI
           label="Resultado del mes"
           value={fmt(balance)}
           color={balance>=0?'#10b981':'#ef4444'}
           hint={balance>=0?'Positivo ✓':'Déficit — revisá gastos'}
-          icon={balance>=0?'✅':'⚠️'}
         />
         <BigKPI
           label="Cuotas vencidas"
           value={data.overdue.count}
           color={data.overdue.count>0?'#f59e0b':'#10b981'}
           hint={data.overdue.count>0 ? fmt(data.overdue.total)+' pendiente' : 'Todo al día ✓'}
-          icon={data.overdue.count>0?'⚠️':'✓'}
         />
       </div>
 
