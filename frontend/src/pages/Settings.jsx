@@ -712,7 +712,7 @@ function BillingCard({ billing, onRefresh }) {
               <div style={{
                 height: '100%',
                 borderRadius: 4,
-                width: `${Math.min(100, Math.round((trialDaysLeft / 14) * 100))}%`,
+                width: `${Math.min(100, Math.round((trialDaysLeft / 15) * 100))}%`,
                 background: trialDaysLeft > 7 ? '#10b981' : trialDaysLeft > 3 ? '#f59e0b' : '#ef4444',
                 transition: 'width 0.5s',
               }} />

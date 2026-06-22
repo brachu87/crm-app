@@ -20,7 +20,7 @@ router.get('/status', authMiddleware, async (req, res) => {
   try {
     const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
     if (!biz) return res.status(404).json({ error: 'Negocio no encontrado' });
-    const TRIAL_DAYS = 14;
+    const TRIAL_DAYS = 15;
     const createdAt = new Date(biz.createdAt);
     const trialEnds = new Date(createdAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
     const now = new Date();
@@ -81,6 +81,44 @@ router.post('/preference', authMiddleware, async (req, res) => {
   } catch (e) {
     console.error('[billing] preference error:', e);
     res.status(500).json({ error: e.message });
+  }
+});
+
+
+// GET /api/billing/public-checkout — sin auth, crea preferencia y redirige a MP
+router.get('/public-checkout', async (req, res) => {
+  try {
+    const client = getMpClient();
+    const preference = new Preference(client);
+
+    const result = await preference.create({
+      body: {
+        items: [
+          {
+            id: 'zentric-plan-publico',
+            title: 'Zentric — Plan Mensual',
+            description: 'Gestión completa de tu negocio. 15 días de prueba gratuita incluidos.',
+            quantity: 1,
+            currency_id: 'ARS',
+            unit_price: PRICE,
+          },
+        ],
+        back_urls: {
+          success: `${APP_URL}/registro?payment=success`,
+          failure:  `${APP_URL}/registro?payment=failure`,
+          pending:  `${APP_URL}/registro?payment=pending`,
+        },
+        auto_return: 'approved',
+        notification_url: `${APP_URL}/api/billing/webhook`,
+        statement_descriptor: 'ZENTRIC',
+        expires: false,
+      },
+    });
+
+    res.redirect(result.init_point);
+  } catch (e) {
+    console.error('[billing] public-checkout error:', e);
+    res.status(500).send('Error al generar el link de pago. Intentá más tarde.');
   }
 });
 
