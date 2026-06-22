@@ -413,7 +413,7 @@ function MonthView({ navDate, events, today, onDayClick, onEventClick }) {
                 opacity: ev.isSchedule ? 0.75 : 1,
                 cursor: ev.isSchedule ? 'default' : 'pointer',
               }}
-              onClick={e => { e.stopPropagation(); if (!ev.isSchedule) onEventClick(ev); }}
+              onClick={e => { e.stopPropagation(); if (!ev.isSchedule || ev.isAppointment) onEventClick(ev); }}
               title={ev.isSchedule ? `${ev.title}${ev.scheduleData?.employee ? ' · ' + ev.scheduleData.employee.name : ''}` : ev.title}
             >
               {!ev.allDay && ev.startAt && (
@@ -715,7 +715,7 @@ function AgendaView({ events, onEventClick }) {
             )}
             <div
               className={`cal-agenda-item${ev.completed ? ' cal-pill--done' : ''}`}
-              onClick={() => { if (!ev.isSchedule) onEventClick(ev); }}
+              onClick={() => { if (!ev.isSchedule || ev.isAppointment) onEventClick(ev); }}
               style={{
                 borderLeft: `4px solid ${colorHex(ev.color)}`,
                 opacity: ev.isSchedule ? 0.85 : 1,
@@ -748,6 +748,7 @@ export default function Notes() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // { event, defaultDate }
+  const [apptModal, setApptModal] = useState(null); // appointmentData
 
   const [schedules, setSchedules] = useState([]);
   const [activityColorMap, setActivityColorMap] = useState({});
@@ -810,7 +811,11 @@ export default function Notes() {
   }
 
   function openEdit(event) {
-    if (event.isSchedule) return; // schedule events are read-only
+    if (event.isAppointment && event.appointmentData) {
+      setApptModal(event.appointmentData);
+      return;
+    }
+    if (event.isSchedule) return; // class schedules are read-only
     setModal({ event, defaultDate: null });
   }
 
@@ -922,6 +927,134 @@ export default function Notes() {
           onClose={() => setModal(null)}
         />
       )}
+      {apptModal && (
+        <ApptDetailModal
+          appt={apptModal}
+          onClose={() => setApptModal(null)}
+          onUpdated={() => { setApptModal(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Detalle de turno desde la agenda ─────────────────────────── */
+function ApptDetailModal({ appt, onClose, onUpdated }) {
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState(appt.status || 'scheduled');
+  const [notes, setNotes] = useState(appt.notes || '');
+  const [error, setError] = useState('');
+
+  const fmt = (v) => v ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v) : '—';
+  const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+
+  const STATUS_LABELS = { scheduled: 'Programado', confirmed: 'Confirmado', completed: 'Completado', cancelled: 'Cancelado' };
+  const STATUS_COLORS = { scheduled: '#3b82f6', confirmed: '#10b981', completed: '#6366f1', cancelled: '#ef4444' };
+
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    try {
+      await api.put(`/appointments/${appt.id}`, { status, notes });
+      onUpdated();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error al guardar');
+      setSaving(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (!confirm('¿Cancelar este turno?')) return;
+    setSaving(true);
+    try {
+      await api.put(`/appointments/${appt.id}`, { status: 'cancelled' });
+      onUpdated();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="cal-modal-backdrop">
+      <div className="cal-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+        <div className="cal-modal-header" style={{ borderLeft: `4px solid ${STATUS_COLORS[status] || '#6366f1'}` }}>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>
+            {appt.service?.name || appt.description || 'Turno'}
+          </span>
+          <button className="cal-modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="cal-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {error && <div className="error-banner">{error}</div>}
+
+          {/* Info grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Cliente</div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{appt.client?.name || '—'}</div>
+              {appt.client?.phone && <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>{appt.client.phone}</div>}
+            </div>
+            <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Fecha</div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{fmtDate(appt.date)}</div>
+              {appt.startTime && <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>{appt.startTime} – {appt.endTime}</div>}
+            </div>
+            {appt.employee && (
+              <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Empleado</div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{appt.employee.name}</div>
+              </div>
+            )}
+            {appt.price > 0 && (
+              <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Precio</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: appt.paymentStatus === 'paid' ? '#10b981' : 'var(--ink)' }}>
+                  {fmt(appt.price)}
+                  {appt.paymentStatus === 'paid' && <span style={{ marginLeft: 6, fontSize: 12 }}>✓ Cobrado</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Estado */}
+          <div className="cal-modal-row">
+            <label className="cal-modal-label">Estado</label>
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+              style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 14 }}
+            >
+              {Object.entries(STATUS_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Notas */}
+          <div className="cal-modal-row cal-modal-row--col">
+            <label className="cal-modal-label">Notas internas</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Observaciones, indicaciones..."
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
+            />
+          </div>
+        </div>
+
+        <div className="cal-modal-footer">
+          {appt.status !== 'cancelled' && (
+            <button className="btn-danger-sm" onClick={handleCancel} disabled={saving}>Cancelar turno</button>
+          )}
+          <div style={{ flex: 1 }} />
+          <button className="btn-secondary-sm" onClick={onClose}>Cerrar</button>
+          <button className="btn-primary-sm" onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
