@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const FAQ = [
   {
@@ -90,12 +91,98 @@ const FAQ = [
 
 const WELCOME = '¡Hola! 👋 Soy el asistente de Zentric. Puedo ayudarte con preguntas sobre cómo usar la app.\n\n¿Sobre qué querés saber?';
 
-const SUGGESTIONS = [
-  '¿Cómo agrego un cliente?',
-  '¿Cómo registro un pago?',
-  '¿Cómo envío un recordatorio por WhatsApp?',
-  '¿Cómo creo una actividad?',
-];
+const SUGGESTIONS_BY_ROUTE = {
+  '/': [
+    '¿Qué muestra el Dashboard?',
+    '¿Cómo veo los clientes con cuotas vencidas?',
+    '¿Cómo genero un reporte?',
+    '¿Cómo registro un pago?',
+  ],
+  '/clientes': [
+    '¿Cómo agrego un cliente?',
+    '¿Cómo importo clientes desde un archivo?',
+    '¿Puedo exportar mis datos?',
+    '¿Cómo inscribo un cliente en una actividad?',
+  ],
+  '/clientes/:id': [
+    '¿Cómo inscribo un cliente en una actividad?',
+    '¿Cómo registro un pago?',
+    '¿Cómo veo el historial de pagos?',
+    '¿Cómo envío un recordatorio por WhatsApp?',
+  ],
+  '/cobranza': [
+    '¿Cómo registro un pago?',
+    '¿Cómo envío un recordatorio por WhatsApp?',
+    '¿Cómo veo los clientes con cuotas vencidas?',
+    '¿Cómo configuro el mensaje de WhatsApp?',
+  ],
+  '/actividades': [
+    '¿Cómo creo una actividad?',
+    '¿Cómo inscribo un cliente en una actividad?',
+    '¿Cómo agrego un empleado?',
+  ],
+  '/agenda': [
+    '¿Cómo agrego un turno en la agenda?',
+    '¿Cómo envío un recordatorio por WhatsApp?',
+    '¿Cómo configuro el mensaje de WhatsApp?',
+  ],
+  '/gastos': [
+    '¿Cómo registro un gasto?',
+    '¿Cómo agrego un proveedor?',
+    '¿Cómo genero un reporte?',
+  ],
+  '/reportes': [
+    '¿Cómo genero un reporte?',
+    '¿Puedo exportar mis datos?',
+    '¿Qué muestra el Dashboard?',
+  ],
+  '/empleados': [
+    '¿Cómo agrego un empleado?',
+    '¿Cómo registro un pago de sueldo?',
+  ],
+  '/liquidaciones': [
+    '¿Cómo agrego un empleado?',
+    '¿Cómo registro un pago de sueldo?',
+  ],
+  '/proveedores': [
+    '¿Cómo agrego un proveedor?',
+    '¿Cómo registro un gasto?',
+  ],
+  '/ajustes': [
+    '¿Cómo cambio el logo o los datos del negocio?',
+    '¿Puedo tener varios usuarios?',
+    '¿Cómo configuro el mensaje de WhatsApp?',
+    '¿Qué pasa cuando vence el período de prueba?',
+  ],
+  '/precios': [
+    '¿Cómo creo una actividad?',
+    '¿Cómo genero un reporte?',
+  ],
+  '/caja': [
+    '¿Cómo registro un gasto?',
+    '¿Cómo genero un reporte?',
+  ],
+  '/sedes': [
+    '¿Cómo agrego un empleado?',
+    '¿Cómo creo una actividad?',
+  ],
+  'default': [
+    '¿Cómo agrego un cliente?',
+    '¿Cómo registro un pago?',
+    '¿Cómo envío un recordatorio por WhatsApp?',
+    '¿Cómo creo una actividad?',
+  ],
+};
+
+function getSuggestions(pathname) {
+  // exact match
+  if (SUGGESTIONS_BY_ROUTE[pathname]) return SUGGESTIONS_BY_ROUTE[pathname];
+  // prefix match (e.g. /clientes/123 → /clientes/:id)
+  if (pathname.startsWith('/clientes/')) return SUGGESTIONS_BY_ROUTE['/clientes/:id'];
+  if (pathname.startsWith('/proveedores/')) return SUGGESTIONS_BY_ROUTE['/proveedores'];
+  if (pathname.startsWith('/actividades/')) return SUGGESTIONS_BY_ROUTE['/actividades'];
+  return SUGGESTIONS_BY_ROUTE['default'];
+}
 
 function findAnswer(text) {
   const lower = text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -109,7 +196,19 @@ function findAnswer(text) {
 }
 
 export default function ChatBot() {
+  const location = useLocation();
+  const suggestions = getSuggestions(location.pathname);
   const [open, setOpen] = useState(false);
+  const [shownRoute, setShownRoute] = useState(location.pathname);
+
+  // When route changes, reset to welcome so suggestions refresh
+  useEffect(() => {
+    if (location.pathname !== shownRoute) {
+      setShownRoute(location.pathname);
+      setMessages([{ from: 'bot', text: WELCOME }]);
+      setInput('');
+    }
+  }, [location.pathname]);
   const [messages, setMessages] = useState([{ from: 'bot', text: WELCOME }]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
@@ -237,7 +336,7 @@ export default function ChatBot() {
             {/* Sugerencias — solo después del mensaje de bienvenida */}
             {messages.length === 1 && !typing && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-                {SUGGESTIONS.map((s, i) => (
+                {suggestions.map((s, i) => (
                   <button key={i} onClick={() => sendMessage(s)} style={{
                     textAlign: 'left', padding: '8px 12px', borderRadius: 10,
                     border: '1px solid var(--primary)', background: 'transparent',
