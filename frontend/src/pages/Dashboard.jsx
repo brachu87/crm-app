@@ -2,382 +2,355 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 
-function formatMoney(value) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value || 0);
-}
-function formatDate(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('es-AR');
-}
-function shortMonth(monthStr) {
-  const [, m] = monthStr.split('-');
-  return ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][parseInt(m,10)-1] || m;
+const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+function fmt(n) { return '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 0 }); }
+function fmtChange(curr, prev) {
+  if (!prev || prev === 0) return null;
+  const delta = ((curr - prev) / prev) * 100;
+  return { value: Math.abs(delta).toFixed(1), up: delta >= 0 };
 }
 
-// ─── Widget catalog ──────────────────────────────────────────────────────────
-const WIDGET_CATALOG = [
-  { id: 'clientes',       label: 'Clientes activos',      icon: '👥', color: 'var(--primary)',  dataKey: 'clientsCount',    sub: null },
-  { id: 'actividades',    label: 'Actividades activas',   icon: '🏷️',  color: '#6366f1',          dataKey: 'activitiesCount', sub: null },
-  { id: 'servicios',      label: 'Turnos/trabajos del mes', icon: '🔧', color: '#0ea5e9',        dataKey: 'servicesCount',   sub: null },
-  { id: 'empleados',      label: 'Empleados activos',     icon: '👤', color: '#f59e0b',          dataKey: 'employeesCount',  sub: null },
-  { id: 'proveedores',    label: 'Proveedores',           icon: '🏢', color: '#8b5cf6',          dataKey: 'suppliersCount',  sub: null },
-  { id: 'ingresos_mes',   label: 'Ingresos del mes',      icon: '💰', color: '#10b981',          dataKey: 'ingresosDelMes',  money: true, sub: null },
-  { id: 'gastos_mes',     label: 'Gastos del mes',        icon: '📋', color: '#ef4444',          dataKey: 'gastosDelMes',    money: true, sub: null },
-  { id: 'pendientes',     label: 'Cobros pendientes',     icon: '⏳', color: '#f59e0b',          dataKey: 'pending',         isBucket: true },
-  { id: 'vencidos',       label: 'Cobros vencidos',       icon: '🔴', color: '#ef4444',          dataKey: 'overdue',         isBucket: true },
-];
-
-const DEFAULT_WIDGETS = ['clientes', 'ingresos_mes', 'pendientes', 'vencidos'];
-
-function loadWidgetPrefs() {
-  try {
-    const v = localStorage.getItem('dashboard_widgets');
-    if (v) return JSON.parse(v);
-  } catch {}
-  return DEFAULT_WIDGETS;
-}
-function saveWidgetPrefs(ids) {
-  localStorage.setItem('dashboard_widgets', JSON.stringify(ids));
-}
-
-// ─── Bar chart ───────────────────────────────────────────────────────────────
-function BarChart({ months }) {
-  if (!months || months.length === 0) return <p style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Sin datos</p>;
-  const maxVal = Math.max(...months.map((m) => Math.max(m.income || 0, m.expenses || 0)), 1);
+// ── Inline Sparkline ──────────────────────────────────────────────────────────
+function Sparkline({ data, field, color }) {
+  if (!data || data.length < 2) return null;
+  const vals = data.map(d => d[field] || 0);
+  const max = Math.max(...vals, 1);
+  const W = 80, H = 32;
+  const pts = vals.map((v, i) => `${(i / (vals.length-1)) * W},${H - (v/max)*H}`).join(' ');
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 130, paddingBottom: 24, position: 'relative' }}>
-      {months.map((m, i) => {
-        const incH = Math.round(((m.income || 0) / maxVal) * 100);
-        const expH = Math.round(((m.expenses || 0) / maxVal) * 100);
-        return (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, height: '100%', justifyContent: 'flex-end' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, width: '100%', justifyContent: 'center', flex: 1 }}>
-              <div title={`Ingresos: ${formatMoney(m.income)}`} style={{ width: '40%', height: `${incH}%`, minHeight: incH > 0 ? 3 : 0, background: '#10b981', borderRadius: '3px 3px 0 0', transition: 'height .3s' }} />
-              <div title={`Gastos: ${formatMoney(m.expenses)}`} style={{ width: '40%', height: `${expH}%`, minHeight: expH > 0 ? 3 : 0, background: '#ef4444', borderRadius: '3px 3px 0 0', transition: 'height .3s' }} />
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--ink-soft)', marginTop: 4 }}>{shortMonth(m.month)}</div>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width:W, height:H }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ── Big KPI Card ──────────────────────────────────────────────────────────────
+function BigKPI({ label, value, color, sparkData, sparkField, change, hint, icon }) {
+  return (
+    <div className="card" style={{ padding:'20px 24px', position:'relative', overflow:'hidden' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+        <div style={{ flex:1 }}>
+          <p style={{ margin:0, fontSize:12, color:'var(--ink-soft)', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:500 }}>{label}</p>
+          <p style={{ margin:0, fontSize:28, fontWeight:800, color, lineHeight:1 }}>{value}</p>
+          {hint && <p style={{ margin:'6px 0 0', fontSize:12, color:'var(--ink-soft)' }}>{hint}</p>}
+          {change && (
+            <p style={{ margin:'8px 0 0', fontSize:12, color: change.up ? '#10b981' : '#ef4444', fontWeight:600 }}>
+              {change.up ? '↑' : '↓'} {change.value}% vs mes anterior
+            </p>
+          )}
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+          {icon && <span style={{ fontSize:24 }}>{icon}</span>}
+          {sparkData && <Sparkline data={sparkData} field={sparkField} color={color} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Donut ─────────────────────────────────────────────────────────────────────
+function Donut({ paid, pending, overdue }) {
+  const total = paid + pending + overdue;
+  if (total === 0) return <p style={{ color:'var(--ink-soft)', textAlign:'center' }}>Sin inscripciones activas</p>;
+  const COLORS = { paid:'#10b981', pending:'#f59e0b', overdue:'#ef4444' };
+  const labels = { paid:'Al día', pending:'Pendientes', overdue:'Vencidas' };
+  const cx=90, cy=90, r=70, innerR=44;
+  let angle = -Math.PI/2;
+  const slices = [
+    { key:'paid', val:paid },
+    { key:'pending', val:pending },
+    { key:'overdue', val:overdue },
+  ].filter(s=>s.val>0).map(s => {
+    const sweep = (s.val/total)*2*Math.PI;
+    const x1=cx+r*Math.cos(angle), y1=cy+r*Math.sin(angle);
+    angle+=sweep;
+    const x2=cx+r*Math.cos(angle), y2=cy+r*Math.sin(angle);
+    const ix1=cx+innerR*Math.cos(angle-sweep), iy1=cy+innerR*Math.sin(angle-sweep);
+    const ix2=cx+innerR*Math.cos(angle), iy2=cy+innerR*Math.sin(angle);
+    const large=sweep>Math.PI?1:0;
+    return { ...s, path:`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${large} 0 ${ix1} ${iy1} Z` };
+  });
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+      <svg viewBox="0 0 180 180" style={{ width:140, flexShrink:0 }}>
+        {slices.map(s => <path key={s.key} d={s.path} fill={COLORS[s.key]} />)}
+        <text x={cx} y={cy-8} textAnchor="middle" fontSize="13" fill="#374151" fontWeight="700">{total}</text>
+        <text x={cx} y={cx+8} textAnchor="middle" fontSize="11" fill="#6b7280">inscriptos</text>
+      </svg>
+      <div style={{ flex:1, minWidth:100 }}>
+        {[['paid',paid],['pending',pending],['overdue',overdue]].map(([k,v]) => (
+          <div key={k} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+            <div style={{ width:10, height:10, borderRadius:2, background:COLORS[k], flexShrink:0 }} />
+            <span style={{ fontSize:13, flex:1 }}>{labels[k]}</span>
+            <span style={{ fontSize:14, fontWeight:700, color:COLORS[k] }}>{v}</span>
+            <span style={{ fontSize:11, color:'var(--ink-soft)' }}>{Math.round((v/total)*100)}%</span>
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Mini bar chart ────────────────────────────────────────────────────────────
+function MiniBarChart({ data }) {
+  if (!data || data.length === 0) return null;
+  const maxInc = Math.max(...data.map(d=>d.income||0), 1);
+  const maxExp = Math.max(...data.map(d=>d.expenses||0), 1);
+  const maxV = Math.max(maxInc, maxExp);
+  const W=320, H=120, PAD=6, barW=12, gap=4;
+  const groupW = barW*2+gap;
+  const chartW = data.length*(groupW+16)+PAD*2;
+  const scaleY = v => PAD+(H-PAD*2)*(1-v/maxV);
+  return (
+    <svg viewBox={`0 0 ${Math.max(W,chartW)} ${H+28}`} style={{ width:'100%', maxHeight:160 }}>
+      {data.map((d, i) => {
+        const x = PAD + i*(groupW+16)+8;
+        const [yr, mo] = d.month.split('-');
+        const label = MONTH_NAMES[parseInt(mo)-1];
+        return (
+          <g key={d.month}>
+            <rect x={x} y={scaleY(d.income||0)} width={barW} height={(H-PAD)-scaleY(d.income||0)} fill="#10b981" rx="2" opacity="0.9" />
+            <rect x={x+barW+gap} y={scaleY(d.expenses||0)} width={barW} height={(H-PAD)-scaleY(d.expenses||0)} fill="#ef4444" rx="2" opacity="0.9" />
+            <text x={x+barW+gap/2} y={H+14} textAnchor="middle" fontSize="9" fill="#9ca3af">{label}</text>
+          </g>
         );
       })}
-    </div>
+      <rect x={PAD} y={H+18} width={8} height={8} fill="#10b981" rx="1" />
+      <text x={PAD+11} y={H+26} fontSize="9" fill="#6b7280">Ing.</text>
+      <rect x={PAD+36} y={H+18} width={8} height={8} fill="#ef4444" rx="1" />
+      <text x={PAD+47} y={H+26} fontSize="9" fill="#6b7280">Gas.</text>
+    </svg>
   );
 }
 
-// ─── Stat card ───────────────────────────────────────────────────────────────
-function StatCard({ widget, data }) {
-  const raw = data[widget.dataKey];
-  let value, sub;
-  if (widget.isBucket) {
-    value = raw?.count ?? 0;
-    sub = formatMoney(raw?.total);
-  } else if (widget.money) {
-    value = formatMoney(raw);
-    sub = null;
-  } else {
-    value = raw ?? 0;
-    sub = null;
-  }
+// ── Horizontal bar ────────────────────────────────────────────────────────────
+function HBar({ label, value, max, color }) {
+  const pct = max > 0 ? Math.min((value/max)*100, 100) : 0;
   return (
-    <div className="stat-card" style={{ borderTop: `3px solid ${widget.color}` }}>
-      <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span>{widget.icon}</span> {widget.label}
+    <div style={{ marginBottom:10 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+        <span style={{ fontSize:13 }}>{label}</span>
+        <span style={{ fontSize:13, fontWeight:600 }}>{fmt(value)}</span>
       </div>
-      <div className="stat-value" style={{ color: widget.color, fontSize: widget.money ? 24 : 32 }}>
-        {value}
-      </div>
-      {sub && <div className="page-subtitle" style={{ fontSize: 13 }}>{sub}</div>}
-    </div>
-  );
-}
-
-// ─── Customize panel ─────────────────────────────────────────────────────────
-function CustomizePanel({ selected, onChange, onClose }) {
-  const [local, setLocal] = useState(selected);
-
-  function toggle(id) {
-    setLocal(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  }
-
-  function save() {
-    onChange(local);
-    onClose();
-  }
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
-        <h2>Personalizar inicio</h2>
-        <p style={{ color: 'var(--ink-soft)', fontSize: 14, marginBottom: 20, marginTop: -8 }}>
-          Elegí las tarjetas que querés ver en tu dashboard. Podés seleccionar las que mejor se adapten a tu negocio.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 10 }}>
-          {WIDGET_CATALOG.map(w => {
-            const on = local.includes(w.id);
-            return (
-              <button
-                key={w.id}
-                onClick={() => toggle(w.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
-                  background: on ? w.color + '18' : 'var(--bg)',
-                  border: `2px solid ${on ? w.color : 'var(--border)'}`,
-                  color: 'var(--ink)', textAlign: 'left', transition: 'all .15s',
-                }}
-              >
-                <span style={{ fontSize: 20 }}>{w.icon}</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{w.label}</div>
-                </div>
-                {on && <span style={{ marginLeft: 'auto', color: w.color, fontSize: 16 }}>✓</span>}
-              </button>
-            );
-          })}
-        </div>
-        <div className="modal-actions" style={{ marginTop: 20 }}>
-          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={save}>Guardar</button>
-        </div>
+      <div style={{ height:8, borderRadius:4, background:'var(--bg)', overflow:'hidden' }}>
+        <div style={{ width:`${pct}%`, height:'100%', borderRadius:4, background:color, transition:'width 0.4s ease' }} />
       </div>
     </div>
   );
 }
 
-// ─── Main Dashboard ──────────────────────────────────────────────────────────
+// ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [data, setData]       = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState('');
-  const [summary, setSummary] = useState(null);
-  const [notes, setNotes]     = useState([]);
-  const [apptTasks, setApptTasks] = useState([]);
-  const [cashData, setCashData] = useState(null);
-  const [showCustomize, setShowCustomize] = useState(false);
-  const [activeWidgets, setActiveWidgets] = useState(loadWidgetPrefs);
+  const [error, setError] = useState('');
+  const [widgets, setWidgets] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('dash_widgets') || 'null') || defaultWidgets(); }
+    catch { return defaultWidgets(); }
+  });
 
-  useEffect(() => {
+  function defaultWidgets() {
+    return { kpis:true, flujo:true, inscripciones:true, cobros:true, morosos:true, turnos:true };
+  }
+
+  function load() {
+    setLoading(true);
+    setError('');
     api.get('/dashboard')
       .then(r => setData(r.data))
-      .catch(() => setError('No se pudo cargar el resumen del negocio.'))
+      .catch(() => setError('Error al cargar el dashboard'))
       .finally(() => setLoading(false));
-    api.get('/daily-cash/today').then(r => setCashData(r.data)).catch(() => {});
-    api.get('/notes').then(r => setNotes(r.data.filter(n => !n.completed))).catch(() => {});
-    // Fetch turnos de hoy + próximos 7 días no completados
-    const today = new Date();
-    const in7 = new Date(); in7.setDate(today.getDate() + 7);
-    const fmt = d => d.toISOString().slice(0,10);
-    api.get(`/appointments?from=${fmt(today)}&to=${fmt(in7)}&status=scheduled`).then(r => {
-      const appts = (r.data || []).filter(a => a.status !== 'completed');
-      setApptTasks(appts);
-    }).catch(() => {});
-    api.get('/reports/summary?months=6').then(r => setSummary(r.data)).catch(() => {});
-  }, []);
-
-  function handleWidgetChange(ids) {
-    saveWidgetPrefs(ids);
-    setActiveWidgets(ids);
   }
 
-  if (loading) return <p>Cargando...</p>;
-  if (error)   return <div className="error-banner">{error}</div>;
-  if (!data)   return <p>No se pudo cargar el resumen.</p>;
+  useEffect(() => { load(); }, []);
 
-  const visibleWidgets = WIDGET_CATALOG.filter(w => activeWidgets.includes(w.id));
+  if (loading) return (
+    <div style={{ padding:40, textAlign:'center' }}>
+      <div style={{ fontSize:32, marginBottom:12 }}>📊</div>
+      <p style={{ color:'var(--ink-soft)' }}>Calculando métricas...</p>
+    </div>
+  );
+  if (error) return <div className="error-banner" style={{ margin:24 }}>{error}</div>;
+  if (!data) return null;
 
-  const proximas7 = (data.upcomingDueDates || []).filter(e => {
-    if (!e.dueDate || e.paymentStatus === 'paid') return false;
-    const due   = new Date(e.dueDate);
-    const limit = new Date(); limit.setDate(limit.getDate() + 7);
-    return due >= new Date() && due <= limit;
-  });
+  const ingresosChange = fmtChange(data.currMonth?.income, data.prevMonth?.income);
+  const gastosChange   = fmtChange(data.currMonth?.expenses, data.prevMonth?.expenses);
+  const balance = data.ingresosDelMes - data.gastosDelMes;
+
+  const maxOverdueAmt = Math.max(...(data.upcomingDueDates?.filter(d=>d.paymentStatus==='overdue').map(d=>d.amountDue)||[]),1);
+  const overdueList = data.upcomingDueDates?.filter(d=>d.paymentStatus==='overdue').slice(0,5) || [];
+  const pendingList = data.upcomingDueDates?.filter(d=>d.paymentStatus==='pending').slice(0,5) || [];
 
   return (
     <div>
-      {/* Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ marginBottom:24 }}>
         <div>
-          <h1>Inicio</h1>
-          <p className="page-subtitle">Resumen general de tu negocio</p>
+          <h1>Dashboard</h1>
+          <p className="page-subtitle">Vista general del negocio · {new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'})}</p>
         </div>
-        <button
-          className="btn btn-secondary"
-          onClick={() => setShowCustomize(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          ⚙️ Personalizar
-        </button>
+        <button className="btn btn-secondary" onClick={load} style={{ fontSize:13 }}>↻ Actualizar</button>
       </div>
 
-      {/* Alerts */}
-      {data.overdue?.count > 0 && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 18px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-          <span style={{ color: '#991b1b', fontSize: 14 }}>
-            🔴 <strong>{data.overdue.count}</strong> {data.overdue.count === 1 ? 'cobro vencido' : 'cobros vencidos'} — {formatMoney(data.overdue.total)} sin cobrar
-          </span>
-          <Link to="/cobranza" className="btn btn-secondary btn-sm">Ver cobranza</Link>
-        </div>
-      )}
-      {proximas7.length > 0 && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 18px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-          <span style={{ color: '#92400e', fontSize: 14 }}>
-            ⏰ <strong>{proximas7.length}</strong> {proximas7.length === 1 ? 'vencimiento' : 'vencimientos'} en los próximos 7 días
-          </span>
-          <Link to="/cobranza" className="btn btn-secondary btn-sm">Ver próximas</Link>
-        </div>
-      )}
-      {data.pendingAppts?.count > 0 && (
-        <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-          <span style={{ color: '#9a3412', fontSize: 14 }}>
-            🔧 <strong>{data.pendingAppts.count}</strong> {data.pendingAppts.count === 1 ? 'trabajo/turno sin cobrar' : 'trabajos/turnos sin cobrar'} — {formatMoney(data.pendingAppts.total)}
-          </span>
-          <Link to="/cobranza" className="btn btn-secondary btn-sm">Ir a Cobranza</Link>
-        </div>
-      )}
-
-      {/* Stat cards — selected widgets */}
-      {visibleWidgets.length > 0 ? (
-        <div className="stat-grid">
-          {visibleWidgets.map(w => <StatCard key={w.id} widget={w} data={data} />)}
-        </div>
-      ) : (
-        <div className="card" style={{ marginBottom: 20, padding: 24, textAlign: 'center', color: 'var(--ink-soft)' }}>
-          <p>No hay tarjetas seleccionadas. <button style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setShowCustomize(true)}>Personalizar →</button></p>
-        </div>
-      )}
-
-      {/* Charts */}
-      <div className="chart-grid" style={{ marginBottom: 20 }}>
-        <div className="card" style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ fontSize: 15, margin: 0 }}>Ingresos vs Gastos (6 meses)</h2>
-            <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
-              <span style={{ color: '#10b981', fontWeight: 600 }}>● Ingresos</span>
-              <span style={{ color: '#ef4444', fontWeight: 600 }}>● Gastos</span>
-            </div>
-          </div>
-          <BarChart months={summary?.monthlyData || []} />
-          {summary?.monthlyData?.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink-soft)', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-              <span>Total: <strong style={{ color: '#10b981' }}>{formatMoney(summary.monthlyData.reduce((a,m)=>a+(m.income||0),0))}</strong></span>
-              <span>Gastos: <strong style={{ color: '#ef4444' }}>{formatMoney(summary.monthlyData.reduce((a,m)=>a+(m.expenses||0),0))}</strong></span>
-            </div>
-          )}
-        </div>
-
-        {/* Caja hoy */}
-        {cashData && (cashData.totalIncome > 0 || cashData.totalExpenses > 0) && (
-          <div className="card donut-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16 }}>
-            <h2 style={{ fontSize: 15, margin: 0, textAlign: 'center' }}>Caja de hoy</h2>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>Cobrado</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#10b981' }}>{formatMoney(cashData.totalIncome)}</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>Gastado</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#ef4444' }}>{formatMoney(cashData.totalExpenses)}</div>
-            </div>
-            <div style={{ textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>Resultado</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: (cashData.totalIncome - cashData.totalExpenses) >= 0 ? '#10b981' : '#ef4444' }}>
-                {formatMoney(cashData.totalIncome - cashData.totalExpenses)}
-              </div>
-            </div>
-            <Link to="/caja" className="btn btn-secondary btn-sm" style={{ textAlign: 'center' }}>Ver caja</Link>
-          </div>
-        )}
+      {/* ── Row 1: Big KPIs ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:16, marginBottom:24 }}>
+        <BigKPI
+          label="Ingresos este mes"
+          value={fmt(data.ingresosDelMes)}
+          color="#10b981"
+          sparkData={data.monthlyTrend}
+          sparkField="income"
+          change={ingresosChange}
+          icon="💰"
+        />
+        <BigKPI
+          label="Gastos este mes"
+          value={fmt(data.gastosDelMes)}
+          color="#ef4444"
+          sparkData={data.monthlyTrend}
+          sparkField="expenses"
+          change={gastosChange ? { ...gastosChange, up: !gastosChange.up } : null}
+          icon="📤"
+        />
+        <BigKPI
+          label="Resultado del mes"
+          value={fmt(balance)}
+          color={balance>=0?'#10b981':'#ef4444'}
+          hint={balance>=0?'Positivo ✓':'Déficit — revisá gastos'}
+          icon={balance>=0?'✅':'⚠️'}
+        />
+        <BigKPI
+          label="Cuotas vencidas"
+          value={data.overdue.count}
+          color={data.overdue.count>0?'#f59e0b':'#10b981'}
+          hint={data.overdue.count>0 ? fmt(data.overdue.total)+' pendiente' : 'Todo al día ✓'}
+          icon={data.overdue.count>0?'⚠️':'✓'}
+        />
       </div>
 
-      {/* Accesos rápidos */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 20 }}>
+      {/* ── Row 2: Entity counts ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:12, marginBottom:24 }}>
         {[
-          { to: '/clientes',   label: '👥 Clientes',       color: 'var(--primary)' },
-          { to: '/cobranza',   label: '💰 Cobranza',        color: '#10b981' },
-          { to: '/caja',       label: '🏦 Caja del día',    color: '#0ea5e9' },
-          { to: '/reportes',   label: '📊 Reportes',        color: '#6366f1' },
-          { to: '/gastos',     label: '📋 Gastos',          color: '#ef4444' },
-          { to: '/agenda',     label: '📝 Agenda',          color: '#8b5cf6' },
-        ].map(link => (
-          <Link key={link.to} to={link.to} style={{
-            display: 'block', padding: '13px 14px', borderRadius: 10,
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            textDecoration: 'none', color: link.color, fontWeight: 600, fontSize: 14,
-          }}>
-            {link.label}
+          { label:'Clientes activos', value:data.clientsCount, color:'#6366f1', link:'/clientes' },
+          { label:'Actividades',      value:data.activitiesCount, color:'#3b82f6', link:'/actividades' },
+          { label:'Turnos del mes',   value:data.servicesCount, color:'#8b5cf6', link:'/agenda' },
+          { label:'Empleados',        value:data.employeesCount, color:'#0891b2', link:'/empleados' },
+          { label:'Proveedores',      value:data.suppliersCount, color:'#059669', link:'/proveedores' },
+        ].map(item => (
+          <Link key={item.label} to={item.link} style={{ textDecoration:'none' }}>
+            <div className="card" style={{ padding:'14px 16px', textAlign:'center', cursor:'pointer', transition:'transform 0.1s', ':hover':{ transform:'scale(1.02)' } }}>
+              <p style={{ margin:0, fontSize:28, fontWeight:800, color:item.color }}>{item.value}</p>
+              <p style={{ margin:'4px 0 0', fontSize:11, color:'var(--ink-soft)' }}>{item.label}</p>
+            </div>
           </Link>
         ))}
       </div>
 
-      {/* Tareas pendientes + Turnos */}
-      {(notes.length > 0 || apptTasks.length > 0) && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h2 style={{ fontSize: 16, margin: 0 }}>📝 Pendientes ({notes.length + apptTasks.length})</h2>
-            <Link to="/agenda" className="btn btn-secondary btn-sm">Ver agenda</Link>
-          </div>
-          {notes.slice(0, 5).map(n => {
-            const isOverdue = n.dueDate && new Date(n.dueDate) < new Date();
-            return (
-              <div key={`note-${n.id}`} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: n.priority === 'high' ? '#f59e0b' : isOverdue ? '#ef4444' : 'var(--ink-soft)' }}>●</span>
-                <span style={{ flex: 1 }}>{n.title}</span>
-                {isOverdue && <span style={{ fontSize: 11, color: '#ef4444', background: '#fee2e2', padding: '1px 6px', borderRadius: 8 }}>Vencida</span>}
-                {n.dueDate && !isOverdue && <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{formatDate(n.dueDate)}</span>}
-              </div>
-            );
-          })}
-          {apptTasks.slice(0, 5).map(a => {
-            const isToday = a.date === new Date().toISOString().slice(0,10);
-            return (
-              <div key={`appt-${a.id}`} style={{ padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: '#6366f1' }}>●</span>
-                <span style={{ flex: 1 }}>
-                  🗓 {a.service?.name || a.description || 'Turno'}
-                  {a.client?.name ? ` — ${a.client.name}` : ''}
-                </span>
-                {isToday
-                  ? <span style={{ fontSize: 11, color: '#fff', background: '#6366f1', padding: '1px 6px', borderRadius: 8 }}>Hoy{a.startTime ? ' ' + a.startTime : ''}</span>
-                  : <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{a.date}{a.startTime ? ' ' + a.startTime : ''}</span>
-                }
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Próximos vencimientos */}
-      {data.upcomingDueDates?.length > 0 && (
+      {/* ── Row 3: Flujo de caja + Inscripciones ── */}
+      <div className="two-col-grid" style={{ gap:20, marginBottom:20 }}>
         <div className="card">
-          <h2 style={{ fontSize: 18, marginBottom: 16 }}>Próximos vencimientos</h2>
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr><th>Cliente</th><th>Actividad</th><th>Vence</th><th>Monto</th><th>Estado</th></tr>
-              </thead>
-              <tbody>
-                {data.upcomingDueDates.map(e => (
-                  <tr key={e.id}>
-                    <td><Link to={`/clientes/${e.clientId}`}>{e.client.name}</Link></td>
-                    <td>{e.activity?.name || '-'}</td>
-                    <td>{formatDate(e.dueDate)}</td>
-                    <td>{formatMoney(e.amountDue)}</td>
-                    <td><span className={`pill pill-${e.paymentStatus}`}>{{ paid:'Pagado', pending:'Pendiente', overdue:'Vencido' }[e.paymentStatus]}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <h3 style={{ margin:0 }}>Flujo financiero — 6 meses</h3>
+            <Link to="/reportes" style={{ fontSize:12, color:'var(--primary)', textDecoration:'none' }}>Ver reportes →</Link>
+          </div>
+          <MiniBarChart data={data.monthlyTrend} />
+        </div>
+
+        <div className="card">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <h3 style={{ margin:0 }}>Estado de inscripciones</h3>
+            <Link to="/cobranza" style={{ fontSize:12, color:'var(--primary)', textDecoration:'none' }}>Ver cobranza →</Link>
+          </div>
+          <Donut
+            paid={data.enrollmentStatus.paid}
+            pending={data.enrollmentStatus.pending}
+            overdue={data.enrollmentStatus.overdue}
+          />
+        </div>
+      </div>
+
+      {/* ── Row 4: Morosos + Pendientes ── */}
+      <div className="two-col-grid" style={{ gap:20, marginBottom:20 }}>
+        {/* Morosos */}
+        <div className="card">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <h3 style={{ margin:0 }}>
+              Cuotas vencidas
+              {data.overdue.count > 0 && (
+                <span style={{ marginLeft:8, background:'#fee2e2', color:'#dc2626', fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:12 }}>
+                  {data.overdue.count}
+                </span>
+              )}
+            </h3>
+            <Link to="/reportes" style={{ fontSize:12, color:'var(--primary)', textDecoration:'none' }}>Detalle →</Link>
+          </div>
+          {overdueList.length === 0 ? (
+            <p style={{ color:'var(--ink-soft)', fontSize:13 }}>🎉 Sin cuotas vencidas</p>
+          ) : (
+            <>
+              {overdueList.map((c) => (
+                <HBar key={c.id}
+                  label={`${c.client.name} · ${c.activity.name}`}
+                  value={c.amountDue}
+                  max={maxOverdueAmt}
+                  color="#ef4444"
+                />
+              ))}
+              {data.overdue.count > 5 && (
+                <p style={{ fontSize:12, color:'var(--ink-soft)', marginTop:8 }}>+ {data.overdue.count-5} más</p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Próximos cobros */}
+        <div className="card">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <h3 style={{ margin:0 }}>Próximos cobros</h3>
+            <Link to="/cobranza" style={{ fontSize:12, color:'var(--primary)', textDecoration:'none' }}>Ir a cobranza →</Link>
+          </div>
+          {pendingList.length === 0 ? (
+            <p style={{ color:'var(--ink-soft)', fontSize:13 }}>Sin cobros pendientes inmediatos</p>
+          ) : (
+            pendingList.map((c) => {
+              const due = new Date(c.dueDate);
+              const today = new Date();
+              const days = Math.floor((due-today)/86400000);
+              return (
+                <div key={c.id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+                  <div style={{ width:36, height:36, borderRadius:8, background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:days<=3?'#f59e0b':'var(--ink-soft)' }}>{days}d</span>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ margin:0, fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.client.name}</p>
+                    <p style={{ margin:0, fontSize:11, color:'var(--ink-soft)' }}>{c.activity.name}</p>
+                  </div>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#6366f1', flexShrink:0 }}>{fmt(c.amountDue)}</span>
+                </div>
+              );
+            })
+          )}
+          {data.pending.count > 0 && (
+            <div style={{ marginTop:12, padding:'10px 14px', background:'var(--bg)', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span style={{ fontSize:13, color:'var(--ink-soft)' }}>Total pendiente</span>
+              <span style={{ fontSize:15, fontWeight:700, color:'#6366f1' }}>{fmt(data.pending.total)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Row 5: Turnos sin cobrar ── */}
+      {data.pendingAppts.count > 0 && (
+        <div className="card" style={{ marginBottom:20 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <h3 style={{ margin:0 }}>⏳ Turnos completados sin cobrar</h3>
+              <p style={{ margin:'4px 0 0', fontSize:13, color:'var(--ink-soft)' }}>
+                {data.pendingAppts.count} turno{data.pendingAppts.count!==1?'s':''} sin pago confirmado — {fmt(data.pendingAppts.total)} a recuperar
+              </p>
+            </div>
+            <Link to="/agenda" className="btn btn-primary" style={{ textDecoration:'none', fontSize:13 }}>Ver agenda →</Link>
           </div>
         </div>
-      )}
-
-      {/* Customize modal */}
-      {showCustomize && (
-        <CustomizePanel
-          selected={activeWidgets}
-          onChange={handleWidgetChange}
-          onClose={() => setShowCustomize(false)}
-        />
       )}
     </div>
   );

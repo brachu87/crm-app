@@ -129,6 +129,57 @@ router.get('/', async (req, res) => {
       paymentStatus: c.paymentStatus,
     }));
 
+    // Monthly trend for last 6 months (for sparkline / mini chart)
+    const trendMonths = 6;
+    const trendSince = new Date(now.getFullYear(), now.getMonth() - (trendMonths - 1), 1);
+    const [trendPayments, trendAppts, trendManuals, trendExpenses] = await Promise.all([
+      prisma.payment.findMany({
+        where: { date: { gte: trendSince }, cuota: { enrollment: { activity: { businessId } } } },
+        select: { amount: true, date: true },
+      }),
+      prisma.appointment.findMany({
+        where: { businessId, paymentStatus: 'paid', paidAt: { gte: trendSince } },
+        select: { price: true, paidAt: true },
+      }),
+      prisma.manualIncome.findMany({
+        where: { businessId, date: { gte: trendSince.toISOString().slice(0,10) } },
+        select: { amount: true, date: true },
+      }),
+      prisma.expense.findMany({
+        where: { businessId, date: { gte: trendSince } },
+        select: { amount: true, date: true },
+      }),
+    ]);
+    const trendMap = {};
+    for (let i = trendMonths - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      trendMap[key] = { month: key, income: 0, expenses: 0 };
+    }
+    for (const p of trendPayments) {
+      const key = new Date(p.date).toISOString().slice(0,7);
+      if (trendMap[key]) trendMap[key].income += p.amount;
+    }
+    for (const a of trendAppts) {
+      const key = new Date(a.paidAt).toISOString().slice(0,7);
+      if (trendMap[key]) trendMap[key].income += a.price || 0;
+    }
+    for (const m of trendManuals) {
+      const key = m.date.slice(0,7);
+      if (trendMap[key]) trendMap[key].income += m.amount;
+    }
+    for (const e of trendExpenses) {
+      const key = new Date(e.date).toISOString().slice(0,7);
+      if (trendMap[key]) trendMap[key].expenses += e.amount;
+    }
+
+    // Last month comparison
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth()+1).padStart(2,'0')}`;
+    const prevData = trendMap[prevKey] || { income: 0, expenses: 0 };
+    const currKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const currData = trendMap[currKey] || { income: 0, expenses: 0 };
+
     res.json({
       clientsCount,
       activitiesCount,
@@ -142,6 +193,9 @@ router.get('/', async (req, res) => {
       enrollmentStatus,
       upcomingDueDates,
       pendingAppts: { count: apptPendingCount, total: apptPendingTotal },
+      monthlyTrend: Object.values(trendMap),
+      prevMonth: prevData,
+      currMonth: currData,
     });
   } catch (err) {
     console.error(err);
