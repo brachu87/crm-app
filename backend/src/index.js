@@ -83,36 +83,62 @@ const authLimiter = rateLimit({
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
+// Global auth: runs for all /api/ routes except public ones.
+// Routes that have their own router.use(authMiddleware) are harmlessly double-verified.
+const PUBLIC_API_PATHS = [
+  '/api/auth/',
+  '/api/admin/',
+  '/api/billing/webhook',
+];
+app.use('/api/', (req, res, next) => {
+  const fullPath = '/api' + req.path;
+  if (PUBLIC_API_PATHS.some(p => fullPath.startsWith(p))) return next();
+  return authMiddleware(req, res, next);
+});
+
+// Global subscription check: runs after authMiddleware sets req.user.
+// Blocks expired accounts from accessing data routes.
+const SUBSCRIPTION_EXEMPT = [
+  '/api/auth/',
+  '/api/admin/',
+  '/api/billing/',
+];
+app.use('/api/', (req, res, next) => {
+  const fullPath = '/api' + req.path;
+  if (SUBSCRIPTION_EXEMPT.some(p => fullPath.startsWith(p))) return next();
+  return subscriptionCheck(req, res, next);
+});
+
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/manual-income', subscriptionCheck, manualIncomeRoutes);
+app.use('/api/manual-income', manualIncomeRoutes);
 
 // Panel de administración — solo accesible en /admin
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin-panel.html'));
 });
-app.use('/api/clients', subscriptionCheck, clientsRoutes);
-app.use('/api/activities', subscriptionCheck, activitiesRoutes);
-app.use('/api/enrollments', subscriptionCheck, enrollmentsRoutes);
-app.use('/api/dashboard', subscriptionCheck, dashboardRoutes);
-app.use('/api/employees', subscriptionCheck, employeesRoutes);
-app.use('/api/attendance', subscriptionCheck, attendanceRoutes);
-app.use('/api/payroll', subscriptionCheck, payrollRoutes);
-app.use('/api/expenses', subscriptionCheck, expensesRoutes);
-app.use('/api/suppliers', subscriptionCheck, suppliersRoutes);
-app.use('/api/notes', subscriptionCheck, notesRoutes);
-app.use('/api/daily-cash', subscriptionCheck, dailyCashRoutes);
-app.use('/api/reports', subscriptionCheck, reportsRoutes);
-app.use('/api/users', subscriptionCheck, usersRoutes);
-app.use('/api/search', subscriptionCheck, searchRoutes);
-app.use('/api/clients', subscriptionCheck, photosRoutes);
-app.use('/api/business', subscriptionCheck, businessRoutes);
-app.use('/api/branches', subscriptionCheck, branchesRoutes);
-app.use('/api/schedules', subscriptionCheck, schedulesRoutes);
-app.use('/api/services', subscriptionCheck, servicesRoutes);
-app.use('/api/appointments', subscriptionCheck, appointmentsRoutes);
+app.use('/api/clients', clientsRoutes);
+app.use('/api/activities', activitiesRoutes);
+app.use('/api/enrollments', enrollmentsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/employees', employeesRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/payroll', payrollRoutes);
+app.use('/api/expenses', expensesRoutes);
+app.use('/api/suppliers', suppliersRoutes);
+app.use('/api/notes', notesRoutes);
+app.use('/api/daily-cash', dailyCashRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/clients', photosRoutes);
+app.use('/api/business', businessRoutes);
+app.use('/api/branches', branchesRoutes);
+app.use('/api/schedules', schedulesRoutes);
+app.use('/api/services', servicesRoutes);
+app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/billing', billingRoutes);
-app.use('/api/clients/:id/account', subscriptionCheck, accountMovementsRoutes);
+app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
