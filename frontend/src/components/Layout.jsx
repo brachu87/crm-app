@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import OnboardingWizard from './OnboardingWizard';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState, useCallback, useRef } from 'react';
 
@@ -54,6 +55,10 @@ function activeGroup(pathname) {
 export default function Layout() {
   const { business, logout, user } = useAuth();
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (!business?.id) return false;
+    return !localStorage.getItem(`zentric_onboarding_done_${business.id}`);
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoTs] = useState(Date.now());
   const [logoOk, setLogoOk] = useState(true);
@@ -320,7 +325,13 @@ export default function Layout() {
       </aside>
 
       <main className="main">
-        <Outlet />
+        {showOnboarding && (
+        <OnboardingWizard onComplete={() => {
+          localStorage.setItem(`zentric_onboarding_done_${business?.id}`, '1');
+          setShowOnboarding(false);
+        }} />
+      )}
+      <Outlet />
       </main>
     </div>
   );
