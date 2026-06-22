@@ -6,11 +6,22 @@ const { markOverdueCuotas } = require('../lib/overdue');
 const router = express.Router();
 router.use(authMiddleware);
 
-// GET /api/reports/summary?months=6
+// GET /api/reports/summary?months=6 OR ?from=YYYY-MM-DD&to=YYYY-MM-DD
 router.get('/summary', async (req, res) => {
   try {
     const bId = req.user.businessId;
     const months = parseInt(req.query.months) || 6;
+
+    // Support explicit date range OR months-based range
+    let since, until;
+    if (req.query.from && req.query.to) {
+      since = new Date(req.query.from + 'T00:00:00');
+      until = new Date(req.query.to + 'T23:59:59');
+    } else {
+      const now = new Date();
+      since = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+      until = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
 
     // All payments in range (cuotas + turnos + manuales)
     const [payments, apptPayments, manualIncomes] = await Promise.all([
@@ -56,18 +67,15 @@ router.get('/summary', async (req, res) => {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (monthlyMap[key]) monthlyMap[key].income += p.amount;
     }
-
     for (const a of apptPayments) {
       const d = new Date(a.paidAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (monthlyMap[key]) monthlyMap[key].income += a.price || 0;
     }
-
     for (const m of manualIncomes) {
-      const key = m.date.slice(0, 7); // "YYYY-MM"
+      const key = m.date.slice(0, 7);
       if (monthlyMap[key]) monthlyMap[key].income += m.amount;
     }
-
     for (const e of expenses) {
       const d = new Date(e.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -100,9 +108,7 @@ router.get('/summary', async (req, res) => {
     const totalSalaries = employees.reduce((s, e) => s + (e.salary || 0), 0);
 
     // Overdue enrollments
-    // Refresca las cuotas vencidas antes de contarlas
     await markOverdueCuotas({ businessId: bId });
-
     const overdueCount = await prisma.cuota.count({
       where: {
         enrollment: { activity: { businessId: bId }, active: true },
@@ -110,9 +116,12 @@ router.get('/summary', async (req, res) => {
       },
     });
 
-    // Top clients by payment amount
+    // Top clients by payment amount (use full range)
     const allPayments = await prisma.payment.findMany({
-      where: { cuota: { enrollment: { activity: { businessId: bId } } } },
+      where: {
+        date: { gte: since, lte: until },
+        cuota: { enrollment: { activity: { businessId: bId } } },
+      },
       include: { cuota: { include: { enrollment: { include: { client: { select: { id: true, name: true } } } } } } },
     });
     const clientMap = {};
@@ -131,7 +140,7 @@ router.get('/summary', async (req, res) => {
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
 
-    // Top suppliers by expense (only expenses with supplierId)
+    // Top suppliers by expense
     const supplierExpenses = await prisma.expense.findMany({
       where: { businessId: bId, supplierId: { not: null }, date: { gte: since, lte: until } },
       select: { amount: true, supplierId: true, supplier: { select: { id: true, name: true } } },
@@ -158,12 +167,11 @@ router.get('/summary', async (req, res) => {
       employees,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al generar reporte' });
+    console.error('[reports/summary]', err);
+    res.status(500).json({ error: 'Error al generar reporte', detail: err.message });
   }
 });
 
-module.exports = router;
 
 // ─── EXTRA REPORTS ────────────────────────────────────────────────────────────
 
@@ -223,14 +231,12 @@ router.get('/income-by-activity', async (req, res) => {
     const payments = await prisma.payment.findMany({
       where: { date: { gte: since, lte: until }, cuota: { enrollment: { activity: { businessId: bId } } } },
       include: { cuota: { include: { enrollment: { include: { activity: { select: { id: true, name: true } } } } } } },
-      select: { amount: true, cuota: true },
     });
 
     // Appointment payments grouped by service
     const appts = await prisma.appointment.findMany({
       where: { businessId: bId, paymentStatus: 'paid', paidAt: { gte: since, lte: until } },
       include: { service: { select: { id: true, name: true } } },
-      select: { price: true, service: true },
     });
 
     const actMap = {};
@@ -360,7 +366,7 @@ router.get('/monthly-comparison', async (req, res) => {
     const since = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
     const until = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    const [payments, appts, manuals, expenses, enrollmentsByMonth] = await Promise.all([
+    const [payments, appts, manuals, expenses] = await Promise.all([
       prisma.payment.findMany({
         where: { date: { gte: since, lte: until }, cuota: { enrollment: { activity: { businessId: bId } } } },
         select: { amount: true, date: true },
@@ -376,10 +382,6 @@ router.get('/monthly-comparison', async (req, res) => {
       prisma.expense.findMany({
         where: { businessId: bId, date: { gte: since, lte: until } },
         select: { amount: true, date: true },
-      }),
-      prisma.enrollment.groupBy({
-        by: [], // we'll do this manually
-        where: { activity: { businessId: bId } },
       }),
     ]);
 
