@@ -158,6 +158,22 @@ if (fs.existsSync(frontendDist)) {
 
 const prisma = require('./prisma');
 
+
+async function ensureBusinessExtraFields() {
+  const cols = [
+    ['cuit',      'TEXT'],
+    ['address',   'TEXT'],
+    ['email',     'TEXT'],
+    ['website',   'TEXT'],
+    ['instagram', 'TEXT'],
+  ];
+  for (const [col, type] of cols) {
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "${col}" ${type}`);
+    } catch (_) { /* column already exists */ }
+  }
+}
+
 async function ensureManualIncomeTable() {
   try {
     const tables = await prisma.$queryRawUnsafe(
@@ -276,6 +292,7 @@ async function runOverdueSweep() {
     if (count > 0) console.log(`[auto-expiry] Marcadas ${count} cuotas como vencidas`);
   } catch (err) { console.error('[auto-expiry] Error:', err.message); }
 }
+ensureBusinessExtraFields();
 ensureManualIncomeTable();
 ensurePermissionsColumn();
 ensureSubscriptionFields();

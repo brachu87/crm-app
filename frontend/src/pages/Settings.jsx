@@ -41,7 +41,17 @@ export default function Settings() {
   const [billingLoading, setBillingLoading] = useState(false);
 
   // Business info form
-  const [bizForm, setBizForm] = useState({ name: business?.name || '', category: business?.category || 'otro' });
+  const [bizForm, setBizForm] = useState({
+    name: business?.name || '',
+    category: business?.category || 'otro',
+    phone: '',
+    cuit: '',
+    address: '',
+    email: '',
+    website: '',
+    instagram: '',
+  });
+  const [bizLoaded, setBizLoaded] = useState(false);
   const [savingBiz, setSavingBiz] = useState(false);
   const CATEGORIES = [
     { value: 'gym', label: 'Gimnasio' },
@@ -95,6 +105,20 @@ export default function Settings() {
   useEffect(() => {
     if (isOwner) {
       api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});
+      api.get('/business/info').then(r => {
+        setBizForm(f => ({
+          ...f,
+          name: r.data.name || f.name,
+          category: r.data.category || f.category,
+          phone: r.data.phone || '',
+          cuit: r.data.cuit || '',
+          address: r.data.address || '',
+          email: r.data.email || '',
+          website: r.data.website || '',
+          instagram: r.data.instagram || '',
+        }));
+        setBizLoaded(true);
+      }).catch(() => setBizLoaded(true));
     }
   }, [isOwner]);
 
@@ -145,9 +169,11 @@ export default function Settings() {
       {isOwner && (
         <div className="card" style={{ marginBottom: 24 }}>
           <h2 style={{ fontSize: 16, marginBottom: 16 }}>Datos del negocio</h2>
-          <div className="two-col-grid" style={{ marginBottom: 16 }}>
+
+          {/* Fila 1: Nombre + Rubro */}
+          <div className="two-col-grid" style={{ marginBottom: 12 }}>
             <div className="field" style={{ margin: 0 }}>
-              <label>Nombre del negocio</label>
+              <label>Nombre del negocio *</label>
               <input
                 value={bizForm.name}
                 onChange={e => setBizForm(f => ({ ...f, name: e.target.value }))}
@@ -155,12 +181,80 @@ export default function Settings() {
               />
             </div>
             <div className="field" style={{ margin: 0 }}>
-              <label>Tipo de negocio</label>
+              <label>Tipo de negocio *</label>
               <select value={bizForm.category} onChange={e => setBizForm(f => ({ ...f, category: e.target.value }))}>
                 {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
           </div>
+
+          {/* Fila 2: Teléfono + CUIT */}
+          <div className="two-col-grid" style={{ marginBottom: 12 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Teléfono</label>
+              <input
+                type="tel"
+                value={bizForm.phone}
+                onChange={e => setBizForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="Ej: 1176353062"
+              />
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>CUIT / CUIL</label>
+              <input
+                value={bizForm.cuit}
+                onChange={e => setBizForm(f => ({ ...f, cuit: e.target.value }))}
+                placeholder="Ej: 20-12345678-9"
+              />
+            </div>
+          </div>
+
+          {/* Fila 3: Dirección */}
+          <div className="field" style={{ marginBottom: 12 }}>
+            <label>Dirección</label>
+            <input
+              value={bizForm.address}
+              onChange={e => setBizForm(f => ({ ...f, address: e.target.value }))}
+              placeholder="Ej: Av. Corrientes 1234, Buenos Aires"
+            />
+          </div>
+
+          {/* Fila 4: Email + Sitio web */}
+          <div className="two-col-grid" style={{ marginBottom: 12 }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Email de contacto</label>
+              <input
+                type="email"
+                value={bizForm.email}
+                onChange={e => setBizForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="Ej: info@tunegocio.com"
+              />
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Sitio web</label>
+              <input
+                type="url"
+                value={bizForm.website}
+                onChange={e => setBizForm(f => ({ ...f, website: e.target.value }))}
+                placeholder="Ej: www.tunegocio.com"
+              />
+            </div>
+          </div>
+
+          {/* Fila 5: Instagram */}
+          <div className="field" style={{ marginBottom: 16 }}>
+            <label>Instagram</label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-soft)', fontSize: 14 }}>@</span>
+              <input
+                value={bizForm.instagram}
+                onChange={e => setBizForm(f => ({ ...f, instagram: e.target.value.replace('@','') }))}
+                placeholder="tunegocio"
+                style={{ paddingLeft: 28 }}
+              />
+            </div>
+          </div>
+
           <button
             className="btn btn-primary"
             onClick={saveBizInfo}

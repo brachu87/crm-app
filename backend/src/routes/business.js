@@ -67,7 +67,17 @@ router.get('/info', async (req, res) => {
   try {
     const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
     if (!biz) return res.status(404).json({ error: 'Negocio no encontrado' });
-    res.json({ id: biz.id, name: biz.name, category: biz.category });
+    res.json({
+      id: biz.id,
+      name: biz.name,
+      category: biz.category,
+      phone: biz.phone || '',
+      cuit: biz.cuit || '',
+      address: biz.address || '',
+      email: biz.email || '',
+      website: biz.website || '',
+      instagram: biz.instagram || '',
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener negocio' });
@@ -83,7 +93,17 @@ router.put('/', async (req, res) => {
       where: { id: req.user.businessId },
       data: { name: name.trim(), ...(category ? { category } : {}) },
     });
-    res.json({ id: biz.id, name: biz.name, category: biz.category });
+    res.json({
+      id: biz.id,
+      name: biz.name,
+      category: biz.category,
+      phone: biz.phone || '',
+      cuit: biz.cuit || '',
+      address: biz.address || '',
+      email: biz.email || '',
+      website: biz.website || '',
+      instagram: biz.instagram || '',
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al actualizar negocio' });
