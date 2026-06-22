@@ -56,12 +56,13 @@ async function isBusinessApproved(businessId) {
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { businessName, category, name, email, password } = req.body;
+    const { businessName, category, name, email, password, businessPhone } = req.body;
     // Sanitize inputs
     const sBusinessName = sanitize(businessName, 100);
     const sName = sanitize(name, 100);
     const sEmail = sanitize(email, 200).toLowerCase();
     const sCategory = sanitize(category, 50);
+    const sPhone = sanitize(businessPhone || '', 30);
 
     if (!sBusinessName || !sName || !sEmail || !password) {
       return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -73,7 +74,7 @@ router.post('/register', async (req, res) => {
     if (existing) return res.status(409).json({ error: 'El email ya está registrado' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const business = await prisma.business.create({ data: { name: businessName, category: category || 'otro' } });
+    const business = await prisma.business.create({ data: { name: businessName, category: category || 'otro', phone: sPhone || null } });
 
     // Nueva cuenta empieza como pendiente de aprobación
     try { await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 0 WHERE id = ?`, business.id); } catch (_) {}
@@ -156,8 +157,9 @@ router.post('/google', async (req, res) => {
 // Verifica token de Google + recibe businessName + category y crea la cuenta.
 router.post('/google-register', async (req, res) => {
   try {
-    const { credential, businessName, category } = req.body;
+    const { credential, businessName, category, businessPhone } = req.body;
     if (!credential || !businessName) return res.status(400).json({ error: 'Faltan datos' });
+    const sPhone = sanitize(businessPhone || '', 30);
 
     const payload = await verifyGoogleToken(credential);
     const { email, name } = payload;
@@ -175,7 +177,7 @@ router.post('/google-register', async (req, res) => {
 
     // Crear business + user en una transacción para que sean atómicos
     const { business } = await prisma.$transaction(async (tx) => {
-      const business = await tx.business.create({ data: { name: businessName, category: category || 'otro' } });
+      const business = await tx.business.create({ data: { name: businessName, category: category || 'otro', phone: sPhone || null } });
       await tx.user.create({
         data: { email, password: '', name, role: 'owner', businessId: business.id },
       });

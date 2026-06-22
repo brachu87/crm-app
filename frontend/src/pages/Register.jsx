@@ -27,6 +27,7 @@ export default function Register() {
   const [form, setForm] = useState({
     businessName: '',
     category: '',
+    businessPhone: '',
     name: googleState.name || '',
     email: googleState.email || '',
     password: '',
@@ -49,7 +50,7 @@ export default function Register() {
     setLoading(true);
     try {
       if (isGoogleFlow) {
-        const result = await googleRegister({ credential: googleCred, businessName: form.businessName, category: form.category });
+        const result = await googleRegister({ credential: googleCred, businessName: form.businessName, category: form.category, businessPhone: form.businessPhone });
         if (result?.pending) { setPending(true); return; }
       } else {
         const result = await register(form);
@@ -138,6 +139,10 @@ export default function Register() {
           <div className="field">
             <label htmlFor="category">¿A qué se dedica tu negocio?</label>
             <input id="category" value={form.category} onChange={(e) => update('category', e.target.value)} placeholder="Ej: Peluquería, Plomero, Gimnasio, Veterinaria..." required />
+          </div>
+          <div className="field">
+            <label htmlFor="businessPhone">Teléfono del negocio</label>
+            <input id="businessPhone" type="tel" value={form.businessPhone} onChange={(e) => update('businessPhone', e.target.value)} placeholder="Ej: 1176353062" />
           </div>
 
           {!isGoogleFlow && (

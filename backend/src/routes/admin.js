@@ -30,7 +30,7 @@ router.get('/accounts', adminAuth, async (req, res) => {
   try {
     const businesses = await prisma.$queryRawUnsafe(`
       SELECT
-        b.id, b.name, b.category, b."createdAt", b.approved, b."approvedAt",
+        b.id, b.name, b.category, b.phone, b."createdAt", b.approved, b."approvedAt",
         b."subscriptionStatus", b."subscriptionExpires", b."bonificado",
         u.name as ownerName, u.email as ownerEmail, u."lastAccessAt" as ownerLastAccess,
         (SELECT COUNT(*) FROM "User" u2 WHERE u2."businessId" = b.id) as userCount
@@ -43,6 +43,7 @@ router.get('/accounts', adminAuth, async (req, res) => {
       id: b.id,
       name: b.name,
       category: b.category,
+      phone: b.phone || null,
       createdAt: b.createdAt,
       approved: b.approved === 1 || b.approved === true,
       approvedAt: b.approvedAt,

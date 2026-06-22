@@ -247,6 +247,7 @@ function renderTable(accounts) {
       <td>
         <div style="font-weight:600">${a.name}</div>
         <div style="font-size:11px;color:#94a3b8">${a.category || ''}</div>
+        ${a.phone ? `<div style="font-size:11px;color:#64748b;margin-top:2px">📞 ${a.phone}</div>` : ''}
       </td>
       <td>
         <div style="font-weight:500">${a.owner?.name || '—'}</div>
@@ -279,7 +280,8 @@ function filterTable(q) {
   renderTable(allAccounts.filter(a =>
     a.name?.toLowerCase().includes(lower) ||
     a.owner?.email?.toLowerCase().includes(lower) ||
-    a.owner?.name?.toLowerCase().includes(lower)
+    a.owner?.name?.toLowerCase().includes(lower) ||
+    a.phone?.toLowerCase().includes(lower)
   ));
 }
 

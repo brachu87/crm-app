@@ -53,8 +53,8 @@ export function AuthProvider({ children }) {
     return null;
   }
 
-  async function googleRegister({ credential, businessName, category }) {
-    const res = await api.post('/auth/google-register', { credential, businessName, category });
+  async function googleRegister({ credential, businessName, category, businessPhone }) {
+    const res = await api.post('/auth/google-register', { credential, businessName, category, businessPhone });
     if (res.data.pending) return { pending: true, message: res.data.message };
     saveSession(res.data);
   }
