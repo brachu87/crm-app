@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { DEFAULT_TEMPLATES, getTemplates } from './Collections';
 
 // Secciones disponibles (mismo orden que el sidebar)
