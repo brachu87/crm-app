@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import * as XLSX from 'xlsx';
 import api from '../api/client';
 
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -165,6 +166,76 @@ function KPICard({ label, value, color, hint, badge }) {
   );
 }
 
+
+// ── Export utilities ──────────────────────────────────────────────────────────
+function fmtRaw(n) { return Number(n || 0); }
+
+function exportXLSX(filename, sheets) {
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(({ name, headers, rows }) => {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    // Column widths
+    ws['!cols'] = headers.map(() => ({ wch: 18 }));
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+  });
+  XLSX.writeFile(wb, filename + '.xlsx');
+}
+
+function exportPDF(title, subtitle, sheets) {
+  const tableHTML = sheets.map(({ name, headers, rows }) => `
+    <h2 style="margin:24px 0 8px;font-size:14px;color:#3D5A4C;border-bottom:2px solid #3D5A4C;padding-bottom:4px">${name}</h2>
+    <table>
+      <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>`).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:24px;max-width:960px;margin:0 auto}
+      h1{font-size:20px;color:#3D5A4C;margin:0 0 4px}
+      .sub{font-size:12px;color:#6b7280;margin:0 0 20px}
+      table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px}
+      th{background:#3D5A4C;color:#fff;padding:6px 8px;text-align:left;font-weight:600}
+      td{padding:5px 8px;border-bottom:1px solid #e5e7eb}
+      tr:nth-child(even) td{background:#f9fafb}
+      .footer{margin-top:24px;font-size:10px;color:#9ca3af;text-align:right}
+      @media print{body{padding:0} .footer{position:fixed;bottom:8px;right:12px}}
+    </style></head>
+    <body>
+      <h1>${title}</h1>
+      <p class="sub">${subtitle} — Generado: ${new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})}</p>
+      ${tableHTML}
+      <div class="footer">Zentric CRM</div>
+    </body></html>`;
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) { alert('Habilitá las ventanas emergentes para exportar a PDF.'); return; }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 400);
+}
+
+// ── Export Bar ────────────────────────────────────────────────────────────────
+function ExportBar({ onExcel, onPDF, disabled }) {
+  return (
+    <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+      <button
+        onClick={onExcel} disabled={disabled}
+        style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8,
+          border:'1px solid #16a34a', background:'#f0fdf4', color:'#16a34a',
+          fontSize:13, cursor:disabled?'not-allowed':'pointer', opacity:disabled?0.5:1, fontWeight:500 }}>
+        📊 Excel
+      </button>
+      <button
+        onClick={onPDF} disabled={disabled}
+        style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8,
+          border:'1px solid #dc2626', background:'#fef2f2', color:'#dc2626',
+          fontSize:13, cursor:disabled?'not-allowed':'pointer', opacity:disabled?0.5:1, fontWeight:500 }}>
+        📄 PDF
+      </button>
+    </div>
+  );
+}
+
 const DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
@@ -230,6 +301,145 @@ export default function Reports() {
   const dateAffected = ['resumen','actividades','retencion','comparativo'];
   const showDateBar = dateAffected.includes(activeTab);
 
+  // ── Export helpers per tab ─────────────────────────────────────────────────
+  function getExportSheets() {
+    const rangeLabel = useCustom ? `${from} → ${to}` : `Últimos ${months} meses`;
+    if (activeTab === 'resumen' && summary) {
+      const sheets = [];
+      sheets.push({
+        name: 'Mensual',
+        headers: ['Mes','Ingresos','Gastos','Resultado'],
+        rows: summary.monthlyData.map(d => [
+          d.month, fmtRaw(d.income), fmtRaw(d.expenses), fmtRaw((d.income||0)-(d.expenses||0))
+        ])
+      });
+      if (summary.topClients?.length) sheets.push({
+        name: 'Top Clientes',
+        headers: ['#','Cliente','Total'],
+        rows: summary.topClients.map((c,i) => [i+1, c.name, fmtRaw(c.total)])
+      });
+      if (summary.topSuppliers?.length) sheets.push({
+        name: 'Top Proveedores',
+        headers: ['Proveedor','Operaciones','Total'],
+        rows: summary.topSuppliers.map(s => [s.name, s.count, fmtRaw(s.total)])
+      });
+      if (summary.expensesByCategory?.length) sheets.push({
+        name: 'Gastos por Categoría',
+        headers: ['Categoría','Total'],
+        rows: summary.expensesByCategory.map(c => [c.category, fmtRaw(c.total)])
+      });
+      if (summary.employees?.length) sheets.push({
+        name: 'Nómina',
+        headers: ['Empleado','Rol','Sueldo'],
+        rows: summary.employees.map(e => [e.name, e.role, fmtRaw(e.salary)])
+      });
+      return { title: 'Reporte Resumen', subtitle: rangeLabel, sheets };
+    }
+    if (activeTab === 'morosos' && overdue) {
+      return {
+        title: 'Reporte de Morosos', subtitle: new Date().toLocaleDateString('es-AR'),
+        sheets: [{
+          name: 'Morosos',
+          headers: ['Cliente','Teléfono','Actividad','Vencimiento','Días mora','Monto'],
+          rows: overdue.map(m => [
+            m.client.name, m.client.phone||'', m.activity,
+            new Date(m.dueDate).toLocaleDateString('es-AR'),
+            m.daysOverdue, fmtRaw(m.amount)
+          ])
+        }]
+      };
+    }
+    if (activeTab === 'actividades' && incomeByActivity) {
+      const total = incomeByActivity.reduce((s,d)=>s+d.total,0);
+      return {
+        title: 'Ingresos por Actividad', subtitle: rangeLabel,
+        sheets: [{
+          name: 'Por Actividad',
+          headers: ['Actividad/Servicio','Tipo','Operaciones','Total','% del total'],
+          rows: incomeByActivity.map(d => [
+            d.name, d.type, d.count, fmtRaw(d.total),
+            ((d.total/total)*100).toFixed(1)+'%'
+          ])
+        }]
+      };
+    }
+    if (activeTab === 'retencion' && retention) {
+      return {
+        title: 'Reporte de Retención', subtitle: rangeLabel,
+        sheets: [{
+          name: 'Retención Mensual',
+          headers: ['Mes','Activos inicio','Pagaron','Nuevos','Retención %'],
+          rows: retention.map(d => [
+            d.month, d.activeAtStart, d.paidThisMonth, d.newEnrollments,
+            d.retentionRate != null ? d.retentionRate+'%' : '—'
+          ])
+        }]
+      };
+    }
+    if (activeTab === 'proyeccion' && cashProj) {
+      return {
+        title: 'Proyección de Caja', subtitle: 'Próximos 60 días',
+        sheets: [{
+          name: 'Proyección Semanal',
+          headers: ['Semana','Ingresos esperados','Cantidad cuotas'],
+          rows: cashProj.weeks.map(w => [
+            new Date(w.week+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short'}),
+            fmtRaw(w.expected), w.count
+          ])
+        }]
+      };
+    }
+    if (activeTab === 'comparativo' && comparison) {
+      return {
+        title: 'Comparativo 12 Meses', subtitle: 'Últimos 12 meses',
+        sheets: [{
+          name: 'Comparativo',
+          headers: ['Mes','Ingresos','Gastos','Resultado','Clientes activos'],
+          rows: comparison.slice(-12).map(m => [
+            m.month, fmtRaw(m.income), fmtRaw(m.expenses), fmtRaw(m.result), m.activeClients
+          ])
+        }]
+      };
+    }
+    if (activeTab === 'horarios' && occupancy) {
+      return {
+        title: 'Ocupación de Horarios', subtitle: new Date().toLocaleDateString('es-AR'),
+        sheets: [{
+          name: 'Horarios',
+          headers: ['Actividad','Día','Hora inicio','Hora fin','Instructor','Sede','Inscriptos','Cupo','Ocupación %'],
+          rows: [...occupancy].sort((a,b)=>(b.occupancyPct||0)-(a.occupancyPct||0)).map(s => [
+            s.activity, DAYS[s.dayOfWeek]||s.dayOfWeek, s.startTime, s.endTime,
+            s.instructor||'', s.branch||'', s.enrolled, s.capacity??'',
+            s.occupancyPct != null ? s.occupancyPct+'%' : '—'
+          ])
+        }]
+      };
+    }
+    return null;
+  }
+
+  function handleExportExcel() {
+    const exp = getExportSheets();
+    if (!exp) return;
+    exportXLSX(exp.title, exp.sheets);
+  }
+
+  function handleExportPDF() {
+    const exp = getExportSheets();
+    if (!exp) return;
+    exportPDF(exp.title, exp.subtitle, exp.sheets);
+  }
+
+  const dataReady = (
+    (activeTab === 'resumen' && summary) ||
+    (activeTab === 'morosos' && overdue) ||
+    (activeTab === 'actividades' && incomeByActivity) ||
+    (activeTab === 'retencion' && retention) ||
+    (activeTab === 'proyeccion' && cashProj) ||
+    (activeTab === 'comparativo' && comparison) ||
+    (activeTab === 'horarios' && occupancy)
+  );
+
   return (
     <div>
       <div className="page-header">
@@ -248,6 +458,13 @@ export default function Reports() {
       {showDateBar && (
         <DateBar months={months} setMonths={setMonths} useCustom={useCustom} setUseCustom={setUseCustom}
           from={from} setFrom={setFrom} to={to} setTo={setTo} onApply={() => loadTab(activeTab)} />
+      )}
+
+      {/* Export bar */}
+      {!loading && !error && dataReady && (
+        <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
+          <ExportBar onExcel={handleExportExcel} onPDF={handleExportPDF} disabled={!dataReady} />
+        </div>
       )}
 
       {loading ? <p>Calculando...</p> : error ? <div className="error-banner">{error}</div> : (
