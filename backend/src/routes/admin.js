@@ -2,6 +2,8 @@ const express = require('express');
 const prisma = require('../prisma');
 const router = express.Router();
 
+const TRIAL_DAYS = 14;
+
 function adminAuth(req, res, next) {
   const secret = req.headers['x-admin-secret'];
   if (!secret || secret !== process.env.ADMIN_SECRET) {
@@ -10,29 +12,22 @@ function adminAuth(req, res, next) {
   next();
 }
 
-async function ensureApprovedColumn() {
-  try {
-    const info = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
-    const exists = info.some(col => col.name === 'approved');
-    if (!exists) {
-      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "approved" INTEGER NOT NULL DEFAULT 0`);
-      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "approvedAt" TEXT`);
-      // Approve all existing accounts
-      await prisma.$executeRawUnsafe(`UPDATE "Business" SET "approved" = 1, "approvedAt" = datetime('now')`);
-    }
-  } catch (err) {
-    console.error('ensureApprovedColumn error:', err.message);
-  }
+function trialDaysLeft(createdAt) {
+  const created = new Date(createdAt);
+  const expires = new Date(created.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  return Math.max(0, Math.ceil((expires - now) / (1000 * 60 * 60 * 24)));
 }
 
 // GET /api/admin/accounts
 router.get('/accounts', adminAuth, async (req, res) => {
   try {
-    await ensureApprovedColumn();
-
     const businesses = await prisma.$queryRawUnsafe(`
-      SELECT b.id, b.name, b.category, b."createdAt", b.approved, b."approvedAt",
-             u.name as ownerName, u.email as ownerEmail
+      SELECT
+        b.id, b.name, b.category, b."createdAt", b.approved, b."approvedAt",
+        b."subscriptionStatus", b."subscriptionExpires", b."bonificado",
+        u.name as ownerName, u.email as ownerEmail, u."lastAccessAt" as ownerLastAccess,
+        (SELECT COUNT(*) FROM "User" u2 WHERE u2."businessId" = b.id) as userCount
       FROM "Business" b
       LEFT JOIN "User" u ON u."businessId" = b.id AND u.role = 'owner'
       ORDER BY b."createdAt" DESC
@@ -45,7 +40,12 @@ router.get('/accounts', adminAuth, async (req, res) => {
       createdAt: b.createdAt,
       approved: b.approved === 1 || b.approved === true,
       approvedAt: b.approvedAt,
-      users: b.ownerName ? [{ name: b.ownerName, email: b.ownerEmail }] : [],
+      subscriptionStatus: b.subscriptionStatus || 'trial',
+      subscriptionExpires: b.subscriptionExpires,
+      bonificado: b.bonificado === 1 || b.bonificado === true,
+      userCount: Number(b.userCount) || 0,
+      trialDaysLeft: trialDaysLeft(b.createdAt),
+      owner: b.ownerName ? { name: b.ownerName, email: b.ownerEmail, lastAccessAt: b.ownerLastAccess } : null,
     }));
 
     res.json(result);
@@ -58,7 +58,6 @@ router.get('/accounts', adminAuth, async (req, res) => {
 // PUT /api/admin/accounts/:id/approve
 router.put('/accounts/:id/approve', adminAuth, async (req, res) => {
   try {
-    await ensureApprovedColumn();
     await prisma.$executeRawUnsafe(
       `UPDATE "Business" SET approved = 1, "approvedAt" = datetime('now') WHERE id = ?`,
       req.params.id
@@ -72,7 +71,6 @@ router.put('/accounts/:id/approve', adminAuth, async (req, res) => {
 // PUT /api/admin/accounts/:id/reject
 router.put('/accounts/:id/reject', adminAuth, async (req, res) => {
   try {
-    await ensureApprovedColumn();
     await prisma.$executeRawUnsafe(
       `UPDATE "Business" SET approved = 0, "approvedAt" = NULL WHERE id = ?`,
       req.params.id
@@ -83,6 +81,33 @@ router.put('/accounts/:id/reject', adminAuth, async (req, res) => {
   }
 });
 
+// PUT /api/admin/accounts/:id/bonificado
+router.put('/accounts/:id/bonificado', adminAuth, async (req, res) => {
+  try {
+    const { bonificado } = req.body;
+    const val = bonificado ? 1 : 0;
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Business" SET "bonificado" = ?, "subscriptionStatus" = CASE WHEN ? = 1 THEN 'active' ELSE "subscriptionStatus" END WHERE id = ?`,
+      val, val, req.params.id
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/accounts/:id/extend-trial — extiende trial 14 días más
+router.put('/accounts/:id/extend-trial', adminAuth, async (req, res) => {
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Business" SET "createdAt" = datetime('now'), "subscriptionStatus" = 'trial' WHERE id = ?`,
+      req.params.id
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // DELETE /api/admin/accounts/:id
 router.delete('/accounts/:id', adminAuth, async (req, res) => {
@@ -90,7 +115,6 @@ router.delete('/accounts/:id', adminAuth, async (req, res) => {
     const id = req.params.id;
     const D = (sql, ...args) => prisma.$executeRawUnsafe(sql, ...args);
 
-    // Borrar en orden respetando FK (hijos antes que padres)
     await D(`DELETE FROM "ManualIncome" WHERE "businessId" = ?`, id);
     await D(`DELETE FROM "Appointment" WHERE "businessId" = ?`, id);
     await D(`DELETE FROM "Service" WHERE "businessId" = ?`, id);
@@ -105,12 +129,10 @@ router.delete('/accounts/:id', adminAuth, async (req, res) => {
     await D(`DELETE FROM "DailyCash" WHERE "businessId" = ?`, id);
     await D(`DELETE FROM "Note" WHERE "businessId" = ?`, id);
     await D(`DELETE FROM "Supplier" WHERE "businessId" = ?`, id);
-    // Pagos → Cuotas → Enrollments → Activities
     await D(`DELETE FROM "Payment" WHERE "cuotaId" IN (SELECT c.id FROM "Cuota" c JOIN "Enrollment" e ON c."enrollmentId" = e.id JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = ?)`, id);
     await D(`DELETE FROM "Cuota" WHERE "enrollmentId" IN (SELECT e.id FROM "Enrollment" e JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = ?)`, id);
     await D(`DELETE FROM "Enrollment" WHERE "activityId" IN (SELECT id FROM "Activity" WHERE "businessId" = ?)`, id);
     await D(`DELETE FROM "Activity" WHERE "businessId" = ?`, id);
-    // Notas de clientes → Clientes
     await D(`DELETE FROM "ClientNote" WHERE "clientId" IN (SELECT id FROM "Client" WHERE "businessId" = ?)`, id);
     await D(`DELETE FROM "Client" WHERE "businessId" = ?`, id);
     await D(`DELETE FROM "User" WHERE "businessId" = ?`, id);

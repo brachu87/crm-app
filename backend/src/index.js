@@ -148,6 +148,41 @@ async function ensureSubscriptionFields() {
   }
 }
 
+async function ensureLastAccessAndBonificado() {
+  try {
+    const userCols = await prisma.$queryRawUnsafe(`PRAGMA table_info("User")`);
+    const userNames = userCols.map(r => r.name);
+    if (!userNames.includes('lastAccessAt')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN "lastAccessAt" DATETIME`);
+      console.log('[startup] Added lastAccessAt column to User');
+    }
+    const bizCols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
+    const bizNames = bizCols.map(r => r.name);
+    if (!bizNames.includes('bonificado')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "bonificado" INTEGER NOT NULL DEFAULT 0`);
+      console.log('[startup] Added bonificado column to Business');
+    }
+  } catch (err) {
+    console.error('[startup] ensureLastAccessAndBonificado error:', err.message);
+  }
+}
+
+async function sweepExpiredTrials() {
+  try {
+    // Trial = 14 days from createdAt. Auto-expire if still 'trial' and 14+ days old.
+    const result = await prisma.$executeRawUnsafe(`
+      UPDATE "Business"
+      SET "subscriptionStatus" = 'expired'
+      WHERE "subscriptionStatus" = 'trial'
+        AND "bonificado" = 0
+        AND datetime("createdAt", '+14 days') < datetime('now')
+    `);
+    if (result > 0) console.log(\`[trial-sweep] Expired \${result} trial account(s)\`);
+  } catch (err) {
+    console.error('[trial-sweep] error:', err.message);
+  }
+}
+
 async function runOverdueSweep() {
   try {
     const count = await markOverdueCuotas();
@@ -157,8 +192,11 @@ async function runOverdueSweep() {
 ensureManualIncomeTable();
 ensurePermissionsColumn();
 ensureSubscriptionFields();
+ensureLastAccessAndBonificado();
+sweepExpiredTrials();
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
+setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada hora
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);

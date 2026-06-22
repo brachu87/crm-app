@@ -16,6 +16,7 @@ model Business {
 
   subscriptionStatus   String   @default("trial")
   subscriptionExpires  DateTime?
+  bonificado           Boolean  @default(false)
 
   users      User[]
   clients    Client[]
@@ -42,6 +43,7 @@ model User {
   name       String
   role        String   @default("owner")
   permissions String?
+  lastAccessAt DateTime?
   businessId  String
   business   Business @relation(fields: [businessId], references: [id])
   createdAt  DateTime @default(now())

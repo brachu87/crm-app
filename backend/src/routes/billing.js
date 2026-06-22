@@ -20,9 +20,18 @@ router.get('/status', authMiddleware, async (req, res) => {
   try {
     const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
     if (!biz) return res.status(404).json({ error: 'Negocio no encontrado' });
+    const TRIAL_DAYS = 14;
+    const createdAt = new Date(biz.createdAt);
+    const trialEnds = new Date(createdAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const trialDaysLeft = Math.max(0, Math.ceil((trialEnds - now) / (1000 * 60 * 60 * 24)));
+
     res.json({
       status: biz.subscriptionStatus || 'trial',
       expires: biz.subscriptionExpires || null,
+      bonificado: biz.bonificado || false,
+      trialEnds: trialEnds.toISOString(),
+      trialDaysLeft,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

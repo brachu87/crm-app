@@ -630,8 +630,12 @@ function BillingCard({ billing, onRefresh }) {
   const urlParams = new URLSearchParams(window.location.search);
   const paymentResult = urlParams.get('payment');
 
+  const trialDaysLeft = billing?.trialDaysLeft ?? null;
+  const trialEnds = billing?.trialEnds ? new Date(billing.trialEnds) : null;
+  const bonificado = billing?.bonificado || false;
+
   const STATUS_INFO = {
-    active:  { label: 'Activa', color: '#10b981', icon: '✅' },
+    active:  { label: bonificado ? 'Acceso bonificado' : 'Activa', color: bonificado ? '#7c3aed' : '#10b981', icon: bonificado ? '🎁' : '✅' },
     trial:   { label: 'Prueba gratuita', color: '#f59e0b', icon: '🕐' },
     expired: { label: 'Vencida', color: '#ef4444', icon: '❌' },
     pending: { label: 'Pago pendiente', color: '#6366f1', icon: '⏳' },
@@ -690,6 +694,41 @@ function BillingCard({ billing, onRefresh }) {
             </div>
           )}
         </div>
+
+        {/* Trial countdown (only when in trial) */}
+        {status === 'trial' && trialDaysLeft !== null && (
+          <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 20px', flexBasis: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>
+                {trialDaysLeft > 0
+                  ? `⏳ Quedan ${trialDaysLeft} días de prueba gratuita`
+                  : '⚠️ Tu período de prueba venció'}
+              </span>
+              {trialEnds && (
+                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Vence: {fmtDate(trialEnds)}</span>
+              )}
+            </div>
+            <div style={{ background: 'var(--border)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                borderRadius: 4,
+                width: `${Math.min(100, Math.round((trialDaysLeft / 14) * 100))}%`,
+                background: trialDaysLeft > 7 ? '#10b981' : trialDaysLeft > 3 ? '#f59e0b' : '#ef4444',
+                transition: 'width 0.5s',
+              }} />
+            </div>
+            {trialDaysLeft <= 5 && trialDaysLeft > 0 && (
+              <div style={{ fontSize: 12, color: '#ef4444', marginTop: 6 }}>
+                ⚡ ¡Tu acceso se revocará automáticamente cuando venza el período de prueba!
+              </div>
+            )}
+            {trialDaysLeft === 0 && (
+              <div style={{ fontSize: 12, color: '#ef4444', marginTop: 6 }}>
+                Tu acceso ha sido suspendido. Realizá el pago para reactivar tu cuenta.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Plan */}
         <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 20px', flex: 1, minWidth: 160 }}>

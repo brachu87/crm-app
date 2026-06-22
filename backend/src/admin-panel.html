@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Zentric Admin</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cline x1='11' y1='14' x2='37' y2='14' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='37' y1='14' x2='11' y2='34' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='11' y1='34' x2='37' y2='34' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cline x1='11' y1='14' x2='37' y2='14' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='37' y1='14' x2='11' y2='34' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='11' y1='34' x2='37' y2='34' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -20,41 +20,48 @@
     .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
     .btn-primary{background:#3D5A4C;color:#fff;width:100%}
     .btn-primary:hover{background:#2e4438}
-    .btn-approve{background:#d1fae5;color:#065f46;padding:5px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600}
-    .btn-approve:hover{background:#a7f3d0}
-    .btn-reject{background:#fee2e2;color:#991b1b;padding:5px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600}
-    .btn-reject:hover{background:#fecaca}
-    .btn-delete{background:#f3f4f6;color:#374151;padding:5px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid #d1d5db;font-family:inherit;font-weight:600}
-    .btn-delete:hover{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+    .btn-sm{padding:4px 11px;font-size:12px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600;transition:all .15s}
+    .btn-approve{background:#d1fae5;color:#065f46}.btn-approve:hover{background:#a7f3d0}
+    .btn-reject{background:#fee2e2;color:#991b1b}.btn-reject:hover{background:#fecaca}
+    .btn-delete{background:#f3f4f6;color:#374151;border:1px solid #d1d5db}.btn-delete:hover{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+    .btn-bonif-on{background:#ede9fe;color:#6d28d9}.btn-bonif-on:hover{background:#ddd6fe}
+    .btn-bonif-off{background:#f3f4f6;color:#64748b;border:1px solid #e2e8f0}.btn-bonif-off:hover{background:#ede9fe;color:#6d28d9}
+    .btn-extend{background:#fef3c7;color:#92400e}.btn-extend:hover{background:#fde68a}
     .error{background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:16px}
     .panel{display:none;min-height:100vh}
     nav{background:#3D5A4C;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
     nav .logo{display:flex;align-items:center;gap:10px;color:#fff;font-size:18px;font-weight:800}
     nav .logout{color:#a8c5b5;font-size:13px;cursor:pointer;background:none;border:none;font-family:inherit}
     nav .logout:hover{color:#fff}
-    .main{max-width:1100px;margin:0 auto;padding:32px 24px}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
-    .stat{background:#fff;border-radius:12px;padding:20px;border:1px solid #e2e8f0}
-    .stat-num{font-size:28px;font-weight:800;color:#3D5A4C}
-    .stat-label{font-size:13px;color:#64748b;margin-top:4px}
+    .main{max-width:1300px;margin:0 auto;padding:32px 24px}
+    .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px}
+    .stat{background:#fff;border-radius:12px;padding:18px 20px;border:1px solid #e2e8f0}
+    .stat-num{font-size:26px;font-weight:800;color:#3D5A4C}
+    .stat-label{font-size:12px;color:#64748b;margin-top:4px}
     .card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden}
     .card-header{padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
     .card-header h2{font-size:16px;font-weight:700}
-    .search{padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;font-family:inherit;width:220px}
+    .search{padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;font-family:inherit;width:240px}
     .search:focus{border-color:#3D5A4C}
-    table{width:100%;border-collapse:collapse}
-    th{text-align:left;padding:12px 16px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
-    td{padding:12px 16px;font-size:14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e2e8f0;background:#f8fafc;white-space:nowrap}
+    td{padding:10px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
     tr:last-child td{border:none}
     tr:hover td{background:#f8fafc}
-    .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+    .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
     .pill-green{background:#d1fae5;color:#065f46}
     .pill-amber{background:#fef3c7;color:#92400e}
-    .actions{display:flex;gap:6px}
+    .pill-red{background:#fee2e2;color:#991b1b}
+    .pill-blue{background:#dbeafe;color:#1e40af}
+    .pill-purple{background:#ede9fe;color:#6d28d9}
+    .pill-gray{background:#f1f5f9;color:#475569}
+    .actions{display:flex;gap:5px;flex-wrap:wrap}
     .empty{text-align:center;padding:48px;color:#94a3b8;font-size:14px}
-    @media(max-width:768px){
-      .stats{grid-template-columns:repeat(2,1fr)}
-      td:nth-child(3),th:nth-child(3){display:none}
+    .trial-bar{display:inline-block;width:60px;height:6px;background:#e2e8f0;border-radius:3px;vertical-align:middle;margin-left:6px;overflow:hidden}
+    .trial-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+    @media(max-width:900px){
+      .stats{grid-template-columns:repeat(3,1fr)}
+      td:nth-child(4),th:nth-child(4),td:nth-child(5),th:nth-child(5){display:none}
     }
   </style>
 </head>
@@ -83,14 +90,19 @@
       <svg width="24" height="24" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="rgba(255,255,255,0.2)"/><line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/><line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/><line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/></svg>
       Zentric Admin
     </div>
-    <button class="logout" onclick="doLogout()">Cerrar sesión</button>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span id="lastUpdated" style="color:#a8c5b5;font-size:12px"></span>
+      <button class="logout" onclick="loadAccounts()">↺ Actualizar</button>
+      <button class="logout" onclick="doLogout()">Cerrar sesión</button>
+    </div>
   </nav>
   <div class="main">
     <div class="stats">
       <div class="stat"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Cuentas totales</div></div>
-      <div class="stat"><div class="stat-num" id="statApproved">—</div><div class="stat-label">Aprobadas</div></div>
-      <div class="stat"><div class="stat-num" id="statPending">—</div><div class="stat-label">Pendientes</div></div>
-      <div class="stat"><div class="stat-num" id="statToday">—</div><div class="stat-label">Hoy</div></div>
+      <div class="stat"><div class="stat-num" id="statActive">—</div><div class="stat-label">✅ Activas (pagas)</div></div>
+      <div class="stat"><div class="stat-num" id="statTrial">—</div><div class="stat-label">🕐 En prueba</div></div>
+      <div class="stat"><div class="stat-num" id="statExpired">—</div><div class="stat-label">❌ Vencidas</div></div>
+      <div class="stat"><div class="stat-num" id="statBonif">—</div><div class="stat-label">🎁 Bonificadas</div></div>
     </div>
     <div class="card">
       <div class="card-header">
@@ -99,7 +111,17 @@
       </div>
       <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>Negocio</th><th>Propietario</th><th>Rubro</th><th>Registro</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Negocio</th>
+              <th>Propietario</th>
+              <th>Último acceso</th>
+              <th>Usuarios</th>
+              <th>Registro</th>
+              <th>Estado / Trial</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
           <tbody id="accountsBody"></tbody>
         </table>
       </div>
@@ -129,9 +151,7 @@ function doLogout() {
 
 async function loadAccounts() {
   try {
-    const res = await fetch(API + '/admin/accounts', {
-      headers: { 'X-Admin-Secret': secret }
-    });
+    const res = await fetch(API + '/admin/accounts', { headers: { 'X-Admin-Secret': secret } });
     if (res.status === 401) {
       document.getElementById('loginError').textContent = 'Clave incorrecta';
       document.getElementById('loginError').style.display = 'block';
@@ -146,6 +166,7 @@ async function loadAccounts() {
     allAccounts = data;
     document.getElementById('loginWrap').style.display = 'none';
     document.getElementById('panel').style.display = 'block';
+    document.getElementById('lastUpdated').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
     renderStats();
     renderTable(allAccounts);
   } catch(e) {
@@ -155,35 +176,100 @@ async function loadAccounts() {
 }
 
 function renderStats() {
-  const today = new Date().toISOString().slice(0,10);
   document.getElementById('statTotal').textContent = allAccounts.length;
-  document.getElementById('statApproved').textContent = allAccounts.filter(a=>a.approved).length;
-  document.getElementById('statPending').textContent = allAccounts.filter(a=>!a.approved).length;
-  document.getElementById('statToday').textContent = allAccounts.filter(a=>a.createdAt?.slice(0,10)===today).length;
+  document.getElementById('statActive').textContent = allAccounts.filter(a => a.subscriptionStatus === 'active' && !a.bonificado).length;
+  document.getElementById('statTrial').textContent = allAccounts.filter(a => a.subscriptionStatus === 'trial').length;
+  document.getElementById('statExpired').textContent = allAccounts.filter(a => a.subscriptionStatus === 'expired').length;
+  document.getElementById('statBonif').textContent = allAccounts.filter(a => a.bonificado).length;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function fmtRelative(d) {
+  if (!d) return '—';
+  const diff = Date.now() - new Date(d).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs} h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `hace ${days} d`;
+  return fmtDate(d);
+}
+
+function statusPill(a) {
+  if (a.bonificado) return '<span class="pill pill-purple">🎁 Bonificada</span>';
+  const s = a.subscriptionStatus;
+  if (s === 'active') return '<span class="pill pill-green">✅ Activa</span>';
+  if (s === 'expired') return '<span class="pill pill-red">❌ Vencida</span>';
+  if (s === 'pending') return '<span class="pill pill-blue">⏳ Pago pendiente</span>';
+  // trial
+  const days = a.trialDaysLeft || 0;
+  const pct = Math.min(100, Math.round((days / 14) * 100));
+  const color = days > 7 ? '#10b981' : days > 3 ? '#f59e0b' : '#ef4444';
+  return `<span class="pill pill-amber">🕐 Trial</span>
+    <div style="display:inline-flex;align-items:center;gap:4px;margin-left:4px">
+      <span style="font-size:11px;color:#64748b">${days}d restantes</span>
+      <span class="trial-bar"><span class="trial-bar-fill" style="width:${pct}%;background:${color}"></span></span>
+    </div>`;
 }
 
 function renderTable(accounts) {
   const tbody = document.getElementById('accountsBody');
   if (!accounts.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin cuentas registradas</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Sin cuentas registradas</td></tr>';
     return;
   }
   tbody.innerHTML = accounts.map(a => {
-    const owner = a.users?.[0];
-    const date = a.createdAt ? new Date(a.createdAt).toLocaleDateString('es-AR') : '-';
-    const pill = a.approved
-      ? '<span class="pill pill-green">✓ Aprobada</span>'
-      : '<span class="pill pill-amber">⏳ Pendiente</span>';
-    const actions = a.approved
-      ? `<button class="btn-reject" onclick="reject('${a.id}')">Revocar</button> <button class="btn-delete" onclick="deleteAccount('${a.id}', '${a.name}')">Eliminar</button>`
-      : `<button class="btn-approve" onclick="approve('${a.id}')">Aprobar</button> <button class="btn-delete" onclick="deleteAccount('${a.id}', '${a.name}')">Eliminar</button>`;
+    const date = fmtDate(a.createdAt);
+    const lastAccess = fmtRelative(a.owner?.lastAccessAt);
+    const approvePill = a.approved
+      ? '<span class="pill pill-green" style="margin-left:4px;font-size:10px">Aprobada</span>'
+      : '<span class="pill pill-amber" style="margin-left:4px;font-size:10px">Pendiente</span>';
+
+    const bonifBtn = a.bonificado
+      ? `<button class="btn-sm btn-bonif-on" onclick="toggleBonif('${a.id}',false)" title="Quitar bonificación">🎁 Bonificada</button>`
+      : `<button class="btn-sm btn-bonif-off" onclick="toggleBonif('${a.id}',true)" title="Marcar como bonificada">🎁 Bonificar</button>`;
+
+    const approveBtn = a.approved
+      ? `<button class="btn-sm btn-reject" onclick="reject('${a.id}')">Revocar</button>`
+      : `<button class="btn-sm btn-approve" onclick="approve('${a.id}')">Aprobar</button>`;
+
+    const extendBtn = (a.subscriptionStatus === 'trial' || a.subscriptionStatus === 'expired')
+      ? `<button class="btn-sm btn-extend" onclick="extendTrial('${a.id}')" title="Resetear trial a 14 días">+14d</button>`
+      : '';
+
     return `<tr>
-      <td><strong>${a.name}</strong></td>
-      <td><div style="font-weight:600">${owner?.name||'-'}</div><div style="font-size:12px;color:#94a3b8">${owner?.email||'-'}</div></td>
-      <td style="color:#64748b">${a.category||'-'}</td>
-      <td style="color:#64748b">${date}</td>
-      <td>${pill}</td>
-      <td><div class="actions">${actions}</div></td>
+      <td>
+        <div style="font-weight:600">${a.name}</div>
+        <div style="font-size:11px;color:#94a3b8">${a.category || ''}</div>
+      </td>
+      <td>
+        <div style="font-weight:500">${a.owner?.name || '—'}</div>
+        <div style="font-size:11px;color:#94a3b8">${a.owner?.email || '—'}</div>
+      </td>
+      <td style="color:#64748b;white-space:nowrap">${lastAccess}</td>
+      <td style="text-align:center">
+        <span style="font-weight:700;font-size:15px">${a.userCount}</span>
+        <span style="font-size:11px;color:#94a3b8">/3</span>
+      </td>
+      <td style="color:#64748b;white-space:nowrap">${date}</td>
+      <td>
+        ${statusPill(a)}
+        ${approvePill}
+      </td>
+      <td>
+        <div class="actions">
+          ${bonifBtn}
+          ${approveBtn}
+          ${extendBtn}
+          <button class="btn-sm btn-delete" onclick="deleteAccount('${a.id}','${a.name.replace(/'/g,"\\'")}')">Eliminar</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -192,8 +278,8 @@ function filterTable(q) {
   const lower = q.toLowerCase();
   renderTable(allAccounts.filter(a =>
     a.name?.toLowerCase().includes(lower) ||
-    a.users?.[0]?.email?.toLowerCase().includes(lower) ||
-    a.users?.[0]?.name?.toLowerCase().includes(lower)
+    a.owner?.email?.toLowerCase().includes(lower) ||
+    a.owner?.name?.toLowerCase().includes(lower)
   ));
 }
 
@@ -205,6 +291,23 @@ async function approve(id) {
 async function reject(id) {
   if (!confirm('¿Revocar acceso a esta cuenta?')) return;
   await fetch(API + `/admin/accounts/${id}/reject`, { method:'PUT', headers:{'X-Admin-Secret':secret} });
+  loadAccounts();
+}
+
+async function toggleBonif(id, val) {
+  const msg = val ? '¿Marcar esta cuenta como bonificada (acceso gratuito)?' : '¿Quitar la bonificación?';
+  if (!confirm(msg)) return;
+  await fetch(API + `/admin/accounts/${id}/bonificado`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Secret': secret, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bonificado: val })
+  });
+  loadAccounts();
+}
+
+async function extendTrial(id) {
+  if (!confirm('¿Resetear el trial a 14 días desde hoy?')) return;
+  await fetch(API + `/admin/accounts/${id}/extend-trial`, { method:'PUT', headers:{'X-Admin-Secret':secret} });
   loadAccounts();
 }
 

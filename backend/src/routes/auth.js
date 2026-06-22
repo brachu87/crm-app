@@ -89,6 +89,9 @@ router.post('/login', async (req, res) => {
     const approved = await isBusinessApproved(user.businessId);
     if (!approved) return res.status(403).json({ error: 'Tu cuenta está pendiente de aprobación. Contactá al administrador.' });
 
+    // Update last access timestamp
+    await prisma.user.update({ where: { id: user.id }, data: { lastAccessAt: new Date() } }).catch(() => {});
+
     res.json({
       token: makeToken(user),
       user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: parsePerms(user) },
