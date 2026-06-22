@@ -391,17 +391,28 @@ export default function ClientDetail() {
 }
 
 function AccountStatement({ client, account, onClose }) {
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   const allPayments = client.enrollments
     .flatMap((e) => e.payments.map((p) => ({ ...p, activityName: e.activity.name })))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
-  const totalPaid = allPayments.reduce((s, p) => s + p.amount, 0);
+
+  const filteredPayments = allPayments.filter((p) => {
+    const d = new Date(p.date);
+    if (dateFrom && d < new Date(dateFrom)) return false;
+    if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false;
+    return true;
+  });
+
+  const totalPaid = filteredPayments.reduce((s, p) => s + p.amount, 0);
   // Saldo real reconciliado (todas las cuotas + movimientos manuales): usa la cuenta
   // corriente autoritativa y cae a un cálculo por cuotas si todavía no cargó.
   const balance = account
     ? account.balance
     : client.enrollments
         .flatMap((e) => e.cuotas || [])
-        .reduce((s, c) => s + Math.max(0, c.amountDue - (c.discount || 0)), 0) - totalPaid;
+        .reduce((s, c) => s + Math.max(0, c.amountDue - (c.discount || 0)), 0) - allPayments.reduce((s, p) => s + p.amount, 0);
   const today = new Date().toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
 
   function handlePrint() {
@@ -486,8 +497,25 @@ function AccountStatement({ client, account, onClose }) {
 
           {/* Historial de pagos */}
           <div style={{ marginBottom: 20 }}>
-            <h3 style={{ fontSize: 16, margin: '0 0 8px', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>Historial de pagos</h3>
-            {allPayments.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              <h3 style={{ fontSize: 16, margin: 0, borderBottom: 'none', paddingBottom: 0 }}>Historial de pagos</h3>
+              <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexWrap: 'wrap' }}>
+                <label style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Desde</label>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13 }} />
+                <label style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Hasta</label>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13 }} />
+                {(dateFrom || dateTo) && (
+                  <button onClick={() => { setDateFrom(''); setDateTo(''); }}
+                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink-soft)', fontSize: 12, cursor: 'pointer' }}>
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ borderBottom: '1px solid var(--border)', marginBottom: 8 }} />
+            {filteredPayments.length === 0 ? (
               <p style={{ fontSize: 14, color: '#666' }}>Sin pagos registrados.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -500,7 +528,7 @@ function AccountStatement({ client, account, onClose }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {allPayments.map((p) => (
+                  {filteredPayments.map((p) => (
                     <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '7px 10px' }}>{formatDate(p.date)}</td>
                       <td style={{ padding: '7px 10px' }}>{p.activityName}</td>
@@ -528,8 +556,8 @@ function AccountStatement({ client, account, onClose }) {
                 </p>
               </div>
               <div>
-                <p style={{ margin: 0, color: '#666', fontSize: 12 }}>Cantidad de pagos</p>
-                <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{allPayments.length}</p>
+                <p style={{ margin: 0, color: '#666', fontSize: 12 }}>Cantidad de pagos{(dateFrom || dateTo) ? ' (filtrado)' : ''}</p>
+                <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{filteredPayments.length}</p>
               </div>
             </div>
           </div>
