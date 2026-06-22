@@ -309,6 +309,59 @@ router.post('/renew-month', async (req, res) => {
   }
 });
 
+
+// GET /api/enrollments/expiring?days=3 — cuotas que vencen en los próximos N días
+router.get('/expiring', async (req, res) => {
+  try {
+    const bId = req.user.businessId;
+    const days = Math.min(parseInt(req.query.days) || 3, 30);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    future.setHours(23, 59, 59, 999);
+
+    const cuotas = await prisma.cuota.findMany({
+      where: {
+        paymentStatus: 'pending',
+        dueDate: { gte: now, lte: future },
+        enrollment: {
+          active: true,
+          client: { businessId: bId, active: true },
+        },
+      },
+      include: {
+        enrollment: {
+          include: {
+            client: { select: { id: true, name: true, phone: true } },
+            activity: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    const result = cuotas.map(c => {
+      const diffMs = new Date(c.dueDate) - now;
+      const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      return {
+        cuotaId: c.id,
+        clientId: c.enrollment.client.id,
+        clientName: c.enrollment.client.name,
+        clientPhone: c.enrollment.client.phone,
+        activityName: c.enrollment.activity?.name || '',
+        dueDate: c.dueDate,
+        daysLeft,
+        amountDue: c.amountDue,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener recordatorios' });
+  }
+});
+
 // DELETE /api/enrollments/:id - dar de baja la inscripción (cuotas y pagos caen en cascada)
 router.delete('/:id', async (req, res) => {
   try {

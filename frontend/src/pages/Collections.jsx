@@ -30,7 +30,7 @@ const statusLabels = { paid: 'Pagado', pending: 'Pendiente', overdue: 'Vencido' 
 
 
 export default function Collections() {
-  const [view, setView] = useState('pending'); // 'pending' | 'paid' | 'otros'
+  const [view, setView] = useState('pending'); // 'pending' | 'paid' | 'otros' | 'recordatorios'
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -126,6 +126,9 @@ export default function Collections() {
         </button>
         <button style={tabStyle(view === 'otros')} onClick={() => { setView('otros'); setSearch(''); }}>
           💰 Otros ingresos
+        </button>
+        <button style={tabStyle(view === 'recordatorios')} onClick={() => { setView('recordatorios'); setSearch(''); }}>
+          📱 Recordatorios
         </button>
       </div>
 
@@ -347,6 +350,8 @@ export default function Collections() {
       }
 
       {view === 'otros' && <OtrosIngresos />}
+
+      {view === 'recordatorios' && <Recordatorios />}
 
       {recibo && (
         <ReciboModal recibo={recibo} business={business} onClose={() => setRecibo(null)} />
@@ -1092,6 +1097,139 @@ function NuevoIngresoModal({ onClose, onSaved }) {
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+function Recordatorios() {
+  const { business } = useAuth();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(3);
+  const [waTemplate, setWaTemplate] = useState('Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Comunicate con nosotros para renovar! 🙌');
+
+  useEffect(() => {
+    if (business?.waTemplate) setWaTemplate(business.waTemplate);
+  }, [business]);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/enrollments/expiring?days=${days}`)
+      .then(r => setItems(r.data || []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [days]);
+
+  function buildWaUrl(item) {
+    const phone = (item.clientPhone || '').replace(/\D/g, '');
+    if (!phone) return null;
+    const dueDate = item.dueDate ? new Date(item.dueDate).toLocaleDateString('es-AR') : '';
+    const msg = waTemplate
+      .replace('{nombre}', item.clientName || '')
+      .replace('{actividad}', item.activityName || 'membresía')
+      .replace('{vencimiento}', dueDate)
+      .replace('{negocio}', business?.name || '');
+    const intlPhone = phone.startsWith('54') ? phone : `54${phone}`;
+    return `https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`;
+  }
+
+  const dayBadge = (n) => {
+    if (n === 0) return { label: 'Hoy', color: '#dc2626', bg: '#fee2e2' };
+    if (n === 1) return { label: 'Mañana', color: '#d97706', bg: '#fef3c7' };
+    return { label: `${n} días`, color: '#16a34a', bg: '#dcfce7' };
+  };
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 600, fontSize: 15 }}>Cuotas por vencer en:</span>
+        {[1, 3, 7].map(d => (
+          <button
+            key={d}
+            onClick={() => setDays(d)}
+            style={{
+              padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+              background: days === d ? 'var(--primary)' : 'var(--surface)',
+              color: days === d ? '#fff' : 'var(--ink)',
+              boxShadow: days === d ? '0 2px 6px rgba(0,0,0,0.15)' : 'none',
+            }}
+          >{d === 1 ? 'mañana' : `${d} días`}</button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--ink-soft)' }}>Cargando...</div>
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+          <p style={{ color: 'var(--ink-soft)', margin: 0 }}>
+            No hay cuotas pendientes que venzan en los próximos {days} día{days > 1 ? 's' : ''}
+          </p>
+        </div>
+      ) : (
+        <>
+          <p style={{ color: 'var(--ink-soft)', fontSize: 14, marginBottom: 12 }}>
+            {items.length} cuota{items.length > 1 ? 's' : ''} por vencer — hacé clic en 📱 para abrir WhatsApp con el mensaje listo
+          </p>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Actividad</th>
+                  <th>Vencimiento</th>
+                  <th>Días</th>
+                  <th>Importe</th>
+                  <th>WhatsApp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => {
+                  const badge = dayBadge(item.daysLeft);
+                  const waUrl = buildWaUrl(item);
+                  return (
+                    <tr key={item.cuotaId}>
+                      <td style={{ fontWeight: 600 }}>{item.clientName}</td>
+                      <td style={{ color: 'var(--ink-soft)' }}>{item.activityName || '—'}</td>
+                      <td>{item.dueDate ? new Date(item.dueDate).toLocaleDateString('es-AR') : '—'}</td>
+                      <td>
+                        <span style={{
+                          display: 'inline-block', padding: '2px 10px', borderRadius: 12,
+                          fontSize: 12, fontWeight: 700,
+                          color: badge.color, background: badge.bg,
+                        }}>{badge.label}</span>
+                      </td>
+                      <td>${(item.amountDue || 0).toLocaleString('es-AR')}</td>
+                      <td>
+                        {waUrl ? (
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 6,
+                              padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
+                              background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 13,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            📱 Enviar
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Sin teléfono</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ color: 'var(--ink-soft)', fontSize: 12, marginTop: 12 }}>
+            💡 El mensaje usa la plantilla configurada en Ajustes → WhatsApp. Podés editarla ahí.
+          </p>
+        </>
+      )}
     </div>
   );
 }
