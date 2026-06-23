@@ -13,7 +13,6 @@ function fmtDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 function calcEnd(startTime, duration) {
-  const can = useSectionPerms('actividades');
   const [h, m] = startTime.split(':').map(Number);
   const total = h * 60 + m + (duration || 60);
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
@@ -506,6 +505,7 @@ function QuickWorkModal({ work, clients, employees, onClose, onSaved }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Activities() {
+  const can = useSectionPerms('actividades');
   const [tab, setTab] = useState('actividades');
   // Activities state
   const [activities, setActivities] = useState([]);
