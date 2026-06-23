@@ -778,18 +778,45 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
     iframe.src = url;
   }
 
-  function handleSendWA() {
-    // Abrir el recibo en nueva pestaña para guardar como PDF
-    const html = buildHtml();
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const pdfUrl = URL.createObjectURL(blob);
-    window.open(pdfUrl, '_blank');
-    // Mostrar guia y abrir WhatsApp despues de un momento
-    setWaStep('guide');
-    setTimeout(() => {
-      const wr = buildWaReceiptLink(recibo, net, nroRecibo, business);
-      sendWA(wr.phone, wr.msg);
-    }, 800);
+  const [waSending, setWaSending] = useState(false);
+  async function handleSendWA() {
+    const detalle = recibo.isAppointment
+      ? { label: 'Turno', value: `${fmtD(recibo.appointmentDate)} · ${recibo.startTime || ''}–${recibo.endTime || ''}` }
+      : { label: 'Período', value: `${fmtD(recibo.startDate)} – ${fmtD(recibo.dueDate)}` };
+    const rows = [{ label: recibo.isAppointment ? 'Servicio' : 'Cuota', value: fmtR(recibo.amountDue) }];
+    if (!recibo.isAppointment && recibo.discount > 0) rows.push({ label: 'Descuento', value: '- ' + fmtR(recibo.discount) });
+    const receipt = {
+      businessName: business?.name || 'Mi negocio',
+      businessPhone: business?.phone || '',
+      nroRecibo,
+      fecha: fmtD(new Date().toISOString().slice(0, 10)),
+      clientName: recibo.client?.name || '-',
+      clientDni: recibo.client?.dni || '',
+      serviceName: recibo.activity?.name || '-',
+      detalleLabel: detalle.label,
+      detalleValue: detalle.value,
+      formaPago: recibo.metodoPago || 'Efectivo',
+      rows,
+      total: fmtR(net),
+    };
+    const caption = `Hola ${recibo.client?.name || ''}! Te enviamos el comprobante de pago N° ${nroRecibo}. ¡Gracias! ${business?.name || ''}`;
+    setWaSending(true);
+    try {
+      await api.post('/whatsapp/send-receipt', { phone: recibo.client?.phone, receipt, caption });
+      setWaStep('sent');
+    } catch (err) {
+      // Fallback: flujo manual anterior (abrir PDF para adjuntar + wa.me)
+      const html = buildHtml();
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      window.open(URL.createObjectURL(blob), '_blank');
+      setWaStep('guide');
+      setTimeout(() => {
+        const wr = buildWaReceiptLink(recibo, net, nroRecibo, business);
+        sendWA(wr.phone, wr.msg);
+      }, 800);
+    } finally {
+      setWaSending(false);
+    }
   }
 
   return (
@@ -804,11 +831,26 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
                 className="btn"
                 style={{ background: '#25d366', color: '#fff', border: 'none' }}
                 onClick={handleSendWA}
-              >📱 Enviar WA + PDF</button>
+                disabled={waSending}
+              >{waSending ? 'Enviando…' : '📱 Enviar recibo PDF'}</button>
             )}
             <button className="btn" onClick={onClose}>Cerrar</button>
           </div>
         </div>
+        {waStep === 'sent' && (
+          <div style={{
+            background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10,
+            padding: '14px 18px',
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#166534' }}>
+              ✅ Recibo enviado por WhatsApp (PDF adjunto)
+            </div>
+            <button
+              onClick={() => setWaStep(null)}
+              style={{ marginTop: 8, background: 'none', border: 'none', color: '#166534', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+            >✕ Cerrar</button>
+          </div>
+        )}
         {waStep === 'guide' && (
           <div style={{
             background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10,

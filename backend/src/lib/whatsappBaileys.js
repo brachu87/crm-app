@@ -205,4 +205,20 @@ async function logout() {
   console.log('[baileys] Sesión cerrada y credenciales borradas.');
 }
 
-module.exports = { initWhatsApp, getState, getQR, sendMessage, logout, normalizePhone };
+async function sendDocument(phone, buffer, fileName, caption) {
+  if (connectionState !== 'connected') {
+    throw new Error('WhatsApp no conectado. Escanear el QR primero.');
+  }
+  const number = normalizePhone(phone);
+  if (!number) throw new Error('Número de teléfono inválido: ' + phone);
+  const jid = number + '@s.whatsapp.net';
+  await sock.sendMessage(jid, {
+    document: buffer,
+    mimetype: 'application/pdf',
+    fileName: fileName || 'recibo.pdf',
+    caption: caption || undefined,
+  });
+  return { to: number };
+}
+
+module.exports = { initWhatsApp, getState, getQR, sendMessage, sendDocument, logout, normalizePhone };

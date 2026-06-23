@@ -1,7 +1,12 @@
 const express  = require('express');
 const router   = express.Router();
 const authMiddleware = require('../middleware/auth');
-const { getState, getQR, sendMessage, logout, initWhatsApp } = require('../lib/whatsappBaileys');
+const path = require('path');
+const fs = require('fs');
+const { getState, getQR, sendMessage, sendDocument, logout, initWhatsApp } = require('../lib/whatsappBaileys');
+const { generateReceiptPdf } = require('../lib/receiptPdf');
+const PHOTOS_DIR = process.env.PHOTOS_DIR
+  || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
 const prisma = require('../prisma');
 const { runReminders } = require('../lib/reminderCron');
 
@@ -63,6 +68,24 @@ router.post('/send', async (req, res) => {
     const result = await sendMessage(phone, message);
     res.json({ ok: true, to: result.to });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/whatsapp/send-receipt — genera el PDF del recibo y lo envía como documento
+router.post('/send-receipt', async (req, res) => {
+  const { phone, receipt, caption } = req.body;
+  if (!phone || !receipt) return res.status(400).json({ error: 'phone y receipt son requeridos' });
+  const { state } = getState();
+  if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
+  try {
+    const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+    const pdf = await generateReceiptPdf({ ...receipt, logoPath });
+    const safeNro = String(receipt.nroRecibo || 'pago').replace(/[^\w-]/g, '');
+    const result = await sendDocument(phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
+    res.json({ ok: true, to: result.to });
+  } catch (err) {
+    console.error('[send-receipt]', err.message);
     res.status(500).json({ error: err.message });
   }
 });

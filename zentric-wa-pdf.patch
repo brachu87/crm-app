@@ -1,0 +1,274 @@
+diff --git a/backend/package.json b/backend/package.json
+index 2053329..7f5ddba 100644
+--- a/backend/package.json
++++ b/backend/package.json
+@@ -27,6 +27,7 @@
+     "multer": "^2.2.0",
+     "node-cron": "^4.5.0",
+     "nodemailer": "^9.0.1",
++    "pdfkit": "^0.15.0",
+     "prisma": "^6.0.0",
+     "qrcode": "^1.5.4",
+     "resend": "^6.14.0"
+diff --git a/backend/src/lib/receiptPdf.js b/backend/src/lib/receiptPdf.js
+new file mode 100644
+index 0000000..abe7a64
+--- /dev/null
++++ b/backend/src/lib/receiptPdf.js
+@@ -0,0 +1,97 @@
++const PDFDocument = require('pdfkit');
++const fs = require('fs');
++
++/**
++ * Genera el PDF de un recibo de pago y devuelve un Buffer.
++ * data: {
++ *   businessName, businessPhone, logoPath,
++ *   nroRecibo, fecha, clientName, clientDni, serviceName,
++ *   detalleLabel, detalleValue, formaPago,
++ *   rows: [{label, value}], total
++ * }
++ */
++function generateReceiptPdf(data = {}) {
++  return new Promise((resolve, reject) => {
++    try {
++      const doc = new PDFDocument({ size: 'A4', margin: 48 });
++      const chunks = [];
++      doc.on('data', (c) => chunks.push(c));
++      doc.on('end', () => resolve(Buffer.concat(chunks)));
++      doc.on('error', reject);
++
++      const PRIMARY = '#3D5A4C';
++      const GREY = '#6b7280';
++      const LIGHT = '#9ca3af';
++      const left = doc.page.margins.left;
++      const right = doc.page.width - doc.page.margins.right;
++      const contentW = right - left;
++
++      const headerTop = doc.y;
++      // Logo (si existe)
++      let textX = left;
++      if (data.logoPath && fs.existsSync(data.logoPath)) {
++        try { doc.image(data.logoPath, left, headerTop, { fit: [56, 56] }); textX = left + 68; } catch (_) {}
++      }
++      doc.font('Helvetica-Bold').fontSize(18).fillColor('#111111')
++        .text(data.businessName || 'Mi negocio', textX, headerTop + 4, { width: 260 });
++      if (data.businessPhone) {
++        doc.font('Helvetica').fontSize(11).fillColor(GREY)
++          .text(String(data.businessPhone), textX, doc.y + 2, { width: 260 });
++      }
++      // Bloque RECIBO (derecha)
++      doc.font('Helvetica-Bold').fontSize(22).fillColor('#111111')
++        .text('RECIBO', left, headerTop + 2, { width: contentW, align: 'right' });
++      doc.font('Helvetica').fontSize(11).fillColor(GREY)
++        .text('N° ' + (data.nroRecibo || ''), left, doc.y + 2, { width: contentW, align: 'right' })
++        .text('Fecha: ' + (data.fecha || ''), left, doc.y, { width: contentW, align: 'right' });
++
++      let y = Math.max(doc.y, headerTop + 78) + 6;
++      doc.moveTo(left, y).lineTo(right, y).lineWidth(2).strokeColor('#e5e7eb').stroke();
++      doc.y = y + 14;
++
++      function row(label, value, opts = {}) {
++        const yy = doc.y;
++        doc.font('Helvetica').fontSize(12).fillColor(GREY).text(label, left, yy, { width: 220 });
++        doc.font(opts.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(12).fillColor('#111111')
++          .text(value == null || value === '' ? '-' : String(value), left + 220, yy, { width: contentW - 220, align: 'right' });
++        doc.y = Math.max(doc.y, yy) + 6;
++        doc.moveTo(left, doc.y).lineTo(right, doc.y).lineWidth(0.5).strokeColor('#f3f4f6').stroke();
++        doc.y += 6;
++      }
++
++      row('Socio / Cliente', data.clientName);
++      if (data.clientDni) row('DNI', data.clientDni);
++      row('Actividad / Servicio', data.serviceName);
++      if (data.detalleLabel) row(data.detalleLabel, data.detalleValue);
++      row('Forma de pago', data.formaPago || 'Efectivo');
++
++      doc.y += 2;
++      doc.moveTo(left, doc.y).lineTo(right, doc.y).lineWidth(2).strokeColor('#e5e7eb').stroke();
++      doc.y += 12;
++
++      (data.rows || []).forEach((r) => row(r.label, r.value));
++
++      const ty = doc.y + 6;
++      doc.font('Helvetica-Bold').fontSize(16).fillColor('#111111').text('TOTAL ABONADO', left, ty, { width: 260 });
++      doc.font('Helvetica-Bold').fontSize(16).fillColor(PRIMARY)
++        .text(data.total || '', left + 260, ty, { width: contentW - 260, align: 'right' });
++      doc.y = ty + 28;
++
++      // Firmas
++      const sy = doc.y + 36;
++      const colW = (contentW - 40) / 2;
++      doc.moveTo(left, sy).lineTo(left + colW, sy).lineWidth(0.5).strokeColor('#9ca3af').stroke();
++      doc.moveTo(left + colW + 40, sy).lineTo(right, sy).lineWidth(0.5).strokeColor('#9ca3af').stroke();
++      doc.font('Helvetica').fontSize(10).fillColor(GREY)
++        .text('Firma y sello', left, sy + 6, { width: colW, align: 'center' })
++        .text('Recibí conforme', left + colW + 40, sy + 6, { width: colW, align: 'center' });
++
++      doc.font('Helvetica').fontSize(10).fillColor(LIGHT)
++        .text('Este recibo es comprobante válido de pago.', left, doc.page.height - 70, { width: contentW, align: 'center' });
++
++      doc.end();
++    } catch (e) { reject(e); }
++  });
++}
++
++module.exports = { generateReceiptPdf };
+diff --git a/backend/src/lib/whatsappBaileys.js b/backend/src/lib/whatsappBaileys.js
+index fb29057..54f44a3 100644
+--- a/backend/src/lib/whatsappBaileys.js
++++ b/backend/src/lib/whatsappBaileys.js
+@@ -205,4 +205,20 @@ async function logout() {
+   console.log('[baileys] Sesión cerrada y credenciales borradas.');
+ }
+ 
+-module.exports = { initWhatsApp, getState, getQR, sendMessage, logout, normalizePhone };
++async function sendDocument(phone, buffer, fileName, caption) {
++  if (connectionState !== 'connected') {
++    throw new Error('WhatsApp no conectado. Escanear el QR primero.');
++  }
++  const number = normalizePhone(phone);
++  if (!number) throw new Error('Número de teléfono inválido: ' + phone);
++  const jid = number + '@s.whatsapp.net';
++  await sock.sendMessage(jid, {
++    document: buffer,
++    mimetype: 'application/pdf',
++    fileName: fileName || 'recibo.pdf',
++    caption: caption || undefined,
++  });
++  return { to: number };
++}
++
++module.exports = { initWhatsApp, getState, getQR, sendMessage, sendDocument, logout, normalizePhone };
+diff --git a/backend/src/routes/whatsapp.js b/backend/src/routes/whatsapp.js
+index 5784a9f..ea27f40 100644
+--- a/backend/src/routes/whatsapp.js
++++ b/backend/src/routes/whatsapp.js
+@@ -1,7 +1,12 @@
+ const express  = require('express');
+ const router   = express.Router();
+ const authMiddleware = require('../middleware/auth');
+-const { getState, getQR, sendMessage, logout, initWhatsApp } = require('../lib/whatsappBaileys');
++const path = require('path');
++const fs = require('fs');
++const { getState, getQR, sendMessage, sendDocument, logout, initWhatsApp } = require('../lib/whatsappBaileys');
++const { generateReceiptPdf } = require('../lib/receiptPdf');
++const PHOTOS_DIR = process.env.PHOTOS_DIR
++  || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
+ const prisma = require('../prisma');
+ const { runReminders } = require('../lib/reminderCron');
+ 
+@@ -67,6 +72,24 @@ router.post('/send', async (req, res) => {
+   }
+ });
+ 
++// POST /api/whatsapp/send-receipt — genera el PDF del recibo y lo envía como documento
++router.post('/send-receipt', async (req, res) => {
++  const { phone, receipt, caption } = req.body;
++  if (!phone || !receipt) return res.status(400).json({ error: 'phone y receipt son requeridos' });
++  const { state } = getState();
++  if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
++  try {
++    const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
++    const pdf = await generateReceiptPdf({ ...receipt, logoPath });
++    const safeNro = String(receipt.nroRecibo || 'pago').replace(/[^\w-]/g, '');
++    const result = await sendDocument(phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
++    res.json({ ok: true, to: result.to });
++  } catch (err) {
++    console.error('[send-receipt]', err.message);
++    res.status(500).json({ error: err.message });
++  }
++});
++
+ // POST /api/whatsapp/run-reminders  — disparar cron manualmente
+ router.post('/run-reminders', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+diff --git a/frontend/src/pages/Collections.jsx b/frontend/src/pages/Collections.jsx
+index c38c147..afa3a9c 100644
+--- a/frontend/src/pages/Collections.jsx
++++ b/frontend/src/pages/Collections.jsx
+@@ -778,18 +778,45 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
+     iframe.src = url;
+   }
+ 
+-  function handleSendWA() {
+-    // Abrir el recibo en nueva pestaña para guardar como PDF
+-    const html = buildHtml();
+-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+-    const pdfUrl = URL.createObjectURL(blob);
+-    window.open(pdfUrl, '_blank');
+-    // Mostrar guia y abrir WhatsApp despues de un momento
+-    setWaStep('guide');
+-    setTimeout(() => {
+-      const wr = buildWaReceiptLink(recibo, net, nroRecibo, business);
+-      sendWA(wr.phone, wr.msg);
+-    }, 800);
++  const [waSending, setWaSending] = useState(false);
++  async function handleSendWA() {
++    const detalle = recibo.isAppointment
++      ? { label: 'Turno', value: `${fmtD(recibo.appointmentDate)} · ${recibo.startTime || ''}–${recibo.endTime || ''}` }
++      : { label: 'Período', value: `${fmtD(recibo.startDate)} – ${fmtD(recibo.dueDate)}` };
++    const rows = [{ label: recibo.isAppointment ? 'Servicio' : 'Cuota', value: fmtR(recibo.amountDue) }];
++    if (!recibo.isAppointment && recibo.discount > 0) rows.push({ label: 'Descuento', value: '- ' + fmtR(recibo.discount) });
++    const receipt = {
++      businessName: business?.name || 'Mi negocio',
++      businessPhone: business?.phone || '',
++      nroRecibo,
++      fecha: fmtD(new Date().toISOString().slice(0, 10)),
++      clientName: recibo.client?.name || '-',
++      clientDni: recibo.client?.dni || '',
++      serviceName: recibo.activity?.name || '-',
++      detalleLabel: detalle.label,
++      detalleValue: detalle.value,
++      formaPago: recibo.metodoPago || 'Efectivo',
++      rows,
++      total: fmtR(net),
++    };
++    const caption = `Hola ${recibo.client?.name || ''}! Te enviamos el comprobante de pago N° ${nroRecibo}. ¡Gracias! ${business?.name || ''}`;
++    setWaSending(true);
++    try {
++      await api.post('/whatsapp/send-receipt', { phone: recibo.client?.phone, receipt, caption });
++      setWaStep('sent');
++    } catch (err) {
++      // Fallback: flujo manual anterior (abrir PDF para adjuntar + wa.me)
++      const html = buildHtml();
++      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
++      window.open(URL.createObjectURL(blob), '_blank');
++      setWaStep('guide');
++      setTimeout(() => {
++        const wr = buildWaReceiptLink(recibo, net, nroRecibo, business);
++        sendWA(wr.phone, wr.msg);
++      }, 800);
++    } finally {
++      setWaSending(false);
++    }
+   }
+ 
+   return (
+@@ -804,11 +831,26 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
+                 className="btn"
+                 style={{ background: '#25d366', color: '#fff', border: 'none' }}
+                 onClick={handleSendWA}
+-              >📱 Enviar WA + PDF</button>
++                disabled={waSending}
++              >{waSending ? 'Enviando…' : '📱 Enviar recibo PDF'}</button>
+             )}
+             <button className="btn" onClick={onClose}>Cerrar</button>
+           </div>
+         </div>
++        {waStep === 'sent' && (
++          <div style={{
++            background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10,
++            padding: '14px 18px',
++          }}>
++            <div style={{ fontWeight: 700, fontSize: 14, color: '#166534' }}>
++              ✅ Recibo enviado por WhatsApp (PDF adjunto)
++            </div>
++            <button
++              onClick={() => setWaStep(null)}
++              style={{ marginTop: 8, background: 'none', border: 'none', color: '#166534', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
++            >✕ Cerrar</button>
++          </div>
++        )}
+         {waStep === 'guide' && (
+           <div style={{
+             background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10,
