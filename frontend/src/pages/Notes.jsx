@@ -411,9 +411,9 @@ function MonthView({ navDate, events, today, onDayClick, onEventClick }) {
               style={{
                 background: colorHex(ev.color),
                 opacity: ev.isSchedule ? 0.75 : 1,
-                cursor: ev.isSchedule ? 'default' : 'pointer',
+                cursor: 'pointer',
               }}
-              onClick={e => { e.stopPropagation(); if (!ev.isSchedule || ev.isAppointment) onEventClick(ev); }}
+              onClick={e => { e.stopPropagation(); onEventClick(ev); }}
               title={ev.isSchedule ? `${ev.title}${ev.scheduleData?.employee ? ' · ' + ev.scheduleData.employee.name : ''}` : ev.title}
             >
               {!ev.allDay && ev.startAt && (
@@ -562,7 +562,7 @@ function WeekView({ navDate, events, today, onSlotClick, onEventClick }) {
                     height: heightPx(ev),
                     background: colorHex(ev.color),
                     opacity: ev.isSchedule ? 0.75 : 1,
-                    cursor: ev.isSchedule ? 'default' : 'pointer',
+                    cursor: 'pointer',
                   }}
                   onClick={e => { e.stopPropagation(); onEventClick(ev); }}
                 >
@@ -667,7 +667,7 @@ function DayView({ navDate, events, today, onSlotClick, onEventClick }) {
                   background: colorHex(ev.color),
                   width: 'calc(100% - 8px)',
                   opacity: ev.isSchedule ? 0.75 : 1,
-                  cursor: ev.isSchedule ? 'default' : 'pointer',
+                  cursor: 'pointer',
                 }}
                 onClick={e => { e.stopPropagation(); onEventClick(ev); }}
               >
@@ -715,11 +715,11 @@ function AgendaView({ events, onEventClick }) {
             )}
             <div
               className={`cal-agenda-item${ev.completed ? ' cal-pill--done' : ''}`}
-              onClick={() => { if (!ev.isSchedule || ev.isAppointment) onEventClick(ev); }}
+              onClick={() => onEventClick(ev)}
               style={{
                 borderLeft: `4px solid ${colorHex(ev.color)}`,
                 opacity: ev.isSchedule ? 0.85 : 1,
-                cursor: ev.isSchedule ? 'default' : 'pointer',
+                cursor: 'pointer',
               }}
             >
               <div className="cal-agenda-item-time">
