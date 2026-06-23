@@ -1,21 +1,28 @@
 /**
- * Cron diario de recordatorios automáticos por WhatsApp.
+ * Cron diario de recordatorios automáticos por WhatsApp (via Baileys).
  * Corre a las 09:00 hora Argentina (UTC-3 → 12:00 UTC).
- * Para cada negocio con META_WA configurado, detecta cuotas
- * próximas a vencer (1, 3, 7 días) y cuotas ya vencidas,
+ * Detecta cuotas próximas a vencer (1, 3, 7 días) y cuotas vencidas,
  * y envía mensajes usando la plantilla configurada en Ajustes.
  */
 
-const cron = require('node-cron');
-const prisma = require('../prisma');
-const { isConfigured, sendText, applyTemplate, normalizePhone } = require('./whatsappMeta');
+const cron   = require('node-cron');
+const prisma  = require('../prisma');
+const { getState, sendMessage } = require('./whatsappBaileys');
 
-const REMIND_DAYS = [1, 3, 7]; // días antes del vencimiento
+const REMIND_DAYS = [1, 3, 7];
 
 function fmtDate(d) {
   if (!d) return '';
-  const dt = new Date(d);
-  return dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function applyTemplate(template, vars) {
+  return template
+    .replace(/\{nombre\}/gi,      vars.nombre      || '')
+    .replace(/\{actividad\}/gi,   vars.actividad   || '')
+    .replace(/\{vencimiento\}/gi, vars.vencimiento || '')
+    .replace(/\{monto\}/gi,       vars.monto       || '')
+    .replace(/\{negocio\}/gi,     vars.negocio     || '');
 }
 
 async function getTemplate(businessId) {
@@ -24,8 +31,7 @@ async function getTemplate(businessId) {
       `SELECT "waTemplateExpiring", "waTemplateOverdue", name FROM "Business" WHERE id = ? LIMIT 1`,
       businessId
     );
-    if (!biz?.length) return null;
-    return biz[0];
+    return biz?.[0] || null;
   } catch {
     return null;
   }
@@ -34,18 +40,18 @@ async function getTemplate(businessId) {
 async function runReminders() {
   console.log('[wa-cron] Iniciando barrido de recordatorios WhatsApp...');
 
-  if (!isConfigured()) {
-    console.log('[wa-cron] META_WA_TOKEN/META_WA_PHONE_ID no configurados — saltando.');
+  const { state } = getState();
+  if (state !== 'connected') {
+    console.log('[wa-cron] WhatsApp no conectado (estado: ' + state + ') — saltando.');
     return;
   }
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-
   let sent = 0, errors = 0;
 
   try {
-    // Cuotas próximas a vencer en 1, 3 o 7 días
+    // ── Cuotas próximas a vencer ─────────────────────────────────────────────
     for (const days of REMIND_DAYS) {
       const target = new Date(now);
       target.setDate(target.getDate() + days);
@@ -53,8 +59,7 @@ async function runReminders() {
 
       const cuotas = await prisma.$queryRawUnsafe(`
         SELECT
-          c.id as cuotaId,
-          c."dueDate", c.amount,
+          c.id as cuotaId, c."dueDate", c.amount,
           cl.name as clientName, cl.phone as clientPhone,
           a.name as activityName,
           e."businessId",
@@ -63,7 +68,7 @@ async function runReminders() {
         JOIN "Enrollment" e ON c."enrollmentId" = e.id
         JOIN "Client" cl ON e."clientId" = cl.id
         JOIN "Activity" a ON e."activityId" = a.id
-        JOIN "Business" b ON b.id = e."businessId"  
+        JOIN "Business" b ON b.id = e."businessId"
         WHERE c."paymentStatus" = 'pending'
           AND date(c."dueDate") = date(?)
           AND cl.phone IS NOT NULL AND cl.phone != ''
@@ -85,19 +90,18 @@ async function runReminders() {
         });
 
         try {
-          await sendText(q.clientPhone, msg);
+          await sendMessage(q.clientPhone, msg);
           sent++;
-          console.log(`[wa-cron] ✓ Recordatorio enviado a ${q.clientName} (vence en ${days}d)`);
-          // Pausa breve para no saturar la API
-          await new Promise(r => setTimeout(r, 500));
+          console.log(`[wa-cron] ✓ Recordatorio → ${q.clientName} (vence en ${days}d)`);
+          await new Promise(r => setTimeout(r, 800));
         } catch (e) {
           errors++;
-          console.error(`[wa-cron] ✗ Error enviando a ${q.clientName}:`, e.message);
+          console.error(`[wa-cron] ✗ Error → ${q.clientName}:`, e.message);
         }
       }
     }
 
-    // Cuotas ya vencidas (vencieron hoy o ayer, para no re-notificar infinitamente)
+    // ── Cuotas ya vencidas ayer ──────────────────────────────────────────────
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
 
@@ -123,7 +127,7 @@ async function runReminders() {
       if (!biz) continue;
 
       const templateText = biz.waTemplateOverdue ||
-        'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor acercate a regularizar tu situación. {negocio}';
+        'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}';
 
       const msg = applyTemplate(templateText, {
         nombre:      q.clientName,
@@ -134,13 +138,13 @@ async function runReminders() {
       });
 
       try {
-        await sendText(q.clientPhone, msg);
+        await sendMessage(q.clientPhone, msg);
         sent++;
-        console.log(`[wa-cron] ✓ Aviso de vencido enviado a ${q.clientName}`);
-        await new Promise(r => setTimeout(r, 500));
+        console.log(`[wa-cron] ✓ Vencido → ${q.clientName}`);
+        await new Promise(r => setTimeout(r, 800));
       } catch (e) {
         errors++;
-        console.error(`[wa-cron] ✗ Error enviando a ${q.clientName}:`, e.message);
+        console.error(`[wa-cron] ✗ Error → ${q.clientName}:`, e.message);
       }
     }
 
@@ -151,9 +155,8 @@ async function runReminders() {
 }
 
 function startReminderCron() {
-  // Todos los días a las 09:00 hora Argentina (UTC-3 = 12:00 UTC)
   cron.schedule('0 12 * * *', runReminders, { timezone: 'UTC' });
-  console.log('[wa-cron] Cron de recordatorios WhatsApp programado (09:00 AR / 12:00 UTC)');
+  console.log('[wa-cron] Cron programado — 09:00 AR / 12:00 UTC');
 }
 
 module.exports = { startReminderCron, runReminders };

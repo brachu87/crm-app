@@ -37,6 +37,7 @@ const billingRoutes = require('./routes/billing');
 const pricesRoutes = require('./routes/prices');
 const whatsappRoutes = require('./routes/whatsapp');
 const { startReminderCron } = require('./lib/reminderCron');
+const { initWhatsApp } = require('./lib/whatsappBaileys');
 
 const app = express();
 
@@ -364,7 +365,8 @@ runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada hora
 
-// Iniciar cron de recordatorios WhatsApp
+// Iniciar WhatsApp Baileys y cron de recordatorios
+initWhatsApp().catch(e => console.error('[baileys-init]', e.message));
 startReminderCron();
 
 app.listen(PORT, () => {

@@ -458,15 +458,53 @@ export default function Settings() {
 // ── Automatización WhatsApp vía Meta Cloud API ───────────────────────────────
 function WhatsAppAuto() {
   const [status, setStatus] = useState(null);
+  const [qr, setQR] = useState(null);
   const [testPhone, setTestPhone] = useState('');
   const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Zentric 🌿');
   const [testing, setTesting] = useState(false);
   const [running, setRunning] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [feedback, setFeedback] = useState('');
 
+  // Polling cada 3s
   useEffect(() => {
-    api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => setStatus({ configured: false }));
+    let interval;
+    function poll() {
+      api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
+    }
+    poll();
+    interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
   }, []);
+
+  // Cuando hay QR disponible, pedirlo
+  useEffect(() => {
+    if (status?.state === 'qr_ready') {
+      api.get('/whatsapp/qr').then(r => setQR(r.data.qr)).catch(() => {});
+    } else {
+      setQR(null);
+    }
+  }, [status?.state]);
+
+  async function handleConnect() {
+    setConnecting(true); setFeedback('');
+    try {
+      await api.post('/whatsapp/connect');
+      setFeedback('');
+    } catch (e) {
+      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+    } finally { setConnecting(false); }
+  }
+
+  async function handleLogout() {
+    if (!confirm('¿Cerrar sesión de WhatsApp? Tendrás que escanear el QR de nuevo.')) return;
+    try {
+      await api.post('/whatsapp/logout');
+      setFeedback('Sesión cerrada.');
+    } catch (e) {
+      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+    }
+  }
 
   async function handleTest() {
     if (!testPhone || !testMsg) return;
@@ -483,13 +521,25 @@ function WhatsAppAuto() {
     setRunning(true); setFeedback('');
     try {
       await api.post('/whatsapp/run-reminders');
-      setFeedback('✅ Barrido iniciado — revisá los logs de Railway para ver el resultado');
+      setFeedback('✅ Barrido iniciado en background');
     } catch (e) {
       setFeedback('❌ ' + (e.response?.data?.error || e.message));
     } finally { setRunning(false); }
   }
 
-  const configured = status?.configured;
+  const state = status?.state || 'disconnected';
+  const stateLabel = {
+    disconnected: 'Desconectado',
+    connecting:   'Conectando...',
+    qr_ready:     'Esperando QR',
+    connected:    'Conectado',
+  }[state] || state;
+  const stateColor = {
+    disconnected: '#ef4444',
+    connecting:   '#f59e0b',
+    qr_ready:     '#f59e0b',
+    connected:    '#22c55e',
+  }[state] || '#94a3b8';
 
   return (
     <div className="card" style={{ marginTop: 24 }}>
@@ -498,75 +548,103 @@ function WhatsAppAuto() {
         <div>
           <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Recordatorios automáticos por WhatsApp</h2>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
-            Usa la API oficial de Meta — gratis hasta 1000 mensajes/mes
+            Vinculá tu WhatsApp — no requiere cuenta de empresa
           </p>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{
-            display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-            background: configured ? '#22c55e' : '#f59e0b',
+            display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+            background: stateColor, boxShadow: `0 0 0 2px ${stateColor}33`,
           }} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>
-            {status === null ? 'Verificando...' : configured ? 'Conectado' : 'No configurado'}
-          </span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{stateLabel}</span>
         </div>
       </div>
 
-      {!configured && (
-        <div style={{
-          background: 'var(--bg)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: 16, marginBottom: 16,
-        }}>
-          <p style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>⚙️ Configuración requerida en Railway</p>
-          <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>
-            Para activar los mensajes automáticos, agregá estas variables de entorno en tu proyecto de Railway:
+      {/* Estado: desconectado — mostrar botón conectar */}
+      {state === 'disconnected' && (
+        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
+            Conectá tu WhatsApp para enviar recordatorios automáticos de cuotas.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {[
-              { key: 'META_WA_TOKEN', desc: 'Token de acceso permanente (Meta for Developers)' },
-              { key: 'META_WA_PHONE_ID', desc: 'Phone Number ID de tu número de WhatsApp Business' },
-            ].map(v => (
-              <div key={v.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <code style={{
-                  background: 'var(--primary-soft)', color: 'var(--primary)',
-                  padding: '2px 8px', borderRadius: 5, fontSize: 12, minWidth: 180,
-                }}>{v.key}</code>
-                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{v.desc}</span>
-              </div>
-            ))}
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12, marginBottom: 0 }}>
-            📖 <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>
-              Ver guía de configuración de Meta Cloud API →
-            </a>
+          <button className="btn btn-primary" onClick={handleConnect} disabled={connecting}>
+            {connecting ? 'Iniciando...' : '📱 Conectar WhatsApp'}
+          </button>
+        </div>
+      )}
+
+      {/* Estado: conectando */}
+      {state === 'connecting' && (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-soft)', fontSize: 14 }}>
+          ⏳ Iniciando conexión...
+        </div>
+      )}
+
+      {/* Estado: QR listo — mostrar código para escanear */}
+      {state === 'qr_ready' && (
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>
+            📱 Escaneá este código QR con WhatsApp
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+            Abrí WhatsApp → Dispositivos vinculados → Vincular dispositivo
+          </p>
+          {qr ? (
+            <img
+              src={qr}
+              alt="QR WhatsApp"
+              style={{ width: 240, height: 240, borderRadius: 12, border: '2px solid var(--border)' }}
+            />
+          ) : (
+            <div style={{ width: 240, height: 240, margin: '0 auto', borderRadius: 12,
+              border: '2px dashed var(--border)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', color: 'var(--ink-soft)', fontSize: 13 }}>
+              Cargando QR...
+            </div>
+          )}
+          <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>
+            El QR se renueva automáticamente. Se actualiza en segundos.
           </p>
         </div>
       )}
 
-      {configured && (
+      {/* Estado: conectado */}
+      {state === 'connected' && (
         <>
           <div style={{
             background: '#f0fdf4', border: '1px solid #bbf7d0',
             borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            🕘 El sistema envía recordatorios automáticamente todos los días a las <strong>09:00 hs (Argentina)</strong> para cuotas que vencen en 1, 3 y 7 días, y avisos de cuotas vencidas.
+            <span>
+              ✅ WhatsApp conectado{status?.phone ? ` (${status.phone})` : ''}.
+              Recordatorios automáticos todos los días a las <strong>09:00 hs</strong>.
+            </span>
+            <button
+              onClick={handleLogout}
+              style={{ background: 'none', border: '1px solid #16653444', color: '#166534',
+                borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Desconectar
+            </button>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Probar envío manual</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <input
                 value={testPhone}
                 onChange={e => setTestPhone(e.target.value)}
                 placeholder="Ej: 1123456789"
-                style={{ flex: 1, minWidth: 160, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }}
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                  fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }}
               />
             </div>
             <textarea
               value={testMsg}
               onChange={e => setTestMsg(e.target.value)}
               rows={2}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical', boxSizing: 'border-box', marginBottom: 8 }}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical',
+                boxSizing: 'border-box', marginBottom: 8 }}
             />
             <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
               {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}

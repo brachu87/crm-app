@@ -1,42 +1,62 @@
-const express = require('express');
-const router = express.Router();
+const express  = require('express');
+const router   = express.Router();
 const authMiddleware = require('../middleware/auth');
-const { isConfigured, sendText, normalizePhone } = require('../lib/whatsappMeta');
+const { getState, getQR, sendMessage, logout, initWhatsApp } = require('../lib/whatsappBaileys');
 const { runReminders } = require('../lib/reminderCron');
 
 router.use(authMiddleware);
 
 // GET /api/whatsapp/status
 router.get('/status', (req, res) => {
-  res.json({
-    configured: isConfigured(),
-    phoneId: process.env.META_WA_PHONE_ID ? '****' + process.env.META_WA_PHONE_ID.slice(-4) : null,
-  });
+  res.json(getState());
 });
 
-// POST /api/whatsapp/test — enviar mensaje de prueba
+// GET /api/whatsapp/qr  — devuelve el QR como data:image/png;base64
+router.get('/qr', (req, res) => {
+  const qr = getQR();
+  if (!qr) return res.status(404).json({ error: 'No hay QR disponible' });
+  res.json({ qr });
+});
+
+// POST /api/whatsapp/connect  — iniciar conexión (genera QR)
+router.post('/connect', async (req, res) => {
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede conectar WhatsApp' });
+  const { state } = getState();
+  if (state === 'connected') return res.json({ ok: true, message: 'Ya conectado' });
+  // initWhatsApp no bloquea — el QR aparece via polling de /status + /qr
+  initWhatsApp().catch(e => console.error('[wa-connect]', e.message));
+  res.json({ ok: true, message: 'Iniciando conexión...' });
+});
+
+// POST /api/whatsapp/logout  — cerrar sesión
+router.post('/logout', async (req, res) => {
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede desconectar' });
+  await logout();
+  res.json({ ok: true });
+});
+
+// POST /api/whatsapp/test  — enviar mensaje de prueba
 router.post('/test', async (req, res) => {
   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
-  if (!isConfigured()) return res.status(400).json({ error: 'WhatsApp no configurado. Agregá META_WA_TOKEN y META_WA_PHONE_ID en Railway.' });
+  const { state } = getState();
+  if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado. Escanear el QR primero.' });
 
   const { phone, message } = req.body;
   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
 
-  const normalized = normalizePhone(phone);
-  if (!normalized) return res.status(400).json({ error: 'Número de teléfono inválido' });
-
   try {
-    const result = await sendText(phone, message);
-    res.json({ ok: true, to: normalized, messageId: result?.messages?.[0]?.id });
+    const result = await sendMessage(phone, message);
+    res.json({ ok: true, to: result.to });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/whatsapp/run-reminders — disparar el cron manualmente (owner only)
+// POST /api/whatsapp/run-reminders  — disparar cron manualmente
 router.post('/run-reminders', async (req, res) => {
   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
-  if (!isConfigured()) return res.status(400).json({ error: 'WhatsApp no configurado' });
+  const { state } = getState();
+  if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado' });
   res.json({ ok: true, message: 'Barrido iniciado en background' });
   runReminders().catch(e => console.error('[manual-reminder]', e.message));
 });
