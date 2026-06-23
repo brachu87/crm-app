@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import OnboardingWizard from './OnboardingWizard';
 import ChatBot from './ChatBot';
 import { useAuth } from '../context/AuthContext';
+import { ALL_MODULES } from '../config/modules';
 import { useEffect, useState, useCallback, useRef } from 'react';
 
 const NAV_GROUPS = [
@@ -48,17 +49,7 @@ const NAV_GROUPS = [
 ];
 
 // Todos los módulos con sus valores por defecto (true = habilitado)
-export const ALL_MODULES = [
-  { key: 'actividades', label: 'Actividades/Servicios', desc: 'Clases, talleres, servicios' },
-  { key: 'agenda',      label: 'Agenda',                desc: 'Turnos y citas' },
-  { key: 'proveedores', label: 'Proveedores',           desc: 'Gestión de proveedores y cuentas corrientes' },
-  { key: 'empleados',   label: 'Equipo (Legajos)',      desc: 'Legajos, asistencias, liquidaciones, horarios' },
-  { key: 'caja',        label: 'Caja del día',          desc: 'Movimientos de caja diaria' },
-  { key: 'reportes',    label: 'Reportes',              desc: 'Reportes e indicadores' },
-  { key: 'gastos',      label: 'Gastos',                desc: 'Registro de gastos del negocio' },
-  { key: 'precios',     label: 'Grilla de precios',     desc: 'Lista de precios por actividad' },
-  { key: 'sedes',       label: 'Sedes',                 desc: 'Gestión de sucursales' },
-];
+
 
 function activeGroup(pathname) {
   for (const g of visibleGroups) {

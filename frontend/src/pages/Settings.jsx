@@ -3,7 +3,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { DEFAULT_TEMPLATES, getTemplates } from './Collections';
-import { ALL_MODULES } from '../components/Layout';
+import { ALL_MODULES } from '../config/modules';
 
 // Secciones disponibles (mismo orden que el sidebar)
 const ALL_SECTIONS = [
