@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import ClientModal from './ClientModal';
+import ImportModal from '../components/ImportModal';
 
 const fmtMoney = (v) => '$ ' + Math.round(v || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
@@ -80,7 +81,7 @@ export default function Clients() {
           <p className="page-subtitle">Tu base de clientes</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar CSV</button>
+          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
           <button className="btn btn-secondary" onClick={() => setShowInactive(!showInactive)} style={{ color: showInactive ? 'var(--primary)' : undefined }}>
             {showInactive ? 'Ver activos' : 'Ver dados de baja'}
           </button>
@@ -177,113 +178,19 @@ export default function Clients() {
       )}
       {showImportModal && (
         <ImportModal
+          title="Importar clientes desde Excel o CSV"
+          columns={[
+            { key: 'name',  labels: ['nombre','name'] },
+            { key: 'phone', labels: ['telefono','teléfono','phone','cel','celular'] },
+            { key: 'email', labels: ['email','correo','mail'] },
+            { key: 'notes', labels: ['notas','notes','observaciones'] },
+          ]}
+          apiPath="/clients/import"
+          payloadKey="clients"
           onClose={() => setShowImportModal(false)}
           onImported={() => { setShowImportModal(false); load(); }}
         />
       )}
-    </div>
-  );
-}
-
-function ImportModal({ onClose, onImported }) {
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState([]);
-  const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
-
-  function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) return [];
-    const headers = lines[0].split(',').map((h) => h.replace(/"/g, '').trim().toLowerCase());
-    return lines.slice(1).map((line) => {
-      const vals = line.split(',').map((v) => v.replace(/^"|"$/g, '').trim());
-      const obj = {};
-      headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
-      // Normalize common header names
-      return {
-        name: obj.nombre || obj.name || '',
-        phone: obj.telefono || obj.teléfono || obj.phone || '',
-        email: obj.email || obj.correo || '',
-        notes: obj.notas || obj.notes || '',
-      };
-    }).filter((r) => r.name);
-  }
-
-  function handleFile(e) {
-    const f = e.target.files[0];
-    if (!f) return;
-    setFile(f);
-    const reader = new FileReader();
-    reader.onload = (ev) => setPreview(parseCSV(ev.target.result));
-    reader.readAsText(f, 'UTF-8');
-  }
-
-  async function handleImport() {
-    if (preview.length === 0) return;
-    setImporting(true);
-    setError('');
-    try {
-      const res = await api.post('/clients/import', { clients: preview });
-      setResult(res.data);
-      if (res.data.created > 0) setTimeout(onImported, 2000);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Error al importar');
-    } finally {
-      setImporting(false);
-    }
-  }
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
-        <h2>Importar clientes desde CSV</h2>
-        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
-          El archivo debe tener columnas: <strong>nombre, telefono, email, notas</strong> (la primera fila es el encabezado).
-        </p>
-        {error && <div className="error-banner">{error}</div>}
-        {result ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <p style={{ fontSize: 24, margin: 0 }}>✓</p>
-            <p style={{ fontWeight: 600 }}>{result.created} clientes importados</p>
-            {result.errors.length > 0 && <p style={{ color: '#ef4444', fontSize: 13 }}>{result.errors.length} filas con error</p>}
-          </div>
-        ) : (
-          <>
-            <div className="field">
-              <label>Archivo CSV</label>
-              <input type="file" accept=".csv" onChange={handleFile} />
-            </div>
-            {preview.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 8 }}>
-                  {preview.length} clientes detectados — primeros 3:
-                </p>
-                <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>{['Nombre', 'Teléfono', 'Email'].map((h) => <th key={h} style={{ textAlign: 'left', padding: '3px 4px', color: 'var(--ink-soft)' }}>{h}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {preview.slice(0, 3).map((r, i) => (
-                      <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
-                        <td style={{ padding: '3px 4px' }}>{r.name}</td>
-                        <td style={{ padding: '3px 4px' }}>{r.phone || '-'}</td>
-                        <td style={{ padding: '3px 4px' }}>{r.email || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="modal-actions">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleImport} disabled={importing || preview.length === 0}>
-                {importing ? 'Importando...' : `Importar ${preview.length} clientes`}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
     </div>
   );
 }

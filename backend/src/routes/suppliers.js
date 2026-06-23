@@ -6,6 +6,43 @@ const { scopedWhere } = require('../middleware/tenant');
 const router = express.Router();
 router.use(authMiddleware);
 
+
+// POST /api/suppliers/import
+router.post('/import', async (req, res) => {
+  try {
+    const { suppliers } = req.body;
+    if (!Array.isArray(suppliers) || suppliers.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un array de proveedores' });
+    }
+    const created = [];
+    const errors = [];
+    for (const s of suppliers) {
+      if (!s.name) { errors.push({ row: s, error: 'Sin nombre' }); continue; }
+      try {
+        const supplier = await prisma.supplier.create({
+          data: {
+            name: s.name,
+            contact: s.contact || null,
+            phone: s.phone || null,
+            email: s.email || null,
+            cuit: s.cuit || null,
+            category: s.category || null,
+            notes: s.notes || null,
+            businessId: req.user.businessId,
+          },
+        });
+        created.push(supplier);
+      } catch (e) {
+        errors.push({ row: s, error: e.message });
+      }
+    }
+    res.status(201).json({ created: created.length, errors });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al importar proveedores' });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const [suppliers, totals] = await Promise.all([

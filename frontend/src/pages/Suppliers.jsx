@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ImportModal from '../components/ImportModal';
 import { useToast } from '../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
@@ -7,6 +8,7 @@ const CATEGORIAS = ['Equipamiento', 'Insumos', 'Servicios', 'Limpieza', 'Tecnolo
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState([]);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -54,6 +56,7 @@ export default function Suppliers() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {suppliers.length > 0 && (
+            <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
             <button className="btn btn-secondary" onClick={exportCSV}>↓ Exportar CSV</button>
           )}
           <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>
@@ -131,6 +134,24 @@ export default function Suppliers() {
         />
       )}
 
+      {showImportModal && (
+        <ImportModal
+          title="Importar proveedores desde Excel o CSV"
+          columns={[
+            { key: 'name',     labels: ['nombre','name'] },
+            { key: 'phone',    labels: ['telefono','teléfono','phone','cel','celular'] },
+            { key: 'email',    labels: ['email','correo','mail'] },
+            { key: 'contact',  labels: ['contacto','contact','responsable'] },
+            { key: 'cuit',     labels: ['cuit','cuil'] },
+            { key: 'category', labels: ['categoria','categoría','category','rubro'] },
+            { key: 'notes',    labels: ['notas','notes','observaciones'] },
+          ]}
+          apiPath="/suppliers/import"
+          payloadKey="suppliers"
+          onClose={() => setShowImportModal(false)}
+          onImported={() => { setShowImportModal(false); load(); }}
+        />
+      )}
       {showModal && (
         <SupplierModal
           supplier={editing}
