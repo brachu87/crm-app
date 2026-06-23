@@ -87,9 +87,7 @@ export default function Clients() {
           <button className="btn btn-secondary" onClick={() => setShowInactive(!showInactive)} style={{ color: showInactive ? 'var(--primary)' : undefined }}>
             {showInactive ? 'Ver activos' : 'Ver dados de baja'}
           </button>
-          {clients.length > 0 && (
-            {can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(clients)}>↓ Exportar CSV</button>}
-          )}
+          {clients.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(clients)}>↓ Exportar CSV</button>}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo cliente</button>}
         </div>
       </div>
