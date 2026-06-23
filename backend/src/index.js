@@ -370,13 +370,6 @@ ensureSupplierIdOnExpense();
 sweepExpiredTrials();
 ensureWATemplateColumns();
 
-// Agregar billingDueDay a Activity (día fijo de vencimiento, null = rolling mensual)
-(async () => {
-  try {
-    await prisma.$executeRawUnsafe(`ALTER TABLE "Activity" ADD COLUMN "billingDueDay" INTEGER`);
-    console.log('[startup] Columna billingDueDay agregada a Activity');
-  } catch (_) { /* ya existe */ }
-})();
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada hora

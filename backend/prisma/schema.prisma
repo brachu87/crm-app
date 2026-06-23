@@ -94,6 +94,7 @@ model Activity {
   capacity    Int?
   schedule    String?
   active      Boolean      @default(true)
+  billingDueDay Int?
   businessId  String
   business    Business     @relation(fields: [businessId], references: [id])
   branchId    String?
