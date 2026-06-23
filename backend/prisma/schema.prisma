@@ -166,6 +166,7 @@ model Supplier {
   phone      String?
   email      String?
   cuit       String?
+  dni        String?
   category   String?
   notes      String?
   businessId String
