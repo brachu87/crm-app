@@ -53,6 +53,20 @@ router.post('/test', async (req, res) => {
   }
 });
 
+// POST /api/whatsapp/send  — envío directo de un mensaje (con código para fallback a wa.me)
+router.post('/send', async (req, res) => {
+  const { phone, message } = req.body;
+  if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
+  const { state } = getState();
+  if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
+  try {
+    const result = await sendMessage(phone, message);
+    res.json({ ok: true, to: result.to });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/whatsapp/run-reminders  — disparar cron manualmente
 router.post('/run-reminders', async (req, res) => {
   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });

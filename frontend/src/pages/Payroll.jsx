@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/client';
+import { sendWA } from '../lib/waSend';
 import { useAuth } from '../context/AuthContext';
 
 const FREQ_LABELS = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' };
@@ -112,10 +113,7 @@ function sendWhatsApp(r, businessName) {
   ].filter(l => l !== null && l !== undefined).join('\n');
 
   const phone = (emp?.phone || '').replace(/\D/g, '');
-  const url = phone
-    ? `https://wa.me/${phone}?text=${encodeURIComponent(lines)}`
-    : `https://wa.me/?text=${encodeURIComponent(lines)}`;
-  window.open(url, '_blank');
+  sendWA(phone, lines);
 }
 
 export default function Payroll() {

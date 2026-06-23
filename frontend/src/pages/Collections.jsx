@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
+import { sendWA } from '../lib/waSend';
 import { useAuth } from '../context/AuthContext';
 import { useSectionPerms } from '../config/permissions';
 
@@ -277,7 +278,7 @@ export default function Collections() {
                       onClick={() => {
                         const phone = a.client.phone.replace(/\D/g, '');
                         const msg = `Hola ${a.client.name}! Te recordamos que tenes pendiente el cobro de ${apptLabel(a)} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmtWA(a.price)}. Gracias!`;
-                        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                        sendWA(phone, msg);
                       }}>📱 WA</button>
                   )}
                   {can.cobrar && <button className="btn btn-sm btn-primary" onClick={() => setCobrarApptModal(a)}>Cobrar</button>}
@@ -313,7 +314,7 @@ export default function Collections() {
                         const phone = a.client.phone.replace(/\D/g, '');
                         const num = phone.startsWith('0') ? '549' + phone.slice(1) : phone.startsWith('54') ? phone : '549' + phone;
                         const msg = `Hola ${a.client.name}! Te enviamos el comprobante de ${apptLabel(a)} del ${new Date(a.date + 'T12:00:00').toLocaleDateString('es-AR')} por ${fmtWA(a.price)}. Gracias!`;
-                        window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+                        sendWA(num, msg);
                       }}>📱 WA</button>
                   )}
                 </div>
@@ -615,9 +616,9 @@ function WaModal({ enrollment, onClose }) {
         {e.waRecibo ? (
           <div>
             <p style={{ fontSize: 14, marginBottom: 12 }}>{defaultMsg}</p>
-            <a href={`https://wa.me/${phone}?text=${encodeURIComponent(defaultMsg)}`} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ background: '#25d366', color: '#fff', border: 'none' }}>
+            <button type="button" onClick={() => sendWA(phone, defaultMsg)} className="btn btn-primary" style={{ background: '#25d366', color: '#fff', border: 'none' }}>
               Enviar comprobante
-            </a>
+            </button>
           </div>
         ) : templates.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -625,18 +626,18 @@ function WaModal({ enrollment, onClose }) {
               <div key={t.id} className="card" style={{ padding: '12px 16px' }}>
                 <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 6 }}>{t.name}</div>
                 <p style={{ fontSize: 14, margin: '0 0 10px' }}>{buildMsg(t)}</p>
-                <a href={`https://wa.me/${phone}?text=${encodeURIComponent(buildMsg(t))}`} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ background: '#25d366', color: '#fff', border: 'none' }}>
+                <button type="button" onClick={() => sendWA(phone, buildMsg(t))} className="btn btn-sm" style={{ background: '#25d366', color: '#fff', border: 'none' }}>
                   Enviar por WhatsApp
-                </a>
+                </button>
               </div>
             ))}
           </div>
         ) : (
           <div>
             <p style={{ fontSize: 14, marginBottom: 12 }}>{defaultMsg}</p>
-            <a href={`https://wa.me/${phone}?text=${encodeURIComponent(defaultMsg)}`} target="_blank" rel="noreferrer" className="btn btn-primary">
+            <button type="button" onClick={() => sendWA(phone, defaultMsg)} className="btn btn-primary">
               Enviar por WhatsApp
-            </a>
+            </button>
           </div>
         )}
         <div style={{ marginTop: 16 }}>
@@ -661,8 +662,7 @@ function buildWaReceiptLink(recibo, net, nroRecibo, business) {
     `Forma de pago: ${recibo.metodoPago || 'Efectivo'}\n\n` +
     `Gracias por tu pago! ${business?.name || ''}`;
   const phone = recibo.client?.phone?.replace(/\D/g, '');
-  const num = phone?.startsWith('0') ? '549' + phone.slice(1) : phone?.startsWith('54') ? phone : '549' + phone;
-  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+  return { phone, msg };
 }
 
 /* ── Recibo de pago ────────────────────────────────────────────── */
@@ -787,7 +787,8 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
     // Mostrar guia y abrir WhatsApp despues de un momento
     setWaStep('guide');
     setTimeout(() => {
-      window.open(buildWaReceiptLink(recibo, net, nroRecibo, business), '_blank');
+      const wr = buildWaReceiptLink(recibo, net, nroRecibo, business);
+      sendWA(wr.phone, wr.msg);
     }, 800);
   }
 
@@ -1143,8 +1144,7 @@ function Recordatorios() {
       .replace('{actividad}', item.activityName || 'membresía')
       .replace('{vencimiento}', dueDate)
       .replace('{negocio}', business?.name || '');
-    const intlPhone = phone.startsWith('54') ? phone : `54${phone}`;
-    return `https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`;
+    return { phone, msg };
   }
 
   const dayBadge = (n) => {
@@ -1200,7 +1200,7 @@ function Recordatorios() {
               <tbody>
                 {items.map(item => {
                   const badge = dayBadge(item.daysLeft);
-                  const waUrl = buildWaUrl(item);
+                  const wa = buildWaUrl(item);
                   return (
                     <tr key={item.cuotaId}>
                       <td style={{ fontWeight: 600 }}>{item.clientName}</td>
@@ -1215,20 +1215,19 @@ function Recordatorios() {
                       </td>
                       <td>${(item.amountDue || 0).toLocaleString('es-AR')}</td>
                       <td>
-                        {waUrl ? (
-                          <a
-                            href={waUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                        {wa ? (
+                          <button
+                            type="button"
+                            onClick={() => sendWA(wa.phone, wa.msg)}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: 6,
-                              padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
+                              padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
                               background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 13,
                               whiteSpace: 'nowrap',
                             }}
                           >
                             📱 Enviar
-                          </a>
+                          </button>
                         ) : (
                           <span style={{ color: 'var(--ink-soft)', fontSize: 13 }}>Sin teléfono</span>
                         )}

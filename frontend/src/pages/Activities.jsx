@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
+import { sendWA } from '../lib/waSend';
 import { useSectionPerms } from '../config/permissions';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -356,10 +357,7 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
       `Monto: ${fmtWA(appt.price)}`,
       appt.notes ? `Notas: ${appt.notes}` : '',
     ].filter(Boolean).join('\n');
-    const url = phone
-      ? `https://wa.me/${phone}?text=${encodeURIComponent(lines)}`
-      : `https://wa.me/?text=${encodeURIComponent(lines)}`;
-    window.open(url, '_blank');
+    sendWA(phone, lines);
   }
 
   const today = new Date().toISOString().split('T')[0];

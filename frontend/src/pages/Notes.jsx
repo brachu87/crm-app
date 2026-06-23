@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import api from '../api/client';
+import { sendWA } from '../lib/waSend';
 import { useSectionPerms } from '../config/permissions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1103,18 +1104,17 @@ function ApptDetailModal({ appt, onClose, onUpdated }) {
             const fmtDateShort = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long' }) : '';
             const msg = `Hola ${appt.client.name}, te recordamos tu turno de ${appt.service?.name || 'servicio'} el ${fmtDateShort(appt.date)}${appt.startTime ? ' a las ' + appt.startTime : ''}. ¡Te esperamos! 🙌`;
             return (
-              <a
-                href={`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => sendWA(intlPhone, msg)}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '6px 14px', borderRadius: 8, textDecoration: 'none',
+                  padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
                   background: '#25d366', color: '#fff', fontWeight: 700, fontSize: 13,
                 }}
               >
                 📱 Recordatorio WA
-              </a>
+              </button>
             );
           })()}
           <div style={{ flex: 1 }} />
