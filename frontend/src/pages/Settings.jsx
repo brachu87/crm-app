@@ -473,7 +473,7 @@ function WhatsAppAuto() {
       api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
     }
     poll();
-    interval = setInterval(poll, 3000);
+    interval = setInterval(poll, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -481,9 +481,10 @@ function WhatsAppAuto() {
   useEffect(() => {
     if (status?.state === 'qr_ready') {
       api.get('/whatsapp/qr').then(r => setQR(r.data.qr)).catch(() => {});
-    } else {
-      setQR(null);
+    } else if (status?.state === 'connected') {
+      setQR(null); // solo limpiar QR cuando conectamos exitosamente
     }
+    // en 'connecting' o 'disconnected' mantenemos el QR anterior si lo había
   }, [status?.state]);
 
   async function handleConnect() {
@@ -530,7 +531,7 @@ function WhatsAppAuto() {
   const state = status?.state || 'disconnected';
   const stateLabel = {
     disconnected: 'Desconectado',
-    connecting:   'Conectando...',
+    connecting:   qr ? 'Actualizando QR...' : 'Conectando...',
     qr_ready:     'Esperando QR',
     connected:    'Conectado',
   }[state] || state;
@@ -572,15 +573,15 @@ function WhatsAppAuto() {
         </div>
       )}
 
-      {/* Estado: conectando */}
-      {state === 'connecting' && (
+      {/* Estado: conectando sin QR previo */}
+      {state === 'connecting' && !qr && (
         <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-soft)', fontSize: 14 }}>
           ⏳ Iniciando conexión...
         </div>
       )}
 
-      {/* Estado: QR listo — mostrar código para escanear */}
-      {state === 'qr_ready' && (
+      {/* Estado: QR listo o reconectando con QR previo */}
+      {(state === 'qr_ready' || (state === 'connecting' && qr)) && (
         <div style={{ textAlign: 'center', padding: '16px 0' }}>
           <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>
             📱 Escaneá este código QR con WhatsApp

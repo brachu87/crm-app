@@ -106,7 +106,7 @@ async function initWhatsApp() {
       currentQR = qr;
       connectionState = 'qr_ready';
       try {
-        currentQRBase64 = await QRCode.toDataURL(qr, { width: 300 });
+        currentQRBase64 = await QRCode.toDataURL(qr, { width: 280, margin: 2 });
       } catch (e) {
         console.error('[baileys] Error generando QR:', e.message);
       }
@@ -118,34 +118,38 @@ async function initWhatsApp() {
       currentQR       = null;
       currentQRBase64 = null;
       isReconnecting  = false;
-      // Obtener el número conectado
-      connectedPhone = sock.user?.id?.split(':')[0] || sock.user?.id || null;
+      connectedPhone  = sock.user?.id?.split(':')[0] || sock.user?.id || null;
       console.log('[baileys] Conectado como', connectedPhone);
     }
 
     if (connection === 'close') {
       const reason = lastDisconnect?.error;
       const statusCode = (reason instanceof Boom) ? reason.output?.statusCode : null;
-
       console.log('[baileys] Desconectado. Código:', statusCode, reason?.message);
 
+      sock = null;
+
       if (statusCode === DisconnectReason.loggedOut) {
-        // Sesión cerrada — borrar archivos y mostrar nuevo QR
+        // Sesión revocada — limpiar todo y pedir nuevo QR
         console.log('[baileys] Sesión cerrada. Borrando credenciales...');
         fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+        currentQR = null; currentQRBase64 = null;
         connectionState = 'disconnected';
-        sock = null;
-        // Reconectar para mostrar nuevo QR
         setTimeout(() => initWhatsApp(), 2000);
-      } else if (!isReconnecting) {
-        // Desconexión temporal — reconectar automáticamente
-        isReconnecting = true;
-        connectionState = 'connecting';
-        sock = null;
-        setTimeout(() => {
-          isReconnecting = false;
-          initWhatsApp();
-        }, 5000);
+      } else {
+        // Desconexión transitoria — MANTENER el QR visible mientras se reconecta
+        // No borrar currentQRBase64: el usuario puede seguir viendo (y escaneando) el QR anterior
+        if (connectionState !== 'qr_ready') {
+          connectionState = 'connecting';
+        }
+        if (!isReconnecting) {
+          isReconnecting = true;
+          const delay = connectionState === 'qr_ready' ? 3000 : 5000;
+          setTimeout(() => {
+            isReconnecting = false;
+            initWhatsApp();
+          }, delay);
+        }
       }
     }
   });
