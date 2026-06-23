@@ -18,6 +18,7 @@ function DateBar({ months, setMonths, useCustom, setUseCustom, from, setFrom, to
       {!useCustom ? (
         <select value={months} onChange={(e) => { setMonths(Number(e.target.value)); onApply(); }}
           style={{ padding:'6px 12px', borderRadius:8, border:'1px solid var(--border)', fontSize:14 }}>
+          <option value={1}>Último mes</option>
           <option value={3}>Últimos 3 meses</option>
           <option value={6}>Últimos 6 meses</option>
           <option value={12}>Últimos 12 meses</option>
