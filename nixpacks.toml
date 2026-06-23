@@ -14,4 +14,4 @@ cmds = [
 ]
 
 [start]
-cmd = "cd backend && npx prisma migrate deploy && node src/index.js"
+cmd = "node start.js"

@@ -76,6 +76,7 @@ router.post('/', async (req, res) => {
         capacity,
         schedule,
         branchId: branchId || null,
+        billingDueDay: billingDueDay ? parseInt(billingDueDay) : null,
         businessId: req.user.businessId,
       },
     });
