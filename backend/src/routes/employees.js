@@ -25,6 +25,41 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/employees
+
+// POST /api/employees/import
+router.post('/import', async (req, res) => {
+  try {
+    const { employees } = req.body;
+    if (!Array.isArray(employees) || employees.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un array de empleados' });
+    }
+    const created = [], errors = [];
+    for (const e of employees) {
+      if (!e.name) { errors.push({ row: e, error: 'Sin nombre' }); continue; }
+      try {
+        const emp = await prisma.employee.create({
+          data: {
+            name: e.name,
+            role: e.role || 'Empleado',
+            phone: e.phone || null,
+            email: e.email || null,
+            salary: e.salary ? parseFloat(e.salary) : null,
+            notes: e.notes || null,
+            businessId: req.user.businessId,
+          },
+        });
+        created.push(emp);
+      } catch (err) {
+        errors.push({ row: e, error: err.message });
+      }
+    }
+    res.status(201).json({ created: created.length, errors });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al importar empleados' });
+  }
+});
+
 router.post('/', async (req, res) => {
   try {
     const { name, role, phone, email, salary, payType, payFrequency, startDate, notes, branchId } = req.body;

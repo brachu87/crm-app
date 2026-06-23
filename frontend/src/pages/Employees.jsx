@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ImportModal from '../components/ImportModal';
 import api from '../api/client';
 
 const ROLES_SUGERIDOS = ['Instructor', 'Recepcionista', 'Limpieza', 'Administrativo', 'Vendedor', 'Otro'];
@@ -21,6 +22,7 @@ function exportCSV(employees) {
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -47,6 +49,7 @@ export default function Employees() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {employees.length > 0 && (
+            <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
             <button className="btn btn-secondary" onClick={() => exportCSV(employees)}>↓ Exportar CSV</button>
           )}
           <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>
@@ -119,6 +122,23 @@ export default function Employees() {
         </div>
       )}
 
+      {showImportModal && (
+        <ImportModal
+          title="Importar empleados desde Excel o CSV"
+          columns={[
+            { key: 'name',   labels: ['nombre','name'] },
+            { key: 'role',   labels: ['rol','role','puesto','cargo','función','funcion'] },
+            { key: 'phone',  labels: ['telefono','teléfono','phone','cel','celular'] },
+            { key: 'email',  labels: ['email','correo','mail'] },
+            { key: 'salary', labels: ['sueldo','salario','salary','remuneracion','remuneración'] },
+            { key: 'notes',  labels: ['notas','notes','observaciones'] },
+          ]}
+          apiPath="/employees/import"
+          payloadKey="employees"
+          onClose={() => setShowImportModal(false)}
+          onImported={() => { setShowImportModal(false); load(); }}
+        />
+      )}
       {showModal && (
         <EmployeeModal
           employee={editing}
