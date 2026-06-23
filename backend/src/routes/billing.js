@@ -125,6 +125,36 @@ router.get('/public-checkout', async (req, res) => {
 // POST /api/billing/webhook — notificación de pago de Mercado Pago (sin auth)
 router.post('/webhook', express.json(), async (req, res) => {
   try {
+    // ── Verificar firma HMAC de MercadoPago ──────────────────────────────
+    const webhookSecret = process.env.MP_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const xSignature = req.headers['x-signature'];
+      const xRequestId = req.headers['x-request-id'];
+      const dataId = req.body?.data?.id;
+
+      if (!xSignature) {
+        console.warn('[billing] Webhook sin x-signature rechazado');
+        return res.sendStatus(401);
+      }
+
+      // Extraer ts y v1 del header x-signature: "ts=...,v1=..."
+      const parts = {};
+      xSignature.split(',').forEach(part => {
+        const [k, v] = part.split('=');
+        if (k && v) parts[k.trim()] = v.trim();
+      });
+
+      if (parts.ts && parts.v1) {
+        const crypto = require('crypto');
+        const manifest = `id:${dataId};request-id:${xRequestId};ts:${parts.ts};`;
+        const expected = crypto.createHmac('sha256', webhookSecret).update(manifest).digest('hex');
+        if (expected !== parts.v1) {
+          console.warn('[billing] Firma de webhook inválida');
+          return res.sendStatus(401);
+        }
+      }
+    }
+
     res.sendStatus(200); // responder rápido a MP
 
     const { type, data } = req.body;

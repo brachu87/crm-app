@@ -68,7 +68,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
     if (!validateEmail(sEmail)) return res.status(400).json({ error: 'Email inválido' });
-    if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    if (password.length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
 
     const existing = await prisma.user.findUnique({ where: { email: sEmail } });
     if (existing) return res.status(409).json({ error: 'El email ya está registrado' });

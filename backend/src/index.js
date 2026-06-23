@@ -40,7 +40,19 @@ const app = express();
 
 // ── Security headers ───────────────────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: false,              // app uses inline scripts/styles
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", process.env.APP_URL || "https://crm-app-production-0669.up.railway.app", "https://accounts.google.com"],
+      frameSrc: ["https://accounts.google.com"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow logo/photo serving
   crossOriginEmbedderPolicy: false,          // avoid breaking image loads
 }));
@@ -109,6 +121,17 @@ app.use('/api/', (req, res, next) => {
   if (SUBSCRIPTION_EXEMPT.some(p => fullPath.startsWith(p))) return next();
   return subscriptionCheck(req, res, next);
 });
+
+// ── Rate limit on file upload endpoints ────────────────────────
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20, // max 20 uploads per hour per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Límite de subida de archivos alcanzado. Intentá en 1 hora.' },
+});
+app.use('/api/clients', uploadLimiter);
+app.use('/api/business/logo', uploadLimiter);
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
