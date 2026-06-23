@@ -739,6 +739,52 @@ function AgendaView({ events, onEventClick }) {
 }
 
 // ─── Main Notes Component ─────────────────────────────────────────────────────
+
+// ── Modal de detalle de horario/clase (solo lectura) ─────────────────────────
+const DAYS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+function ScheduleDetailModal({ sched, onClose }) {
+  if (!sched) return null;
+  const activity = sched.activity || {};
+  const employee = sched.employee || null;
+  const branch   = sched.branch   || null;
+
+  return (
+    <div className="cal-modal-backdrop" onClick={onClose}>
+      <div className="cal-modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+        <div className="cal-modal-header" style={{ borderLeft: '4px solid var(--primary)' }}>
+          <span className="cal-modal-title-input" style={{ fontWeight: 700, fontSize: 16 }}>
+            📍 {activity.name || 'Clase'}
+          </span>
+          <button className="cal-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="cal-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Row label="Día"      value={DAYS_ES[sched.dayOfWeek] ?? '—'} />
+            <Row label="Horario"  value={sched.startTime && sched.endTime ? `${sched.startTime} – ${sched.endTime}` : sched.startTime || '—'} />
+            {employee && <Row label="Instructor" value={employee.name} />}
+            {branch    && <Row label="Sede"      value={branch.name} />}
+            {activity.price != null && <Row label="Precio" value={`$${Number(activity.price).toLocaleString('es-AR')}`} />}
+            {activity.description && <Row label="Descripción" value={activity.description} />}
+          </div>
+        </div>
+        <div className="cal-modal-footer" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn-secondary-sm" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      <span style={{ minWidth: 90, fontSize: 12, color: 'var(--ink-soft)', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 14, color: 'var(--ink)' }}>{value}</span>
+    </div>
+  );
+}
+
 export default function Notes() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -749,6 +795,7 @@ export default function Notes() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // { event, defaultDate }
   const [apptModal, setApptModal] = useState(null); // appointmentData
+  const [scheduleModal, setScheduleModal] = useState(null); // scheduleData
 
   const [schedules, setSchedules] = useState([]);
   const [activityColorMap, setActivityColorMap] = useState({});
@@ -815,7 +862,7 @@ export default function Notes() {
       setApptModal(event.appointmentData);
       return;
     }
-    if (event.isSchedule) return; // class schedules are read-only
+    if (event.isSchedule) { setScheduleModal(event.scheduleData); return; }
     setModal({ event, defaultDate: null });
   }
 
@@ -925,6 +972,12 @@ export default function Notes() {
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setModal(null)}
+        />
+      )}
+      {scheduleModal && (
+        <ScheduleDetailModal
+          sched={scheduleModal}
+          onClose={() => setScheduleModal(null)}
         />
       )}
       {apptModal && (
