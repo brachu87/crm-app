@@ -1,0 +1,61 @@
+diff --git a/frontend/src/components/Layout.jsx b/frontend/src/components/Layout.jsx
+index a76bdd3..3e8f65a 100644
+--- a/frontend/src/components/Layout.jsx
++++ b/frontend/src/components/Layout.jsx
+@@ -196,7 +196,7 @@ export default function Layout() {
+         <span className="mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+           {logoOk && (
+             <AuthImage
+-              path={`/api/business/logo`}
++              path={`/business/logo`}
+               cacheKey={logoTs}
+               alt=""
+               style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
+@@ -230,7 +230,7 @@ export default function Layout() {
+           <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, letterSpacing: '-0.02em' }}>
+             {logoOk && (
+               <AuthImage
+-                path={`/api/business/logo`}
++                path={`/business/logo`}
+                 cacheKey={logoTs}
+                 alt=""
+                 style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+diff --git a/frontend/src/pages/ClientDetail.jsx b/frontend/src/pages/ClientDetail.jsx
+index ab86dbc..b5d4010 100644
+--- a/frontend/src/pages/ClientDetail.jsx
++++ b/frontend/src/pages/ClientDetail.jsx
+@@ -89,7 +89,7 @@ export default function ClientDetail() {
+           <label style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Cambiar foto">
+             <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: 'var(--ink-soft)', border: '2px solid var(--border)' }}>
+               <AuthImage
+-                path={`/api/clients/${id}/photo`}
++                path={`/clients/${id}/photo`}
+                 cacheKey={photoTs}
+                 alt=""
+                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+diff --git a/frontend/src/pages/Clients.jsx b/frontend/src/pages/Clients.jsx
+index 64c2325..98aa666 100644
+--- a/frontend/src/pages/Clients.jsx
++++ b/frontend/src/pages/Clients.jsx
+@@ -138,7 +138,7 @@ export default function Clients() {
+                       <Link to={`/clientes/${c.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                         <span style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#6366f1' }}>
+                           <AuthImage
+-                            path={`/api/clients/${c.id}/photo`}
++                            path={`/clients/${c.id}/photo`}
+                             alt=""
+                             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                             fallback={<span style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>{c.name.charAt(0).toUpperCase()}</span>}
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index e7cb116..24783c3 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -290,7 +290,7 @@ export default function Settings() {
+             </p>
+             <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+               <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--border)', overflow: 'hidden', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+-                <AuthImage path={`/api/business/logo`} cacheKey={logoTs} alt="Logo"
++                <AuthImage path={`/business/logo`} cacheKey={logoTs} alt="Logo"
+                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                   fallback={<span style={{ fontSize: 28 }}>🏢</span>} />
+               </div>

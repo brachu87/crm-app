@@ -196,7 +196,7 @@ export default function Layout() {
         <span className="mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {logoOk && (
             <AuthImage
-              path={`/api/business/logo`}
+              path={`/business/logo`}
               cacheKey={logoTs}
               alt=""
               style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
@@ -230,7 +230,7 @@ export default function Layout() {
           <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, letterSpacing: '-0.02em' }}>
             {logoOk && (
               <AuthImage
-                path={`/api/business/logo`}
+                path={`/business/logo`}
                 cacheKey={logoTs}
                 alt=""
                 style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}

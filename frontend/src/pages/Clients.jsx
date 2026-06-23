@@ -138,7 +138,7 @@ export default function Clients() {
                       <Link to={`/clientes/${c.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#6366f1' }}>
                           <AuthImage
-                            path={`/api/clients/${c.id}/photo`}
+                            path={`/clients/${c.id}/photo`}
                             alt=""
                             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                             fallback={<span style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>{c.name.charAt(0).toUpperCase()}</span>}

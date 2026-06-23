@@ -290,7 +290,7 @@ export default function Settings() {
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
               <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--border)', overflow: 'hidden', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <AuthImage path={`/api/business/logo`} cacheKey={logoTs} alt="Logo"
+                <AuthImage path={`/business/logo`} cacheKey={logoTs} alt="Logo"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   fallback={<span style={{ fontSize: 28 }}>🏢</span>} />
               </div>
