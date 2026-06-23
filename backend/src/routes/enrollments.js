@@ -114,7 +114,7 @@ router.post('/', async (req, res) => {
             amountDue,
             discount,
             paymentStatus: paymentStatus || 'pending',
-            dueDate: dueDate ? new Date(dueDate) : null,
+            dueDate: dueDate ? new Date(dueDate) : (() => { const d = new Date(start); d.setDate(d.getDate() + 30); return d; })(),
           },
         },
       },
@@ -282,7 +282,8 @@ router.post('/renew-month', async (req, res) => {
       const nextPeriod = addMonthToPeriod(last.period);
       // Vencimiento del mes siguiente: a partir del vencimiento anterior (o de hoy si no tenía)
       const baseDue = last.dueDate ? new Date(last.dueDate) : now;
-      const nextDue = new Date(baseDue.getFullYear(), baseDue.getMonth() + 1, baseDue.getDate());
+      const nextDue = new Date(baseDue);
+      nextDue.setDate(nextDue.getDate() + 30);
       try {
         await prisma.cuota.create({
           data: {

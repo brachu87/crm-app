@@ -43,11 +43,8 @@ async function autoRenewCuotas({ businessId }) {
 
       const nextPeriod = addMonthToPeriod(latest.period);
       const baseDue = due || today;
-      const nextDue = new Date(
-        baseDue.getFullYear(),
-        baseDue.getMonth() + 1,
-        baseDue.getDate()
-      );
+      const nextDue = new Date(baseDue);
+      nextDue.setDate(nextDue.getDate() + 30);
 
       try {
         const newCuota = await prisma.cuota.create({
