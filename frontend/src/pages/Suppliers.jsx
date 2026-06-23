@@ -3,10 +3,12 @@ import ImportModal from '../components/ImportModal';
 import { useToast } from '../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 
 const CATEGORIAS = ['Equipamiento', 'Insumos', 'Servicios', 'Limpieza', 'Tecnología', 'Alimentos', 'Otro'];
 
 export default function Suppliers() {
+  const can = useSectionPerms('proveedores');
   const [suppliers, setSuppliers] = useState([]);
   const [showImportModal, setShowImportModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -55,13 +57,11 @@ export default function Suppliers() {
           <p className="page-subtitle">Gestión de proveedores y contactos comerciales</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
+          {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
           {suppliers.length > 0 && (
-            <button className="btn btn-secondary" onClick={exportCSV}>↓ Exportar CSV</button>
+            {can.exportar && <button className="btn btn-secondary" onClick={exportCSV}>↓ Exportar CSV</button>}
           )}
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>
-            + Nuevo proveedor
-          </button>
+          {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo proveedor</button>}
         </div>
       </div>
 
@@ -116,8 +116,8 @@ export default function Suppliers() {
                       {(s.totalExpenses || 0) > 0 ? '$' + Number(s.totalExpenses).toLocaleString('es-AR', { minimumFractionDigits: 2 }) : '-'}
                     </td>
                     <td onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowModal(true); }}>Editar</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(s.id)}>Eliminar</button>
+                      {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowModal(true); }}>Editar</button>}
+                      {can.eliminar && <button className="btn btn-danger btn-sm" onClick={() => handleDelete(s.id)}>Eliminar</button>}
                     </td>
                   </tr>
                 ))}

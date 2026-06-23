@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { DEFAULT_TEMPLATES, getTemplates } from './Collections';
 import { ALL_MODULES } from '../config/modules';
+import { PERMISSION_TREE } from '../config/permissions';
 
 // Secciones disponibles (mismo orden que el sidebar)
 const ALL_SECTIONS = [
@@ -951,35 +952,47 @@ function UserModal({ user, onClose, onSaved }) {
 
 
 function PermissionsPanel({ u, onClose, onSaved }) {
-  // null = acceso total; array = secciones permitidas
-  const [perms, setPerms] = useState(() => u.permissions ? [...u.permissions] : null);
+  const defaultPerms = () => PERMISSION_TREE.flatMap(m => m.actions.map(a => `${m.key}.${a.key}`));
+
+  // Detectar formato viejo (rutas como /clientes) y convertir
+  function normalizePerms(raw) {
+    if (!raw) return null;
+    if (raw.some(p => p.startsWith('/'))) {
+      // Formato viejo → expandir a todas las acciones de ese módulo
+      const result = [];
+      raw.forEach(route => {
+        const key = route.replace('/', '');
+        const mod = PERMISSION_TREE.find(m => m.key === key);
+        if (mod) mod.actions.forEach(a => result.push(`${mod.key}.${a.key}`));
+      });
+      return result.length ? result : defaultPerms();
+    }
+    return raw;
+  }
+
+  const [perms, setPerms] = useState(() => normalizePerms(u.permissions ? [...u.permissions] : null));
   const [restricted, setRestricted] = useState(u.permissions !== null);
   const [saving, setSaving] = useState(false);
-
-  const groups = GROUPS_ORDER.map(g => ({
-    label: g,
-    sections: ALL_SECTIONS.filter(s => s.group === g),
-  }));
 
   function toggleRestricted(val) {
     setRestricted(val);
     if (!val) setPerms(null);
-    else if (!perms) setPerms(ALL_SECTIONS.map(s => s.to)); // habilitar todo por defecto
+    else if (!perms) setPerms(defaultPerms());
   }
 
-  function toggle(to) {
+  function toggleAction(key) {
     setPerms(prev => {
-      if (!prev) return [to];
-      return prev.includes(to) ? prev.filter(x => x !== to) : [...prev, to];
+      const base = prev || [];
+      return base.includes(key) ? base.filter(x => x !== key) : [...base, key];
     });
   }
 
-  function toggleGroup(sections) {
-    const paths = sections.map(s => s.to);
-    const allOn = paths.every(p => perms?.includes(p));
+  function toggleModule(mod) {
+    const keys = mod.actions.map(a => `${mod.key}.${a.key}`);
+    const allOn = keys.every(k => perms?.includes(k));
     setPerms(prev => {
       const base = prev || [];
-      return allOn ? base.filter(x => !paths.includes(x)) : [...new Set([...base, ...paths])];
+      return allOn ? base.filter(x => !keys.includes(x)) : [...new Set([...base, ...keys])];
     });
   }
 
@@ -996,43 +1009,80 @@ function PermissionsPanel({ u, onClose, onSaved }) {
   return (
     <div style={{ background: 'var(--surface-2)', borderTop: '1px solid var(--border)', padding: '16px 20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Permisos de <span style={{ color: 'var(--primary)' }}>{u.name}</span></p>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+          Permisos de <span style={{ color: 'var(--primary)' }}>{u.name}</span>
+        </p>
         <button className="btn-danger-text" onClick={onClose} style={{ fontSize: 12 }}>Cerrar</button>
       </div>
 
-      {/* Toggle acceso restringido */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '10px 14px', background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)' }}>
-        <input type="checkbox" id={`restrict-${u.id}`} checked={restricted} onChange={e => toggleRestricted(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
+        <input type="checkbox" id={`restrict-${u.id}`} checked={restricted} onChange={e => toggleRestricted(e.target.checked)}
+          style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
         <label htmlFor={`restrict-${u.id}`} style={{ fontSize: 13, cursor: 'pointer' }}>
-          Restringir acceso a secciones específicas
-          <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--ink-soft)' }}>(si no está marcado, ve todo)</span>
+          Restringir permisos de este usuario
+          <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--ink-soft)' }}>(sin restricción ve y hace todo)</span>
         </label>
       </div>
 
       {restricted && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
-          {groups.map(g => (
-            <div key={g.label} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-              <div
-                style={{ background: 'var(--primary)', color: '#fff', padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
-                onClick={() => toggleGroup(g.sections)}
-              >
-                <span>{g.label}</span>
-                <span style={{ fontSize: 10, opacity: 0.8 }}>todo</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+          {PERMISSION_TREE.map(mod => {
+            const modKeys = mod.actions.map(a => `${mod.key}.${a.key}`);
+            const allOn   = modKeys.every(k => perms?.includes(k));
+            const someOn  = modKeys.some(k => perms?.includes(k));
+            return (
+              <div key={mod.key} style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                {/* Cabecera del módulo */}
+                <div
+                  onClick={() => toggleModule(mod)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
+                    background: allOn ? 'var(--primary)' : someOn ? 'var(--primary-soft)' : 'var(--surface)',
+                    cursor: 'pointer', userSelect: 'none',
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>{mod.icon}</span>
+                  <span style={{
+                    fontWeight: 700, fontSize: 13,
+                    color: allOn ? '#fff' : 'var(--ink)',
+                    flex: 1,
+                  }}>{mod.label}</span>
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 10,
+                    background: allOn ? 'rgba(255,255,255,0.25)' : 'var(--border)',
+                    color: allOn ? '#fff' : 'var(--ink-soft)',
+                  }}>
+                    {allOn ? 'Todo habilitado' : someOn ? 'Parcial' : 'Sin acceso'}
+                  </span>
+                </div>
+                {/* Acciones del módulo */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', padding: '8px 12px', gap: 6, background: 'var(--surface)' }}>
+                  {mod.actions.map(a => {
+                    const key = `${mod.key}.${a.key}`;
+                    const on = perms?.includes(key) || false;
+                    return (
+                      <label key={key} style={{
+                        display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                        padding: '5px 10px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                        border: `1px solid ${on ? 'var(--primary)' : 'var(--border)'}`,
+                        background: on ? 'var(--primary-soft)' : 'var(--bg)',
+                        color: on ? 'var(--primary)' : 'var(--ink-soft)',
+                        transition: 'all .15s',
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => toggleAction(key)}
+                          style={{ display: 'none' }}
+                        />
+                        {on ? '✓' : '○'} {a.label}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-              {g.sections.map(s => (
-                <label key={s.to} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', fontSize: 13, cursor: 'pointer', borderTop: '1px solid var(--border)', background: 'var(--surface)' }}>
-                  <input
-                    type="checkbox"
-                    checked={perms?.includes(s.to) || false}
-                    onChange={() => toggle(s.to)}
-                    style={{ accentColor: 'var(--primary)', width: 14, height: 14 }}
-                  />
-                  {s.label}
-                </label>
-              ))}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

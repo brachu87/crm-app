@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 
 const fmt = v => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(v || 0);
 
 export default function Prices() {
+  const can = useSectionPerms('precios');
   const [activities, setActivities] = useState([]);
   const [services, setServices]     = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -287,9 +289,9 @@ export default function Prices() {
             );
           })()}
           <div style={{ flex: 1 }} />
-          <button className="btn btn-primary" onClick={applyUpdate} disabled={saving}>
+          {can.editar && <button className="btn btn-primary" onClick={applyUpdate} disabled={saving}>
             {saving ? 'Aplicando...' : `Confirmar ${pct > 0 ? 'aumento' : 'reducción'} de ${Math.abs(pct)}%`}
-          </button>
+          </button>}
         </div>
       )}
     </div>

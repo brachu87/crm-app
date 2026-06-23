@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSectionPerms } from '../config/permissions';
 import api from '../api/client';
 import ClientModal from './ClientModal';
 import ImportModal from '../components/ImportModal';
@@ -33,6 +34,7 @@ function exportCSV(clients) {
 }
 
 export default function Clients() {
+  const can = useSectionPerms('clientes');
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -81,14 +83,14 @@ export default function Clients() {
           <p className="page-subtitle">Tu base de clientes</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
+          {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
           <button className="btn btn-secondary" onClick={() => setShowInactive(!showInactive)} style={{ color: showInactive ? 'var(--primary)' : undefined }}>
             {showInactive ? 'Ver activos' : 'Ver dados de baja'}
           </button>
           {clients.length > 0 && (
-            <button className="btn btn-secondary" onClick={() => exportCSV(clients)}>↓ Exportar CSV</button>
+            {can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(clients)}>↓ Exportar CSV</button>}
           )}
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo cliente</button>
+          {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo cliente</button>}
         </div>
       </div>
 
@@ -111,7 +113,7 @@ export default function Clients() {
             <h3>Todavía no agregaste clientes</h3>
             <p>Agregá tu primer cliente para empezar a inscribirlo en actividades.</p>
             <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12 }}>
-              + Nuevo cliente
+              {can.crear && '+ Nuevo cliente'}
             </button>
           </div>
         </div>
@@ -154,8 +156,8 @@ export default function Clients() {
                     {c.active !== false ? (
                       <>
                         <Link to={`/clientes/${c.id}`} className="btn btn-secondary btn-sm">Ver</Link>
-                        <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(c); setShowModal(true); }}>Editar</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(c)}>Dar de baja</button>
+                        {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(c); setShowModal(true); }}>Editar</button>}
+                        {can.baja && <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(c)}>Dar de baja</button>}
                       </>
                     ) : (
                       <button className="btn btn-secondary btn-sm" style={{ color: '#10b981' }} onClick={() => handleReactivate(c)}>Reactivar</button>

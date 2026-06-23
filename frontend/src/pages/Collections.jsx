@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useSectionPerms } from '../config/permissions';
 
 export const DEFAULT_TEMPLATES = [
   {
@@ -34,6 +35,7 @@ export default function Collections() {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const can = useSectionPerms('cobranza');
   const [cobrarModal, setCobrarModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
   const [waModal, setWaModal] = useState(null);
@@ -230,11 +232,11 @@ export default function Collections() {
                             ) : (
                               <>
                                 <span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span>
-                                <button className="btn btn-sm btn-secondary" onClick={() => setEditModal(e)} title="Editar cuota">✏️</button>
+                                {can.editar_cuota && <button className="btn btn-sm btn-secondary" onClick={() => setEditModal(e)} title="Editar cuota">✏️</button>}
                                 {g.client.phone && (
                                   <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} onClick={() => setWaModal(e)} title="WhatsApp">📱</button>
                                 )}
-                                <button className="btn btn-sm btn-primary" onClick={() => setCobrarModal(e)}>Cobrar</button>
+                                {can.cobrar && <button className="btn btn-sm btn-primary" onClick={() => setCobrarModal(e)}>Cobrar</button>}
                               </>
                             )}
                           </div>
@@ -278,7 +280,7 @@ export default function Collections() {
                         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}>📱 WA</button>
                   )}
-                  <button className="btn btn-sm btn-primary" onClick={() => setCobrarApptModal(a)}>Cobrar</button>
+                  {can.cobrar && <button className="btn btn-sm btn-primary" onClick={() => setCobrarApptModal(a)}>Cobrar</button>}
                 </div>
               </div>
             ))}

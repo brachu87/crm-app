@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 
 const CATEGORIAS = ['Alquiler', 'Sueldos', 'Servicios', 'Mantenimiento', 'Marketing', 'Equipamiento', 'Limpieza', 'Impuestos', 'Otro'];
 const METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro'];
@@ -21,6 +22,7 @@ function exportCSV(expenses) {
 }
 
 export default function Expenses() {
+  const can = useSectionPerms('gastos');
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -58,11 +60,9 @@ export default function Expenses() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {expenses.length > 0 && (
-            <button className="btn btn-secondary" onClick={() => exportCSV(expenses)}>↓ Exportar CSV</button>
+            {can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(expenses)}>↓ Exportar CSV</button>}
           )}
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>
-            + Nuevo gasto
-          </button>
+          {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo gasto</button>}
         </div>
       </div>
 
@@ -129,12 +129,10 @@ export default function Expenses() {
                     ${Number(e.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                   </td>
                   <td style={{ display: 'flex', gap: 6 }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(e); setShowModal(true); }}>
-                      Editar
-                    </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>
+                    {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(e); setShowModal(true); }}>Editar</button>}
+                    {can.eliminar && <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>
                       Eliminar
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               ))}

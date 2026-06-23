@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -12,6 +13,7 @@ function fmtDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 function calcEnd(startTime, duration) {
+  const can = useSectionPerms('actividades');
   const [h, m] = startTime.split(':').map(Number);
   const total = h * 60 + m + (duration || 60);
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
@@ -612,7 +614,7 @@ export default function Activities() {
                         <td><span style={{ background: act.active !== false ? '#d1fae5' : '#fee2e2', color: act.active !== false ? '#065f46' : '#991b1b', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>{act.active !== false ? 'Activa' : 'Inactiva'}</span></td>
                         <td>
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => { setEditingAct(act); setShowActModal(true); }}>Editar</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => { {can.editar && setEditingAct(act); setShowActModal(true); }}>Editar</button>}
                             <button className="btn btn-secondary btn-sm" style={{ color: act.active !== false ? '#ef4444' : '#10b981' }} onClick={() => toggleActivity(act)}>{act.active !== false ? 'Desactivar' : 'Activar'}</button>
                           </div>
                         </td>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const COLORS = {
@@ -29,6 +30,7 @@ function colorForActivity(activityId, index) {
 }
 
 function parseTime(timeStr, date) {
+  const can = useSectionPerms('agenda');
   const [h, m] = timeStr.split(':').map(Number);
   const d = new Date(date);
   d.setHours(h, m, 0, 0);
@@ -365,9 +367,7 @@ function EventModal({ event, defaultDate, onSave, onDelete, onClose }) {
 
         <div className="cal-modal-footer">
           {!isNew && (
-            <button className="btn-danger-sm" onClick={() => { onDelete(event.id); onClose(); }}>
-              Eliminar
-            </button>
+            {can.eliminar && <button className="btn-danger-sm" onClick={() => { onDelete(event.id); onClose(); }}>Eliminar</button>}
           )}
           <div style={{ flex: 1 }} />
           <button className="btn-secondary-sm" onClick={onClose}>Cancelar</button>
@@ -916,7 +916,7 @@ export default function Notes() {
         <button className="cal-nav-btn" onClick={navNext}>&#8250;</button>
         <span className="cal-toolbar-title">{headerTitle()}</span>
         <div style={{ flex: 1 }} />
-        <button className="cal-new-btn" onClick={() => openNew(navDate)}>+ Nuevo</button>
+        {can.crear && <button className="cal-new-btn" onClick={() => openNew(navDate)}>+ Nuevo</button>}
         <div className="cal-view-tabs">
           {['month', 'week', 'day', 'agenda'].map(v => (
             <button
@@ -1099,7 +1099,7 @@ function ApptDetailModal({ appt, onClose, onUpdated }) {
 
         <div className="cal-modal-footer" style={{ flexWrap: 'wrap', gap: 8 }}>
           {appt.status !== 'cancelled' && (
-            <button className="btn-danger-sm" onClick={handleCancel} disabled={saving}>Cancelar turno</button>
+            {can.eliminar && <button className="btn-danger-sm" onClick={handleCancel} disabled={saving}>Cancelar turno</button>}
           )}
           {appt.client?.phone && (() => {
             const phone = appt.client.phone.replace(/\D/g, '');

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 function fmt(n) { return '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 0 }); }
@@ -63,7 +64,8 @@ function BarChart({ data }) {
       })}
       {data.map((d, i) => {
         const x = PAD + i*(groupW+24)+12;
-        const [yr, mo] = d.month.split('-');
+        const can = useSectionPerms('reportes');
+  const [yr, mo] = d.month.split('-');
         const label = MONTH_NAMES[parseInt(mo)-1]+' '+yr.slice(2);
         return (
           <g key={d.month}>
@@ -208,6 +210,7 @@ function exportPDF(title, subtitle, sheets) {
       <div class="footer">Zentric CRM</div>
     </body></html>`;
   const w = window.open('', '_blank', 'width=900,height=700');
+  if (!can.exportar) { alert('No tenés permiso para exportar.'); return; }
   if (!w) { alert('Habilitá las ventanas emergentes para exportar a PDF.'); return; }
   w.document.write(html);
   w.document.close();
