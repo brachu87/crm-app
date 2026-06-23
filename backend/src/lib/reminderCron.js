@@ -22,13 +22,16 @@ function applyTemplate(template, vars) {
     .replace(/\{actividad\}/gi,   vars.actividad   || '')
     .replace(/\{vencimiento\}/gi, vars.vencimiento || '')
     .replace(/\{monto\}/gi,       vars.monto       || '')
+    .replace(/\{servicio\}/gi,    vars.servicio    || '')
+    .replace(/\{hora\}/gi,        vars.hora        || '')
+    .replace(/\{fecha\}/gi,       vars.fecha       || '')
     .replace(/\{negocio\}/gi,     vars.negocio     || '');
 }
 
 async function getTemplate(businessId) {
   try {
     const biz = await prisma.$queryRawUnsafe(
-      `SELECT "waTemplateExpiring", "waTemplateOverdue", name FROM "Business" WHERE id = ? LIMIT 1`,
+      `SELECT "waTemplateExpiring", "waTemplateOverdue", "waTemplateAppointment", name FROM "Business" WHERE id = ? LIMIT 1`,
       businessId
     );
     return biz?.[0] || null;
@@ -145,6 +148,57 @@ async function runReminders() {
       } catch (e) {
         errors++;
         console.error(`[wa-cron] ✗ Error → ${q.clientName}:`, e.message);
+      }
+    }
+
+    // ── Turnos de mañana ────────────────────────────────────────────────────────
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+    const appointments = await prisma.$queryRawUnsafe(`
+      SELECT
+        a.id, a.date, a."startTime", a."endTime",
+        cl.name as clientName, cl.phone as clientPhone,
+        s.name as serviceName,
+        a."businessId",
+        b.name as businessName
+      FROM "Appointment" a
+      JOIN "Client" cl ON a."clientId" = cl.id
+      JOIN "Business" b ON b.id = a."businessId"
+      LEFT JOIN "Service" s ON a."serviceId" = s.id
+      WHERE a.date = ?
+        AND a.status = 'scheduled'
+        AND cl.phone IS NOT NULL AND cl.phone != ''
+    `, tomorrowStr);
+
+    for (const appt of appointments) {
+      const biz = await getTemplate(appt.businessId);
+      if (!biz) continue;
+
+      const templateText = biz.waTemplateAppointment ||
+        'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}';
+
+      const hora = appt.startTime
+        ? appt.startTime + (appt.endTime ? ` - ${appt.endTime}` : '')
+        : 'horario a confirmar';
+
+      const msg = applyTemplate(templateText, {
+        nombre:   appt.clientName,
+        servicio: appt.serviceName || 'turno',
+        hora,
+        fecha:    tomorrowStr.split('-').reverse().join('/'),
+        negocio:  biz.name || appt.businessName,
+      });
+
+      try {
+        await sendMessage(appt.clientPhone, msg);
+        sent++;
+        console.log(`[wa-cron] ✓ Recordatorio turno → ${appt.clientName} (${tomorrowStr})`);
+        await new Promise(r => setTimeout(r, 800));
+      } catch (e) {
+        errors++;
+        console.error(`[wa-cron] ✗ Error → ${appt.clientName}:`, e.message);
       }
     }
 

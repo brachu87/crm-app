@@ -2,6 +2,7 @@ const express  = require('express');
 const router   = express.Router();
 const authMiddleware = require('../middleware/auth');
 const { getState, getQR, sendMessage, logout, initWhatsApp } = require('../lib/whatsappBaileys');
+const prisma = require('../prisma');
 const { runReminders } = require('../lib/reminderCron');
 
 router.use(authMiddleware);
@@ -59,6 +60,39 @@ router.post('/run-reminders', async (req, res) => {
   if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado' });
   res.json({ ok: true, message: 'Barrido iniciado en background' });
   runReminders().catch(e => console.error('[manual-reminder]', e.message));
+});
+
+// GET /api/whatsapp/templates — leer plantillas auto del negocio
+router.get('/templates', async (req, res) => {
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT "waTemplateExpiring", "waTemplateOverdue", "waTemplateAppointment" FROM "Business" WHERE id = ? LIMIT 1`,
+      req.user.businessId
+    );
+    const row = rows?.[0] || {};
+    res.json({
+      expiring:    row.waTemplateExpiring    || '',
+      overdue:     row.waTemplateOverdue     || '',
+      appointment: row.waTemplateAppointment || '',
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/whatsapp/templates — guardar plantillas
+router.put('/templates', async (req, res) => {
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede editar plantillas' });
+  const { expiring, overdue, appointment } = req.body;
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Business" SET "waTemplateExpiring" = ?, "waTemplateOverdue" = ?, "waTemplateAppointment" = ? WHERE id = ?`,
+      expiring || null, overdue || null, appointment || null, req.user.businessId
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;
