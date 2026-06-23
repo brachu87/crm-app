@@ -415,6 +415,7 @@ export default function Settings() {
       </div>
 
       <WhatsAppTemplates />
+      <WhatsAppAuto />
 
       <div className="card" style={{ marginTop: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -448,6 +449,149 @@ export default function Settings() {
           onClose={() => { setShowModal(false); setEditing(null); }}
           onSaved={() => { setShowModal(false); setEditing(null); setSuccess(editing ? 'Usuario actualizado' : 'Usuario creado'); load(); }}
         />
+      )}
+    </div>
+  );
+}
+
+
+// ── Automatización WhatsApp vía Meta Cloud API ───────────────────────────────
+function WhatsAppAuto() {
+  const [status, setStatus] = useState(null);
+  const [testPhone, setTestPhone] = useState('');
+  const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Zentric 🌿');
+  const [testing, setTesting] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [feedback, setFeedback] = useState('');
+
+  useEffect(() => {
+    api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => setStatus({ configured: false }));
+  }, []);
+
+  async function handleTest() {
+    if (!testPhone || !testMsg) return;
+    setTesting(true); setFeedback('');
+    try {
+      await api.post('/whatsapp/test', { phone: testPhone, message: testMsg });
+      setFeedback('✅ Mensaje enviado correctamente');
+    } catch (e) {
+      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+    } finally { setTesting(false); }
+  }
+
+  async function handleRunNow() {
+    setRunning(true); setFeedback('');
+    try {
+      await api.post('/whatsapp/run-reminders');
+      setFeedback('✅ Barrido iniciado — revisá los logs de Railway para ver el resultado');
+    } catch (e) {
+      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+    } finally { setRunning(false); }
+  }
+
+  const configured = status?.configured;
+
+  return (
+    <div className="card" style={{ marginTop: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <span style={{ fontSize: 28 }}>🤖</span>
+        <div>
+          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Recordatorios automáticos por WhatsApp</h2>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
+            Usa la API oficial de Meta — gratis hasta 1000 mensajes/mes
+          </p>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+            background: configured ? '#22c55e' : '#f59e0b',
+          }} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {status === null ? 'Verificando...' : configured ? 'Conectado' : 'No configurado'}
+          </span>
+        </div>
+      </div>
+
+      {!configured && (
+        <div style={{
+          background: 'var(--bg)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: 16, marginBottom: 16,
+        }}>
+          <p style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>⚙️ Configuración requerida en Railway</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>
+            Para activar los mensajes automáticos, agregá estas variables de entorno en tu proyecto de Railway:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[
+              { key: 'META_WA_TOKEN', desc: 'Token de acceso permanente (Meta for Developers)' },
+              { key: 'META_WA_PHONE_ID', desc: 'Phone Number ID de tu número de WhatsApp Business' },
+            ].map(v => (
+              <div key={v.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <code style={{
+                  background: 'var(--primary-soft)', color: 'var(--primary)',
+                  padding: '2px 8px', borderRadius: 5, fontSize: 12, minWidth: 180,
+                }}>{v.key}</code>
+                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{v.desc}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12, marginBottom: 0 }}>
+            📖 <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>
+              Ver guía de configuración de Meta Cloud API →
+            </a>
+          </p>
+        </div>
+      )}
+
+      {configured && (
+        <>
+          <div style={{
+            background: '#f0fdf4', border: '1px solid #bbf7d0',
+            borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534',
+          }}>
+            🕘 El sistema envía recordatorios automáticamente todos los días a las <strong>09:00 hs (Argentina)</strong> para cuotas que vencen en 1, 3 y 7 días, y avisos de cuotas vencidas.
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Probar envío manual</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              <input
+                value={testPhone}
+                onChange={e => setTestPhone(e.target.value)}
+                placeholder="Ej: 1123456789"
+                style={{ flex: 1, minWidth: 160, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }}
+              />
+            </div>
+            <textarea
+              value={testMsg}
+              onChange={e => setTestMsg(e.target.value)}
+              rows={2}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical', boxSizing: 'border-box', marginBottom: 8 }}
+            />
+            <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
+              {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}
+            </button>
+          </div>
+
+          <div>
+            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Ejecutar recordatorios ahora</p>
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 8 }}>
+              Dispará el barrido manualmente sin esperar al horario programado.
+            </p>
+            <button className="btn btn-primary" onClick={handleRunNow} disabled={running}>
+              {running ? 'Ejecutando...' : '▶ Ejecutar recordatorios ahora'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {feedback && (
+        <div style={{
+          marginTop: 14, padding: '10px 14px', borderRadius: 8,
+          background: feedback.startsWith('✅') ? '#f0fdf4' : '#fef2f2',
+          color: feedback.startsWith('✅') ? '#166534' : '#991b1b',
+          fontSize: 13, fontWeight: 500,
+        }}>{feedback}</div>
       )}
     </div>
   );

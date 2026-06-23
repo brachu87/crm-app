@@ -35,6 +35,8 @@ const servicesRoutes = require('./routes/services');
 const appointmentsRoutes = require('./routes/appointments');
 const billingRoutes = require('./routes/billing');
 const pricesRoutes = require('./routes/prices');
+const whatsappRoutes = require('./routes/whatsapp');
+const { startReminderCron } = require('./lib/reminderCron');
 
 const app = express();
 
@@ -149,6 +151,7 @@ app.use('/api/services', servicesRoutes);
 app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/prices', pricesRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
@@ -303,6 +306,28 @@ async function ensureLastAccessAndBonificado() {
   }
 }
 
+
+async function ensureWATemplateColumns() {
+  try {
+    const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
+    const names = cols.map(r => r.name);
+    if (!names.includes('waTemplateExpiring')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "waTemplateExpiring" TEXT`);
+      console.log('[startup] Added waTemplateExpiring column');
+    }
+    if (!names.includes('waTemplateOverdue')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "waTemplateOverdue" TEXT`);
+      console.log('[startup] Added waTemplateOverdue column');
+    }
+    if (!names.includes('waAutoReminders')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "waAutoReminders" INTEGER NOT NULL DEFAULT 0`);
+      console.log('[startup] Added waAutoReminders column');
+    }
+  } catch (err) {
+    console.error('[startup] ensureWATemplateColumns error:', err.message);
+  }
+}
+
 async function sweepExpiredTrials() {
   try {
     // Trial = 15 days from createdAt. Auto-expire and block access.
@@ -334,9 +359,13 @@ ensureSubscriptionFields();
 ensureLastAccessAndBonificado();
 ensureSupplierIdOnExpense();
 sweepExpiredTrials();
+ensureWATemplateColumns();
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada hora
+
+// Iniciar cron de recordatorios WhatsApp
+startReminderCron();
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
