@@ -14,7 +14,8 @@ backend/.env
 frontend/.env.local
 
 # Build del frontend (Railway lo genera)
-frontend/dist/
+# frontend/dist/  -- committed for Railway deploy
+
 
 # Backups locales
 backups/
