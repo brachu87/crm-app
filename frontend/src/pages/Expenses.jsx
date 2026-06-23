@@ -59,9 +59,7 @@ export default function Expenses() {
           <p className="page-subtitle">Control de egresos del negocio</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {expenses.length > 0 && (
-            {can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(expenses)}>↓ Exportar CSV</button>}
-          )}
+          {expenses.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(expenses)}>↓ Exportar CSV</button>}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo gasto</button>}
         </div>
       </div>

@@ -366,9 +366,7 @@ function EventModal({ event, defaultDate, onSave, onDelete, onClose }) {
         </div>
 
         <div className="cal-modal-footer">
-          {!isNew && (
-            {can.eliminar && <button className="btn-danger-sm" onClick={() => { onDelete(event.id); onClose(); }}>Eliminar</button>}
-          )}
+          {!isNew && can.eliminar && <button className="btn-danger-sm" onClick={() => { onDelete(event.id); onClose(); }}>Eliminar</button>}
           <div style={{ flex: 1 }} />
           <button className="btn-secondary-sm" onClick={onClose}>Cancelar</button>
           <button className="btn-primary-sm" onClick={handleSave}>Guardar</button>
@@ -1098,9 +1096,7 @@ function ApptDetailModal({ appt, onClose, onUpdated }) {
         </div>
 
         <div className="cal-modal-footer" style={{ flexWrap: 'wrap', gap: 8 }}>
-          {appt.status !== 'cancelled' && (
-            {can.eliminar && <button className="btn-danger-sm" onClick={handleCancel} disabled={saving}>Cancelar turno</button>}
-          )}
+          {appt.status !== 'cancelled' && can.eliminar && <button className="btn-danger-sm" onClick={handleCancel} disabled={saving}>Cancelar turno</button>}
           {appt.client?.phone && (() => {
             const phone = appt.client.phone.replace(/\D/g, '');
             const intlPhone = phone.startsWith('54') ? phone : `54${phone}`;

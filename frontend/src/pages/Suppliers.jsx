@@ -58,9 +58,7 @@ export default function Suppliers() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
-          {suppliers.length > 0 && (
-            {can.exportar && <button className="btn btn-secondary" onClick={exportCSV}>↓ Exportar CSV</button>}
-          )}
+          {suppliers.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={exportCSV}>↓ Exportar CSV</button>}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo proveedor</button>}
         </div>
       </div>

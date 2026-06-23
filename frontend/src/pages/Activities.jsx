@@ -614,8 +614,8 @@ export default function Activities() {
                         <td><span style={{ background: act.active !== false ? '#d1fae5' : '#fee2e2', color: act.active !== false ? '#065f46' : '#991b1b', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>{act.active !== false ? 'Activa' : 'Inactiva'}</span></td>
                         <td>
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => { {can.editar && setEditingAct(act); setShowActModal(true); }}>Editar</button>}
-                            <button className="btn btn-secondary btn-sm" style={{ color: act.active !== false ? '#ef4444' : '#10b981' }} onClick={() => toggleActivity(act)}>{act.active !== false ? 'Desactivar' : 'Activar'}</button>
+                            {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditingAct(act); setShowActModal(true); }}>Editar</button>}
+                            {can.baja && <button className="btn btn-secondary btn-sm" style={{ color: act.active !== false ? '#ef4444' : '#10b981' }} onClick={() => toggleActivity(act)}>{act.active !== false ? 'Desactivar' : 'Activar'}</button>}
                           </div>
                         </td>
                       </tr>
@@ -645,7 +645,7 @@ export default function Activities() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => setActivePanel(svc)}>📅 Ver turnos</button>
                       <button className="btn btn-secondary btn-sm" onClick={() => { setEditingSvc(svc); setShowSvcModal(true); }}>✏️ Editar</button>
-                      <button className="btn btn-secondary btn-sm" style={{ color: svc.active ? '#ef4444' : '#10b981' }} onClick={() => toggleService(svc)}>{svc.active ? 'Desactivar' : 'Activar'}</button>
+                      {can.baja && <button className="btn btn-secondary btn-sm" style={{ color: svc.active ? '#ef4444' : '#10b981' }} onClick={() => toggleService(svc)}>{svc.active ? 'Desactivar' : 'Activar'}</button>}
                     </div>
                   </div>
                 ))}

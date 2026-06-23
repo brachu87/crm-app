@@ -51,9 +51,7 @@ export default function Employees() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
-          {employees.length > 0 && (
-            {can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(employees)}>↓ Exportar CSV</button>}
-          )}
+          {employees.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(employees)}>↓ Exportar CSV</button>}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo empleado</button>}
         </div>
       </div>
