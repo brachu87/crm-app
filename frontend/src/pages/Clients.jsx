@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSectionPerms } from '../config/permissions';
 import api from '../api/client';
+import AuthImage from '../components/AuthImage';
 import ClientModal from './ClientModal';
 import ImportModal from '../components/ImportModal';
 
@@ -136,13 +137,12 @@ export default function Clients() {
                     <td>
                       <Link to={`/clientes/${c.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#6366f1' }}>
-                          <img
-                            src={`/api/clients/${c.id}/photo?token=${localStorage.getItem('token')}`}
+                          <AuthImage
+                            path={`/api/clients/${c.id}/photo`}
                             alt=""
                             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                            fallback={<span style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>{c.name.charAt(0).toUpperCase()}</span>}
                           />
-                          <span style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>{c.name.charAt(0).toUpperCase()}</span>
                         </span>
                         {c.name}
                       </Link>

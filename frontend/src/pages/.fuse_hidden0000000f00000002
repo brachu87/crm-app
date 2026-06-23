@@ -1,0 +1,203 @@
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import api from '../api/client';
+
+const statusLabels = {
+  paid: 'Pagado',
+  pending: 'Pendiente',
+  overdue: 'Vencido',
+};
+
+function formatMoney(value) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value || 0);
+}
+
+function formatDate(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('es-AR');
+}
+
+export default function ActivityDetail() {
+  const { id } = useParams();
+  const [activity, setActivity] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState('');
+
+  function load() {
+    api.get(`/activities/${id}`).then((res) => setActivity(res.data)).finally(() => setLoading(false));
+  }
+
+  useEffect(load, [id]);
+
+  async function cycleStatus(enrollment) {
+    // ciclo: pending -> paid -> overdue -> pending (atajo rápido desde la tabla)
+    const next = { pending: 'paid', paid: 'overdue', overdue: 'pending' }[enrollment.paymentStatus];
+    try {
+      await api.patch(`/enrollments/${enrollment.id}`, { paymentStatus: next });
+      load();
+    } catch {
+      setError('No se pudo actualizar el estado');
+    }
+  }
+
+  async function removeEnrollment(enrollmentId) {
+    if (!confirm('¿Quitar a este cliente de la actividad?')) return;
+    try {
+      await api.delete(`/enrollments/${enrollmentId}`);
+      load();
+    } catch {
+      setError('No se pudo quitar al cliente');
+    }
+  }
+
+  if (loading) return <p>Cargando...</p>;
+  if (!activity) return <p>Actividad no encontrada.</p>;
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1>{activity.name}</h1>
+          <p className="page-subtitle">
+            {activity.schedule || 'Sin horario definido'} · {formatMoney(activity.price)}
+            {activity.capacity ? ` · Cupo ${activity.enrollments.length}/${activity.capacity}` : ''}
+          </p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Inscribir cliente</button>
+      </div>
+
+      {error && <div className="error-banner">{error}</div>}
+
+      <div className="card">
+        {activity.enrollments.length === 0 ? (
+          <div className="empty-state">
+            <h3>Nadie inscripto todavía</h3>
+            <p>Inscribí clientes a esta actividad para empezar a seguir sus pagos.</p>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12 }}>
+              + Inscribir cliente
+            </button>
+          </div>
+        ) : (
+          <div className="table-wrap"><table className="table">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Monto</th>
+                <th>Vence</th>
+                <th>Estado de pago</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {activity.enrollments.map((e) => (
+                <tr key={e.id}>
+                  <td><Link to={`/clientes/${e.clientId}`}>{e.client.name}</Link></td>
+                  <td>{formatMoney(e.amountDue)}</td>
+                  <td>{formatDate(e.dueDate)}</td>
+                  <td>
+                    <button
+                      className={`pill pill-${e.paymentStatus}`}
+                      style={{ border: 'none' }}
+                      onClick={() => cycleStatus(e)}
+                      title="Click para cambiar estado"
+                    >
+                      {statusLabels[e.paymentStatus]}
+                    </button>
+                  </td>
+                  <td>
+                    <button className="btn-danger-text" onClick={() => removeEnrollment(e.id)}>Quitar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {showModal && (
+        <EnrollModal
+          activity={activity}
+          onClose={() => setShowModal(false)}
+          onCreated={() => { setShowModal(false); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EnrollModal({ activity, onClose, onCreated }) {
+  const [clients, setClients] = useState([]);
+  const [clientId, setClientId] = useState('');
+  const [amountDue, setAmountDue] = useState(activity.price);
+  const [dueDate, setDueDate] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/clients').then((res) => {
+      const enrolledIds = new Set(activity.enrollments.map((e) => e.clientId));
+      const available = res.data.filter((c) => !enrolledIds.has(c.id));
+      setClients(available);
+      if (available.length > 0) setClientId(available[0].id);
+    });
+  }, [activity]);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await api.post('/enrollments', {
+        clientId,
+        activityId: activity.id,
+        amountDue: Number(amountDue),
+        dueDate: dueDate || undefined,
+      });
+      onCreated();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo inscribir al cliente');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Inscribir cliente</h2>
+        {error && <div className="error-banner">{error}</div>}
+        {clients.length === 0 ? (
+          <div className="empty-state">
+            <h3>No hay clientes disponibles</h3>
+            <p>Todos tus clientes ya están inscriptos acá, o todavía no creaste ninguno.</p>
+            <Link to="/clientes" className="btn btn-primary" style={{ marginTop: 12 }}>Ir a Clientes</Link>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="field">
+              <label>Cliente</label>
+              <select value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Monto a pagar</label>
+              <input type="number" min="0" step="0.01" value={amountDue} onChange={(e) => setAmountDue(e.target.value)} required />
+            </div>
+            <div className="field">
+              <label>Fecha de vencimiento (opcional)</label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Inscribiendo...' : 'Inscribir'}</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}

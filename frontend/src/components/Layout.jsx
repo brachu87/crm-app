@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import OnboardingWizard from './OnboardingWizard';
 import ChatBot from './ChatBot';
+import AuthImage from './AuthImage';
 import { useAuth } from '../context/AuthContext';
 import { ALL_MODULES } from '../config/modules';
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -194,11 +195,11 @@ export default function Layout() {
         </button>
         <span className="mobile-brand" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {logoOk && (
-            <img
-              src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`}
+            <AuthImage
+              path={`/api/business/logo`}
+              cacheKey={logoTs}
               alt=""
               style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }}
-              onError={() => setLogoOk(false)}
             />
           )}
           {business?.name || 'Mi Negocio'}
@@ -228,11 +229,11 @@ export default function Layout() {
         <div className="sidebar-header">
           <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, letterSpacing: '-0.02em' }}>
             {logoOk && (
-              <img
-                src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`}
+              <AuthImage
+                path={`/api/business/logo`}
+                cacheKey={logoTs}
                 alt=""
                 style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
-                onError={() => setLogoOk(false)}
               />
             )}
             <span>{business?.name || 'Mi Negocio'}</span>

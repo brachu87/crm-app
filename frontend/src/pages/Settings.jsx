@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client';
+import AuthImage from '../components/AuthImage';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { DEFAULT_TEMPLATES, getTemplates } from './Collections';
@@ -289,12 +290,9 @@ export default function Settings() {
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
               <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--border)', overflow: 'hidden', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {!logoError ? (
-                  <img src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`} alt="Logo"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setLogoError(true)} />
-                ) : (
-                  <span style={{ fontSize: 28 }}>🏢</span>
-                )}
+                <AuthImage path={`/api/business/logo`} cacheKey={logoTs} alt="Logo"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  fallback={<span style={{ fontSize: 28 }}>🏢</span>} />
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <label className="btn btn-secondary" style={{ cursor: 'pointer', marginBottom: 0 }}>

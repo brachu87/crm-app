@@ -5,18 +5,11 @@ const prisma = require('../prisma');
 const _subCache = new Map(); // businessId -> { exp, data }
 const SUB_TTL_MS = 60 * 1000; // 60s
 
-// Photo endpoints need token in query param (for <img src="...?token=...">)
-// Only allow it for that specific pattern.
-const QUERY_TOKEN_PATHS = ['/photo', '/logo'];
-
 function authMiddleware(req, res, next) {
   let token = null;
   const header = req.headers.authorization;
   if (header && header.startsWith('Bearer ')) {
     token = header.split(' ')[1];
-  } else if (req.query.token && QUERY_TOKEN_PATHS.some(p => req.path.endsWith(p))) {
-    // Only allow ?token= for photo serving routes
-    token = req.query.token;
   }
 
   if (!token) {

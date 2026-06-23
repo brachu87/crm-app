@@ -673,9 +673,21 @@ function ReciboModal({ recibo, business, onClose }) {
   const net = Math.max(0, (recibo.amountDue || 0) - (recibo.discount || 0));
   const nroRecibo = `${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${recibo.id?.slice(-5).toUpperCase()}`;
   const token = localStorage.getItem('token');
+  const [logoData, setLogoData] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/business/logo', { responseType: 'blob' })
+      .then((res) => {
+        const reader = new FileReader();
+        reader.onloadend = () => { if (!cancelled) setLogoData(reader.result); };
+        reader.readAsDataURL(res.data);
+      })
+      .catch(() => { if (!cancelled) setLogoData(null); });
+    return () => { cancelled = true; };
+  }, []);
 
   function buildHtml() {
-    const logoUrl = `${window.location.origin}/api/business/logo?token=${token}`;
+    const logoUrl = logoData || '';
     const fecha = fmtD(new Date().toISOString().slice(0,10));
     return `<!DOCTYPE html>
 <html lang="es">
@@ -818,7 +830,7 @@ ${(!recibo.isAppointment && recibo.discount > 0) ? `<div class="row"><span class
         <div className="recibo-print-area">
           <div className="recibo-header">
             <div className="recibo-logo-block">
-              <img src={`/api/business/logo?token=${token}&t=${Date.now()}`} alt="" className="recibo-logo" onError={e => { e.target.style.display='none' }} />
+              {logoData && <img src={logoData} alt="" className="recibo-logo" />}
               <div>
                 <div className="recibo-business-name">{business?.name || 'Mi negocio'}</div>
                 {business?.phone && <div className="recibo-business-sub">{business.phone}</div>}

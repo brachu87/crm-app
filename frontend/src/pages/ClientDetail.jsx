@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/client';
+import AuthImage from '../components/AuthImage';
 import ClientModal from './ClientModal';
 
 const statusLabels = {
@@ -87,15 +88,13 @@ export default function ClientDetail() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <label style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} title="Cambiar foto">
             <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: 'var(--ink-soft)', border: '2px solid var(--border)' }}>
-              <img
-                src={`/api/clients/${id}/photo?t=${photoTs}&token=${localStorage.getItem('token')}`}
+              <AuthImage
+                path={`/api/clients/${id}/photo`}
+                cacheKey={photoTs}
                 alt=""
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                fallback={<span style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: '#6366f1', color: 'white', borderRadius: '50%' }}>{client.name.charAt(0).toUpperCase()}</span>}
               />
-              <span style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: 22, background: '#6366f1', color: 'white', borderRadius: '50%' }}>
-                {client.name.charAt(0).toUpperCase()}
-              </span>
             </div>
             <div style={{ position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white' }}>+</div>
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0])} />
