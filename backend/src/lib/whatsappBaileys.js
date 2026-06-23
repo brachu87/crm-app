@@ -18,7 +18,7 @@ let isReconnecting  = false;
 
 // Carpeta donde se guarda la sesión (configurable por env var)
 const SESSION_DIR = process.env.BAILEYS_SESSION_PATH
-  || path.join(__dirname, '..', '..', 'baileys-session');
+  || (fs.existsSync('/data') ? '/data/baileys-session' : path.join(__dirname, '..', '..', 'baileys-session'));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function ensureDir(dir) {
@@ -147,6 +147,9 @@ async function initWhatsApp() {
           const delay = connectionState === 'qr_ready' ? 3000 : 5000;
           setTimeout(() => {
             isReconnecting = false;
+            // initWhatsApp() ignora el estado 'connecting'; lo reseteamos a
+            // 'disconnected' para que la reconexion vuelva a intentar de verdad.
+            if (connectionState === 'connecting') connectionState = 'disconnected';
             initWhatsApp();
           }, delay);
         }
