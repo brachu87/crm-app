@@ -61,6 +61,7 @@ model Client {
   medicalNotes     String?
   active           Boolean      @default(true)
   dni              String?
+  cuit             String?
   responsableName  String?
   responsablePhone String?
   globalDiscount   Float        @default(0)

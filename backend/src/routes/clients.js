@@ -94,7 +94,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/clients - crear cliente
 router.post('/', async (req, res) => {
   try {
-    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, responsableName, responsablePhone, globalDiscount } = req.body;
+    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, cuit, responsableName, responsablePhone, globalDiscount } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const client = await prisma.client.create({
       data: {
@@ -107,6 +107,7 @@ router.post('/', async (req, res) => {
         emergencyPhone: emergencyPhone || null,
         medicalNotes: medicalNotes || null,
         dni: dni || null,
+        cuit: cuit || null,
         responsableName: responsableName || null,
         responsablePhone: responsablePhone || null,
         globalDiscount: globalDiscount != null ? Number(globalDiscount) : 0,
@@ -154,7 +155,7 @@ router.put('/:id', async (req, res) => {
       where: scopedWhere(req, { id: req.params.id }),
     });
     if (!existing) return res.status(404).json({ error: 'Cliente no encontrado' });
-    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, responsableName, responsablePhone, globalDiscount } = req.body;
+    const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, cuit, responsableName, responsablePhone, globalDiscount } = req.body;
     const client = await prisma.client.update({
       where: { id: req.params.id },
       data: {
@@ -163,6 +164,7 @@ router.put('/:id', async (req, res) => {
         email: email || null,
         notes: notes || null,
         dni: dni !== undefined ? (dni || null) : existing.dni,
+        cuit: cuit !== undefined ? (cuit || null) : existing.cuit,
         birthday: birthday !== undefined ? (birthday ? new Date(birthday) : null) : existing.birthday,
         emergencyContact: emergencyContact !== undefined ? emergencyContact || null : existing.emergencyContact,
         emergencyPhone: emergencyPhone !== undefined ? emergencyPhone || null : existing.emergencyPhone,
