@@ -90,7 +90,7 @@ router.put('/:id', async (req, res) => {
   try {
     const existing = await prisma.supplier.findFirst({ where: scopedWhere(req, { id: req.params.id }) });
     if (!existing) return res.status(404).json({ error: 'Proveedor no encontrado' });
-    const { name, contact, phone, email, cuit, category, notes } = req.body;
+    const { name, contact, phone, email, cuit, dni, category, notes } = req.body;
     const supplier = await prisma.supplier.update({
       where: { id: req.params.id },
       data: { name, contact: contact || null, phone: phone || null, email: email || null, cuit: cuit || null, dni: dni || null, category: category || null, notes: notes || null },
