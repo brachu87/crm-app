@@ -30,7 +30,6 @@ function colorForActivity(activityId, index) {
 }
 
 function parseTime(timeStr, date) {
-  const can = useSectionPerms('agenda');
   const [h, m] = timeStr.split(':').map(Number);
   const d = new Date(date);
   d.setHours(h, m, 0, 0);
@@ -784,6 +783,7 @@ function Row({ label, value }) {
 }
 
 export default function Notes() {
+  const can = useSectionPerms('agenda');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
