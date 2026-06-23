@@ -40,18 +40,7 @@ const app = express();
 
 // ── Security headers ───────────────────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-      imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", process.env.APP_URL || "https://crm-app-production-0669.up.railway.app", "https://accounts.google.com"],
-      frameSrc: ["https://accounts.google.com"],
-      objectSrc: ["'none'"],
-    },
-  },
+  contentSecurityPolicy: false,              // app uses inline scripts/styles
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow logo/photo serving
   crossOriginEmbedderPolicy: false,          // avoid breaking image loads
 }));
