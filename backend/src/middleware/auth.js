@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
+
+// Cache de estado de suscripción por negocio (evita un query a la BD en cada request)
+const _subCache = new Map(); // businessId -> { exp, data }
+const SUB_TTL_MS = 60 * 1000; // 60s
 
 // Photo endpoints need token in query param (for <img src="...?token=...">)
 // Only allow it for that specific pattern.
@@ -39,12 +42,18 @@ function authMiddleware(req, res, next) {
 // Use this on non-auth routes that need an active account
 async function subscriptionCheck(req, res, next) {
   try {
-    const biz = await prisma.$queryRawUnsafe(
-      `SELECT "subscriptionStatus", "bonificado" FROM "Business" WHERE id = ? LIMIT 1`,
-      req.user.businessId
-    );
-    if (!biz || biz.length === 0) return res.status(403).json({ error: 'Negocio no encontrado' });
-    const { subscriptionStatus, bonificado } = biz[0];
+    const bid = req.user.businessId;
+    let cached = _subCache.get(bid);
+    if (!cached || cached.exp < Date.now()) {
+      const biz = await prisma.$queryRawUnsafe(
+        `SELECT "subscriptionStatus", "bonificado" FROM "Business" WHERE id = ? LIMIT 1`,
+        bid
+      );
+      if (!biz || biz.length === 0) return res.status(403).json({ error: 'Negocio no encontrado' });
+      cached = { exp: Date.now() + SUB_TTL_MS, data: biz[0] };
+      _subCache.set(bid, cached);
+    }
+    const { subscriptionStatus, bonificado } = cached.data;
     const isBonif = bonificado === 1 || bonificado === true;
     if (subscriptionStatus === 'expired' && !isBonif) {
       return res.status(402).json({

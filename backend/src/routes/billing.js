@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
-const { PrismaClient } = require('@prisma/client');
 const authMiddleware = require('../middleware/auth');
 
-const prisma = new PrismaClient();
+const prisma = require('../prisma');
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
 const APP_URL = process.env.APP_URL || 'https://crm-app-production-0669.up.railway.app';

@@ -2,7 +2,7 @@ const express = require('express');
 const prisma = require('../prisma');
 const router = express.Router();
 
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 15;
 
 function adminAuth(req, res, next) {
   const envSecret = process.env.ADMIN_SECRET;
