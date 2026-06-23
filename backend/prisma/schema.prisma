@@ -156,6 +156,7 @@ model Payment {
   method    String?
 
   @@index([cuotaId])
+  @@index([date])
 }
 
 model Supplier {

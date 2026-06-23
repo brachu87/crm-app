@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/auth');
 const { periodKey, addMonthToPeriod } = require('../lib/period');
 const { markOverdueCuotas } = require('../lib/overdue');
 const { autoRenewCuotas } = require('../lib/autoRenew');
+const { shouldRun, markRan } = require('../lib/renewThrottle');
 
 const router = express.Router();
 
@@ -45,8 +46,11 @@ router.get('/', async (req, res) => {
     const baseWhere = { enrollment: { client: { businessId: bId, active: true }, active: true } };
 
     // Auto-generar cuotas vencidas antes de devolver datos
-    await markOverdueCuotas({ businessId: bId });
-    await autoRenewCuotas({ businessId: bId });
+    if (shouldRun(bId)) {
+      await markOverdueCuotas({ businessId: bId });
+      await autoRenewCuotas({ businessId: bId });
+      markRan(bId);
+    }
 
     // Caso especial: cuotas con saldo pendiente (pago parcial o sin pagos)
     if (partial === 'true') {
@@ -279,7 +283,10 @@ router.post('/renew-month', async (req, res) => {
     const now = new Date();
 
     // Marcar vencidas primero (helper compartido)
-    await markOverdueCuotas({ businessId: bId });
+    if (shouldRun(bId)) {
+      await markOverdueCuotas({ businessId: bId });
+      markRan(bId);
+    }
 
     // Inscripciones activas cuya última cuota está pagada
     const enrollments = await prisma.enrollment.findMany({

@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const { markOverdueCuotas } = require('../lib/overdue');
+const { shouldRun, markRan } = require('../lib/renewThrottle');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -108,7 +109,10 @@ router.get('/summary', async (req, res) => {
     const totalSalaries = employees.reduce((s, e) => s + (e.salary || 0), 0);
 
     // Overdue enrollments
-    await markOverdueCuotas({ businessId: bId });
+    if (shouldRun(bId)) {
+      await markOverdueCuotas({ businessId: bId });
+      markRan(bId);
+    }
     const overdueCount = await prisma.cuota.count({
       where: {
         enrollment: { activity: { businessId: bId }, active: true },
