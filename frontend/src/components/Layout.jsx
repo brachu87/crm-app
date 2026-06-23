@@ -19,7 +19,7 @@ const NAV_GROUPS = [
     label: 'Empleados',
     icon: '👥',
     links: [
-      { to: '/empleados', label: 'Empleados' },
+      { to: '/empleados', label: 'Personal' },
       { to: '/asistencias', label: 'Asistencias' },
       { to: '/liquidaciones', label: 'Liquidaciones' },
       { to: '/horarios', label: 'Horarios' },
