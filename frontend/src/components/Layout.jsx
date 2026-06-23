@@ -52,7 +52,7 @@ const NAV_GROUPS = [
 
 
 function activeGroup(pathname) {
-  for (const g of visibleGroups) {
+  for (const g of NAV_GROUPS) {
     if (g.links.some(l => pathname === l.to || pathname.startsWith(l.to + '/'))) return g.label;
   }
   return null;
