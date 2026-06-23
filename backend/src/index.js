@@ -50,7 +50,6 @@ app.use(helmet({
       connectSrc: ["'self'", process.env.APP_URL || "https://crm-app-production-0669.up.railway.app", "https://accounts.google.com"],
       frameSrc: ["https://accounts.google.com"],
       objectSrc: ["'none'"],
-      upgradeInsecureRequests: [],
     },
   },
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow logo/photo serving
@@ -130,8 +129,6 @@ const uploadLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Límite de subida de archivos alcanzado. Intentá en 1 hora.' },
 });
-app.use('/api/clients', uploadLimiter);
-app.use('/api/business/logo', uploadLimiter);
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -155,8 +152,8 @@ app.use('/api/daily-cash', dailyCashRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/search', searchRoutes);
-app.use('/api/clients', photosRoutes);
-app.use('/api/business', businessRoutes);
+app.use('/api/clients', uploadLimiter, photosRoutes);
+app.use('/api/business', uploadLimiter, businessRoutes);
 app.use('/api/branches', branchesRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/services', servicesRoutes);
