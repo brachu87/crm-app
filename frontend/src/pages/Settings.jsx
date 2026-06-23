@@ -636,61 +636,63 @@ function WhatsAppAuto() {
             </button>
           </div>
 
-          <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>Plantillas de mensajes automáticos</p>
-              <button className="btn btn-primary btn-sm" onClick={handleSaveTemplates}>
-                {templatesSaved ? '✓ Guardado' : 'Guardar'}
-              </button>
-            </div>
-            {[
-              {
-                key: 'expiring',
-                label: '📅 Cuota próxima a vencer',
-                hint: 'Se envía 1, 3 y 7 días antes del vencimiento',
-                vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}',
-                def: 'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}',
-              },
-              {
-                key: 'overdue',
-                label: '⚠️ Cuota vencida',
-                hint: 'Se envía el día después del vencimiento',
-                vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}',
-                def: 'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}',
-              },
-              {
-                key: 'appointment',
-                label: '📆 Recordatorio de turno',
-                hint: 'Se envía un día antes del turno agendado',
-                vars: '{nombre} {servicio} {hora} {fecha} {negocio}',
-                def: 'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}',
-              },
-            ].map(({ key, label, hint, vars, def }) => (
-              <div key={key} style={{ marginBottom: 16 }}>
-                <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{label}</p>
-                <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>
-                  {hint} · Variables: <code style={{ fontSize: 11 }}>{vars}</code>
-                </p>
-                <textarea
-                  rows={2}
-                  value={templates[key] || ''}
-                  onChange={e => setTemplates(t => ({ ...t, [key]: e.target.value }))}
-                  placeholder={def}
-                  style={{
-                    width: '100%', padding: '8px 10px', borderRadius: 8,
-                    border: '1px solid var(--border)', fontSize: 13, lineHeight: 1.5,
-                    resize: 'vertical', background: 'var(--surface)', color: 'var(--ink)',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-            ))}
-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: 0 }}>
-              Si dejás el campo vacío se usa el mensaje por defecto.
-            </p>
-          </div>
         </>
       )}
+
+      {/* Plantillas automáticas — siempre visibles */}
+      <div className="card" style={{ marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Plantillas de mensajes automáticos</h2>
+          <button className="btn btn-primary btn-sm" onClick={handleSaveTemplates}>
+            {templatesSaved ? '✓ Guardado' : 'Guardar'}
+          </button>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+          Podés personalizar el texto de cada recordatorio. Dejá el campo vacío para usar el mensaje por defecto.
+        </p>
+        {[
+          {
+            key: 'expiring',
+            label: '📅 Cuota próxima a vencer',
+            hint: 'Se envía 1, 3 y 7 días antes del vencimiento',
+            vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}',
+            def: 'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}',
+          },
+          {
+            key: 'overdue',
+            label: '⚠️ Cuota vencida',
+            hint: 'Se envía el día después del vencimiento',
+            vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}',
+            def: 'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}',
+          },
+          {
+            key: 'appointment',
+            label: '📆 Recordatorio de turno',
+            hint: 'Se envía un día antes del turno agendado',
+            vars: '{nombre} {servicio} {hora} {fecha} {negocio}',
+            def: 'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}',
+          },
+        ].map(({ key, label, hint, vars, def }) => (
+          <div key={key} style={{ marginBottom: 16 }}>
+            <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{label}</p>
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>
+              {hint} · Variables: <code style={{ fontSize: 11 }}>{vars}</code>
+            </p>
+            <textarea
+              rows={2}
+              value={templates[key] || ''}
+              onChange={e => setTemplates(t => ({ ...t, [key]: e.target.value }))}
+              placeholder={def}
+              style={{
+                width: '100%', padding: '8px 10px', borderRadius: 8,
+                border: '1px solid var(--border)', fontSize: 13, lineHeight: 1.5,
+                resize: 'vertical', background: 'var(--surface)', color: 'var(--ink)',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        ))}
+      </div>
 
       {feedback && (
         <div style={{
