@@ -324,6 +324,10 @@ async function ensureWATemplateColumns() {
       await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "waTemplateAppointment" TEXT`);
       console.log('[startup] Added waTemplateAppointment column');
     }
+    if (!names.includes('enabledModules')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "enabledModules" TEXT`);
+      console.log('[startup] Added enabledModules column');
+    }
     if (!names.includes('waAutoReminders')) {
       await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN "waAutoReminders" INTEGER NOT NULL DEFAULT 0`);
       console.log('[startup] Added waAutoReminders column');

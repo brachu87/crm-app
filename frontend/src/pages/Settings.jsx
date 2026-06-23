@@ -3,6 +3,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { DEFAULT_TEMPLATES, getTemplates } from './Collections';
+import { ALL_MODULES } from '../components/Layout';
 
 // Secciones disponibles (mismo orden que el sidebar)
 const ALL_SECTIONS = [
@@ -56,6 +57,18 @@ export default function Settings() {
   const [bizLoaded, setBizLoaded] = useState(false);
   const [savingBiz, setSavingBiz] = useState(false);
   const [activeTab, setActiveTab] = useState('negocio');
+  const [modules, setModules] = useState(() => {
+    // Inicializar desde el business guardado en localStorage
+    const biz = JSON.parse(localStorage.getItem('business') || '{}');
+    if (!biz.enabledModules) return ALL_MODULES.map(m => m.key); // todos habilitados
+    try {
+      const parsed = typeof biz.enabledModules === 'string'
+        ? JSON.parse(biz.enabledModules) : biz.enabledModules;
+      return parsed || ALL_MODULES.map(m => m.key);
+    } catch { return ALL_MODULES.map(m => m.key); }
+  });
+  const [savingModules, setSavingModules] = useState(false);
+  const [modulesSaved, setModulesSaved] = useState(false);
   const CATEGORIES = [
     { value: 'gym', label: 'Gimnasio' },
     { value: 'estetica', label: 'Centro estético' },
@@ -78,6 +91,28 @@ export default function Settings() {
     } finally {
       setSavingBiz(false);
     }
+  }
+
+  async function saveModules() {
+    setSavingModules(true);
+    try {
+      await api.put('/business/modules', { enabledModules: modules });
+      // Actualizar business en localStorage para que Layout lo lea sin reload
+      const biz = JSON.parse(localStorage.getItem('business') || '{}');
+      biz.enabledModules = JSON.stringify(modules);
+      localStorage.setItem('business', JSON.stringify(biz));
+      updateBusiness(biz);
+      setModulesSaved(true);
+      setTimeout(() => setModulesSaved(false), 2000);
+    } catch (e) {
+      setError(e.response?.data?.error || 'Error al guardar módulos');
+    } finally { setSavingModules(false); }
+  }
+
+  function toggleModule(key) {
+    setModules(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
   }
 
   async function uploadLogo(file) {
@@ -270,6 +305,50 @@ export default function Settings() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* ── Módulos activos ── */}
+          <div className="card" style={{ marginTop: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <div>
+                <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Módulos activos</h2>
+                <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0 }}>
+                  Activá solo las secciones que usás. El menú lateral se actualiza al instante.
+                </p>
+              </div>
+              <button className="btn btn-primary" onClick={saveModules} disabled={savingModules}>
+                {modulesSaved ? '✓ Guardado' : savingModules ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {ALL_MODULES.map(m => (
+                <label key={m.key} style={{
+                  display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
+                  padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)',
+                  background: modules.includes(m.key) ? 'var(--primary-soft)' : 'var(--surface)',
+                  transition: 'background .15s',
+                }}>
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={modules.includes(m.key)}
+                      onChange={() => toggleModule(m.key)}
+                      style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                    />
+                  </div>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14,
+                      color: modules.includes(m.key) ? 'var(--primary)' : 'var(--ink)' }}>
+                      {m.label}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>{m.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12, marginBottom: 0 }}>
+              ℹ️ Clientes, Cobranza y Ajustes siempre están disponibles.
+            </p>
           </div>
         </>
       )}

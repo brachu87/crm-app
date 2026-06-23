@@ -9,20 +9,21 @@ const NAV_GROUPS = [
     label: 'Negocio',
     icon: '🏪',
     links: [
-      { to: '/clientes', label: 'Clientes' },
-      { to: '/actividades', label: 'Actividades/Servicios' },
-      { to: '/agenda', label: 'Agenda' },
-      { to: '/proveedores', label: 'Proveedores' },
+      { to: '/clientes',    label: 'Clientes' },
+      { to: '/actividades', label: 'Actividades/Servicios', module: 'actividades' },
+      { to: '/agenda',      label: 'Agenda',                module: 'agenda' },
+      { to: '/proveedores', label: 'Proveedores',           module: 'proveedores' },
     ],
   },
   {
     label: 'Empleados',
     icon: '👥',
+    module: 'empleados',   // si el grupo completo está desactivado no se muestra
     links: [
-      { to: '/empleados', label: 'Legajos' },
-      { to: '/asistencias', label: 'Asistencias' },
+      { to: '/empleados',     label: 'Legajos' },
+      { to: '/asistencias',   label: 'Asistencias' },
       { to: '/liquidaciones', label: 'Liquidaciones' },
-      { to: '/horarios', label: 'Horarios' },
+      { to: '/horarios',      label: 'Horarios' },
     ],
   },
   {
@@ -30,10 +31,10 @@ const NAV_GROUPS = [
     icon: '💰',
     links: [
       { to: '/cobranza', label: 'Cobranza' },
-      { to: '/caja', label: 'Caja del día' },
-      { to: '/reportes', label: 'Reportes' },
-      { to: '/gastos', label: 'Gastos' },
-      { to: '/precios', label: 'Grilla de precios' },
+      { to: '/caja',     label: 'Caja del día',      module: 'caja' },
+      { to: '/reportes', label: 'Reportes',           module: 'reportes' },
+      { to: '/gastos',   label: 'Gastos',             module: 'gastos' },
+      { to: '/precios',  label: 'Grilla de precios',  module: 'precios' },
     ],
   },
   {
@@ -41,20 +42,53 @@ const NAV_GROUPS = [
     icon: '⚙️',
     links: [
       { to: '/ajustes', label: 'Ajustes' },
-      { to: '/sedes', label: 'Sedes' },
+      { to: '/sedes',   label: 'Sedes', module: 'sedes' },
     ],
   },
 ];
 
+// Todos los módulos con sus valores por defecto (true = habilitado)
+export const ALL_MODULES = [
+  { key: 'actividades', label: 'Actividades/Servicios', desc: 'Clases, talleres, servicios' },
+  { key: 'agenda',      label: 'Agenda',                desc: 'Turnos y citas' },
+  { key: 'proveedores', label: 'Proveedores',           desc: 'Gestión de proveedores y cuentas corrientes' },
+  { key: 'empleados',   label: 'Equipo (Legajos)',      desc: 'Legajos, asistencias, liquidaciones, horarios' },
+  { key: 'caja',        label: 'Caja del día',          desc: 'Movimientos de caja diaria' },
+  { key: 'reportes',    label: 'Reportes',              desc: 'Reportes e indicadores' },
+  { key: 'gastos',      label: 'Gastos',                desc: 'Registro de gastos del negocio' },
+  { key: 'precios',     label: 'Grilla de precios',     desc: 'Lista de precios por actividad' },
+  { key: 'sedes',       label: 'Sedes',                 desc: 'Gestión de sucursales' },
+];
+
 function activeGroup(pathname) {
-  for (const g of NAV_GROUPS) {
+  for (const g of visibleGroups) {
     if (g.links.some(l => pathname === l.to || pathname.startsWith(l.to + '/'))) return g.label;
   }
   return null;
 }
 
 export default function Layout() {
-  const { business, logout, user } = useAuth();
+  const { business, logout, user, updateBusiness } = useAuth();
+
+  // Módulos habilitados: null = todos; array = lista de keys activos
+  const enabledModules = (() => {
+    if (!business?.enabledModules) return null;
+    try { return typeof business.enabledModules === 'string'
+      ? JSON.parse(business.enabledModules)
+      : business.enabledModules;
+    } catch { return null; }
+  })();
+
+  function isModuleOn(key) {
+    if (!key) return true;
+    if (!enabledModules) return true;
+    return enabledModules.includes(key);
+  }
+
+  const visibleGroups = NAV_GROUPS
+    .filter(g => isModuleOn(g.module))
+    .map(g => ({ ...g, links: g.links.filter(l => isModuleOn(l.module)) }))
+    .filter(g => g.links.length > 0);
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (!business?.id) return false;
@@ -236,7 +270,7 @@ export default function Layout() {
         </NavLink>
 
         {/* Accordion groups — filtered by user permissions */}
-        {NAV_GROUPS.map((group) => {
+        {visibleGroups.map((group) => {
           // Owner y admin ven todo; staff solo ve lo que tiene habilitado
           const perms = user?.permissions;
           const visibleLinks = (perms && user?.role === 'staff')

@@ -86,7 +86,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       token: makeToken(user),
       user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: null },
-      business: { id: business.id, name: business.name, category: business.category },
+      business: { id: business.id, name: business.name, category: business.category, enabledModules: business.enabledModules || null },
     });
   } catch (err) {
     console.error(err);
@@ -121,7 +121,7 @@ router.post('/login', async (req, res) => {
     res.json({
       token: makeToken(user),
       user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: parsePerms(user) },
-      business: { id: user.business.id, name: user.business.name, category: user.business.category },
+      business: { id: user.business.id, name: user.business.name, category: user.business.category, enabledModules: user.business.enabledModules || null },
     });
   } catch (err) {
     console.error(err);
@@ -155,7 +155,7 @@ router.post('/google', async (req, res) => {
     res.json({
       token: makeToken(user),
       user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: parsePerms(user) },
-      business: { id: user.business.id, name: user.business.name, category: user.business.category },
+      business: { id: user.business.id, name: user.business.name, category: user.business.category, enabledModules: user.business.enabledModules || null },
     });
   } catch (err) {
     console.error(err);
@@ -181,7 +181,7 @@ router.post('/google-register', async (req, res) => {
       return res.json({
         token: makeToken(existing),
         user: { id: existing.id, name: existing.name, email: existing.email, role: existing.role, permissions: parsePerms(existing) },
-        business: { id: biz.id, name: biz.name, category: biz.category },
+        business: { id: biz.id, name: biz.name, category: biz.category, enabledModules: biz.enabledModules || null },
       });
     }
 
@@ -203,7 +203,7 @@ router.post('/google-register', async (req, res) => {
     res.status(201).json({
       token: makeToken(newUser),
       user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, permissions: null },
-      business: { id: business.id, name: business.name, category: business.category },
+      business: { id: business.id, name: business.name, category: business.category, enabledModules: business.enabledModules || null },
     });
   } catch (err) {
     console.error('[google-register error]', err);
@@ -225,7 +225,7 @@ router.get('/me', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json({
       user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: parsePerms(user) },
-      business: { id: user.business.id, name: user.business.name, category: user.business.category },
+      business: { id: user.business.id, name: user.business.name, category: user.business.category, enabledModules: user.business.enabledModules || null },
     });
   } catch (e) {
     res.status(401).json({ error: 'Token inválido' });

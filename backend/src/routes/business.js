@@ -110,4 +110,37 @@ router.put('/', async (req, res) => {
   }
 });
 
+// PUT /api/business/modules — guardar módulos habilitados (owner only)
+router.put('/modules', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede cambiar esto' });
+  const { enabledModules } = req.body; // array de strings
+  if (!Array.isArray(enabledModules)) return res.status(400).json({ error: 'enabledModules debe ser un array' });
+  try {
+    const json = JSON.stringify(enabledModules);
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Business" SET "enabledModules" = ? WHERE id = ?`,
+      json, req.user.businessId
+    );
+    res.json({ ok: true, enabledModules });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/business/modules
+router.get('/modules', authMiddleware, async (req, res) => {
+  try {
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT "enabledModules" FROM "Business" WHERE id = ? LIMIT 1`,
+      req.user.businessId
+    );
+    const raw = rows?.[0]?.enabledModules;
+    const modules = raw ? JSON.parse(raw) : null;
+    res.json({ enabledModules: modules });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
+
