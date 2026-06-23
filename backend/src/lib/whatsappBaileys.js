@@ -44,6 +44,21 @@ function normalizePhone(raw) {
   return digits;
 }
 
+// Logger compatible con Pino (Baileys lo requiere internamente)
+function makeNoopLogger() {
+  const noop = () => {};
+  function logger() {}
+  logger.level = 'silent';
+  logger.trace = noop;
+  logger.debug = noop;
+  logger.info  = noop;
+  logger.warn  = noop;
+  logger.error = noop;
+  logger.fatal = noop;
+  logger.child = () => makeNoopLogger();
+  return logger;
+}
+
 // ─── init ─────────────────────────────────────────────────────────────────────
 async function initWhatsApp() {
   if (connectionState === 'connecting' || connectionState === 'connected') return;
@@ -73,7 +88,7 @@ async function initWhatsApp() {
     auth: state,
     browser: Browsers.ubuntu('Chrome'),
     printQRInTerminal: false,
-    logger: { level: 'silent', child: () => ({ level: 'silent', trace: ()=>{}, debug: ()=>{}, info: ()=>{}, warn: ()=>{}, error: ()=>{}, fatal: ()=>{}, child: ()=>({}) }) },
+    logger: makeNoopLogger(),
     connectTimeoutMs: 60_000,
     defaultQueryTimeoutMs: 60_000,
     keepAliveIntervalMs: 30_000,
