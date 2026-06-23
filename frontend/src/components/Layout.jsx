@@ -10,7 +10,7 @@ const NAV_GROUPS = [
     icon: '🏪',
     links: [
       { to: '/clientes', label: 'Clientes' },
-      { to: '/actividades', label: 'Actividades / Servicios' },
+      { to: '/actividades', label: 'Actividades/Servicios' },
       { to: '/agenda', label: 'Agenda' },
       { to: '/proveedores', label: 'Proveedores' },
     ],
