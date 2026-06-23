@@ -55,6 +55,7 @@ export default function Settings() {
   });
   const [bizLoaded, setBizLoaded] = useState(false);
   const [savingBiz, setSavingBiz] = useState(false);
+  const [activeTab, setActiveTab] = useState('negocio');
   const CATEGORIES = [
     { value: 'gym', label: 'Gimnasio' },
     { value: 'estetica', label: 'Centro estético' },
@@ -146,14 +147,21 @@ export default function Settings() {
 
   const roleLabel = { owner: 'Propietario', admin: 'Administrador', staff: 'Personal' };
 
+  const TABS = [
+    { id: 'negocio',     label: '🏢 Negocio' },
+    { id: 'usuarios',    label: '👥 Usuarios' },
+    { id: 'whatsapp',    label: '💬 WhatsApp' },
+    { id: 'facturacion', label: '💳 Facturación' },
+  ];
+
   return (
     <div>
       <div className="page-header">
         <div>
           <h1>Ajustes</h1>
-          <p className="page-subtitle">Usuarios y configuración del negocio</p>
+          <p className="page-subtitle">Configuración del negocio</p>
         </div>
-        {isOwner && (
+        {activeTab === 'usuarios' && isOwner && (
           <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>
             + Nuevo usuario
           </button>
@@ -167,280 +175,222 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Datos del negocio */}
-      {isOwner && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 16 }}>Datos del negocio</h2>
-
-          {/* Fila 1: Nombre + Rubro */}
-          <div className="two-col-grid" style={{ marginBottom: 12 }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Nombre del negocio *</label>
-              <input
-                value={bizForm.name}
-                onChange={e => setBizForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Nombre de tu negocio"
-              />
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Tipo de negocio *</label>
-              <select value={bizForm.category} onChange={e => setBizForm(f => ({ ...f, category: e.target.value }))}>
-                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Fila 2: Teléfono + CUIT */}
-          <div className="two-col-grid" style={{ marginBottom: 12 }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Teléfono</label>
-              <input
-                type="tel"
-                value={bizForm.phone}
-                onChange={e => setBizForm(f => ({ ...f, phone: e.target.value }))}
-                placeholder="Ej: 1176353062"
-              />
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label>CUIT / CUIL</label>
-              <input
-                value={bizForm.cuit}
-                onChange={e => setBizForm(f => ({ ...f, cuit: e.target.value }))}
-                placeholder="Ej: 20-12345678-9"
-              />
-            </div>
-          </div>
-
-          {/* Fila 3: Dirección */}
-          <div className="field" style={{ marginBottom: 12 }}>
-            <label>Dirección</label>
-            <input
-              value={bizForm.address}
-              onChange={e => setBizForm(f => ({ ...f, address: e.target.value }))}
-              placeholder="Ej: Av. Corrientes 1234, Buenos Aires"
-            />
-          </div>
-
-          {/* Fila 4: Email + Sitio web */}
-          <div className="two-col-grid" style={{ marginBottom: 12 }}>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Email de contacto</label>
-              <input
-                type="email"
-                value={bizForm.email}
-                onChange={e => setBizForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="Ej: info@tunegocio.com"
-              />
-            </div>
-            <div className="field" style={{ margin: 0 }}>
-              <label>Sitio web</label>
-              <input
-                type="url"
-                value={bizForm.website}
-                onChange={e => setBizForm(f => ({ ...f, website: e.target.value }))}
-                placeholder="Ej: www.tunegocio.com"
-              />
-            </div>
-          </div>
-
-          {/* Fila 5: Instagram */}
-          <div className="field" style={{ marginBottom: 16 }}>
-            <label>Instagram</label>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-soft)', fontSize: 14 }}>@</span>
-              <input
-                value={bizForm.instagram}
-                onChange={e => setBizForm(f => ({ ...f, instagram: e.target.value.replace('@','') }))}
-                placeholder="tunegocio"
-                style={{ paddingLeft: 28 }}
-              />
-            </div>
-          </div>
-
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)', paddingBottom: 0, flexWrap: 'wrap' }}>
+        {TABS.map(t => (
           <button
-            className="btn btn-primary"
-            onClick={saveBizInfo}
-            disabled={savingBiz || !bizForm.name.trim()}
-          >
-            {savingBiz ? 'Guardando...' : 'Guardar cambios'}
-          </button>
-        </div>
-      )}
-
-      {/* Logo del negocio */}
-      {isOwner && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 16, marginBottom: 4 }}>Logo del negocio</h2>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
-            Aparece en la barra lateral de la aplicación. Recomendado: imagen cuadrada, mínimo 128×128px.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--border)', overflow: 'hidden', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              {!logoError ? (
-                <img
-                  src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`}
-                  alt="Logo"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={() => setLogoError(true)}
-                />
-              ) : (
-                <span style={{ fontSize: 28 }}>🏢</span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <label className="btn btn-secondary" style={{ cursor: 'pointer', marginBottom: 0 }}>
-                📷 {logoError ? 'Subir logo' : 'Cambiar logo'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={(e) => e.target.files[0] && uploadLogo(e.target.files[0])}
-                />
-              </label>
-              {!logoError && (
-                <button className="btn btn-secondary" onClick={deleteLogo} style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>
-                  Eliminar
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 16, margin: 0 }}>Usuarios del negocio</h2>
-          <span style={{ fontSize: 12, color: 'var(--ink-soft)', background: 'var(--surface-2)', padding: '3px 10px', borderRadius: 20 }}>
-            {users.length}/3 usuarios
-          </span>
-        </div>
-        {loading ? (
-          <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
-        ) : users.length === 0 ? (
-          <p style={{ color: 'var(--ink-soft)' }}>No hay usuarios.</p>
-        ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Rol</th>
-                {isOwner && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <React.Fragment key={u.id}>
-                <tr>
-                  <td>
-                    {u.name}
-                    {u.id === user?.id && (
-                      <span style={{ marginLeft: 8, fontSize: 11, background: 'var(--primary-soft)', color: 'var(--primary)', padding: '2px 6px', borderRadius: 4 }}>Vos</span>
-                    )}
-                  </td>
-                  <td>{u.email}</td>
-                  <td>{roleLabel[u.role] || u.role}</td>
-                  {isOwner && (
-                    <td>
-                      {u.id !== user?.id && (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          {isOwner && (
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => { setEditing(u); setShowModal(true); }}
-                            >
-                              Editar
-                            </button>
-                          )}
-                          {canManage && u.role !== 'owner' && (
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => setPermEditing(permEditing === u.id ? null : u.id)}
-                              style={{ color: 'var(--primary)' }}
-                            >
-                              🔐 Permisos
-                            </button>
-                          )}
-                          {isOwner && (
-                            <button
-                              className="btn-danger-text"
-                              onClick={() => deleteUser(u.id)}
-                            >
-                              Eliminar
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  )}
-                </tr>
-                {permEditing === u.id && (
-                  <tr>
-                    <td colSpan={isOwner ? 4 : 3} style={{ padding: 0, border: 'none' }}>
-                      <PermissionsPanel
-                        u={u}
-                        onClose={() => setPermEditing(null)}
-                        onSaved={(updated) => {
-                          setUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
-                          setPermEditing(null);
-                          setSuccess('Permisos actualizados');
-                        }}
-                      />
-                    </td>
-                  </tr>
-                )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table></div>
-        )}
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '10px 18px', fontSize: 14, fontWeight: 600,
+              color: activeTab === t.id ? 'var(--primary)' : 'var(--ink-soft)',
+              borderBottom: activeTab === t.id ? '2px solid var(--primary)' : '2px solid transparent',
+              marginBottom: -2, borderRadius: 0, whiteSpace: 'nowrap',
+              transition: 'color .15s',
+            }}
+          >{t.label}</button>
+        ))}
       </div>
 
-      <div className="card">
-        <h2 style={{ fontSize: 16, marginBottom: 12 }}>Tu sesión actual</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
-          <div>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Nombre</p>
-            <p style={{ margin: 0 }}>{user?.name}</p>
+      {/* ── NEGOCIO ── */}
+      {activeTab === 'negocio' && isOwner && (
+        <>
+          <div className="card" style={{ marginBottom: 24 }}>
+            <h2 style={{ fontSize: 16, marginBottom: 16 }}>Datos del negocio</h2>
+            <div className="two-col-grid" style={{ marginBottom: 12 }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Nombre del negocio *</label>
+                <input value={bizForm.name} onChange={e => setBizForm(f => ({ ...f, name: e.target.value }))} placeholder="Nombre de tu negocio" />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Tipo de negocio *</label>
+                <select value={bizForm.category} onChange={e => setBizForm(f => ({ ...f, category: e.target.value }))}>
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="two-col-grid" style={{ marginBottom: 12 }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Teléfono</label>
+                <input type="tel" value={bizForm.phone} onChange={e => setBizForm(f => ({ ...f, phone: e.target.value }))} placeholder="Ej: 1176353062" />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label>CUIT / CUIL</label>
+                <input value={bizForm.cuit} onChange={e => setBizForm(f => ({ ...f, cuit: e.target.value }))} placeholder="Ej: 20-12345678-9" />
+              </div>
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>Dirección</label>
+              <input value={bizForm.address} onChange={e => setBizForm(f => ({ ...f, address: e.target.value }))} placeholder="Ej: Av. Corrientes 1234, Buenos Aires" />
+            </div>
+            <div className="two-col-grid" style={{ marginBottom: 12 }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Email de contacto</label>
+                <input type="email" value={bizForm.email} onChange={e => setBizForm(f => ({ ...f, email: e.target.value }))} placeholder="Ej: info@tunegocio.com" />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label>Sitio web</label>
+                <input type="url" value={bizForm.website} onChange={e => setBizForm(f => ({ ...f, website: e.target.value }))} placeholder="Ej: www.tunegocio.com" />
+              </div>
+            </div>
+            <div className="field" style={{ marginBottom: 16 }}>
+              <label>Instagram</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-soft)', fontSize: 14 }}>@</span>
+                <input value={bizForm.instagram} onChange={e => setBizForm(f => ({ ...f, instagram: e.target.value.replace('@','') }))} placeholder="tunegocio" style={{ paddingLeft: 28 }} />
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={saveBizInfo} disabled={savingBiz || !bizForm.name.trim()}>
+              {savingBiz ? 'Guardando...' : 'Guardar cambios'}
+            </button>
           </div>
-          <div>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Email</p>
-            <p style={{ margin: 0 }}>{user?.email}</p>
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Rol</p>
-            <p style={{ margin: 0 }}>{roleLabel[user?.role] || user?.role}</p>
-          </div>
-        </div>
-      </div>
 
-      <WhatsAppTemplates />
-      <WhatsAppAuto />
-
-      <div className="card" style={{ marginTop: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ fontSize: 36 }}>📖</div>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Manual de usuario</h2>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
-              Guía completa de Zentric con todas las secciones, consejos y preguntas frecuentes.
+          <div className="card">
+            <h2 style={{ fontSize: 16, marginBottom: 4 }}>Logo del negocio</h2>
+            <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
+              Aparece en la barra lateral. Recomendado: imagen cuadrada, mínimo 128×128px.
             </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+              <div style={{ width: 80, height: 80, borderRadius: 12, border: '2px solid var(--border)', overflow: 'hidden', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {!logoError ? (
+                  <img src={`/api/business/logo?t=${logoTs}&token=${localStorage.getItem('token')}`} alt="Logo"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setLogoError(true)} />
+                ) : (
+                  <span style={{ fontSize: 28 }}>🏢</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <label className="btn btn-secondary" style={{ cursor: 'pointer', marginBottom: 0 }}>
+                  📷 {logoError ? 'Subir logo' : 'Cambiar logo'}
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadLogo(e.target.files[0])} />
+                </label>
+                {!logoError && (
+                  <button className="btn btn-secondary" onClick={deleteLogo} style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>Eliminar</button>
+                )}
+              </div>
+            </div>
           </div>
-          <a
-            href="https://brachu87.github.io/-zentric-landing/manual-zentric.pdf"
-            target="_blank"
-            rel="noreferrer"
-            download="Manual-Zentric.pdf"
-            className="btn btn-primary"
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            ⬇ Descargar PDF
-          </a>
-        </div>
-      </div>
+        </>
+      )}
 
-      {isOwner && (
-        <BillingCard billing={billing} onRefresh={() => api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {})} />
+      {/* ── USUARIOS ── */}
+      {activeTab === 'usuarios' && (
+        <>
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ fontSize: 16, margin: 0 }}>Usuarios del negocio</h2>
+              <span style={{ fontSize: 12, color: 'var(--ink-soft)', background: 'var(--surface-2)', padding: '3px 10px', borderRadius: 20 }}>
+                {users.length}/3 usuarios
+              </span>
+            </div>
+            {loading ? (
+              <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
+            ) : users.length === 0 ? (
+              <p style={{ color: 'var(--ink-soft)' }}>No hay usuarios.</p>
+            ) : (
+              <div className="table-wrap"><table className="table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th><th>Email</th><th>Rol</th>
+                    {isOwner && <th></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <React.Fragment key={u.id}>
+                      <tr>
+                        <td>
+                          {u.name}
+                          {u.id === user?.id && (
+                            <span style={{ marginLeft: 8, fontSize: 11, background: 'var(--primary-soft)', color: 'var(--primary)', padding: '2px 6px', borderRadius: 4 }}>Vos</span>
+                          )}
+                        </td>
+                        <td>{u.email}</td>
+                        <td>{roleLabel[u.role] || u.role}</td>
+                        {isOwner && (
+                          <td>
+                            {u.id !== user?.id && (
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {isOwner && (
+                                  <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(u); setShowModal(true); }}>Editar</button>
+                                )}
+                                {canManage && u.role !== 'owner' && (
+                                  <button className="btn btn-secondary btn-sm" onClick={() => setPermEditing(permEditing === u.id ? null : u.id)} style={{ color: 'var(--primary)' }}>🔐 Permisos</button>
+                                )}
+                                {isOwner && (
+                                  <button className="btn-danger-text" onClick={() => deleteUser(u.id)}>Eliminar</button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                      {permEditing === u.id && (
+                        <tr>
+                          <td colSpan={isOwner ? 4 : 3} style={{ padding: 0, border: 'none' }}>
+                            <PermissionsPanel u={u} onClose={() => setPermEditing(null)}
+                              onSaved={(updated) => { setUsers(prev => prev.map(x => x.id === updated.id ? updated : x)); setPermEditing(null); setSuccess('Permisos actualizados'); }} />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table></div>
+            )}
+          </div>
+
+          <div className="card">
+            <h2 style={{ fontSize: 16, marginBottom: 12 }}>Tu sesión actual</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Nombre</p>
+                <p style={{ margin: 0 }}>{user?.name}</p>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Email</p>
+                <p style={{ margin: 0 }}>{user?.email}</p>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Rol</p>
+                <p style={{ margin: 0 }}>{roleLabel[user?.role] || user?.role}</p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── WHATSAPP ── */}
+      {activeTab === 'whatsapp' && (
+        <>
+          <WhatsAppAuto />
+          <WhatsAppTemplates />
+        </>
+      )}
+
+      {/* ── FACTURACIÓN ── */}
+      {activeTab === 'facturacion' && (
+        <>
+          {isOwner && billing !== undefined && (
+            <BillingCard billing={billing} onRefresh={() => api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {})} />
+          )}
+          <div className="card" style={{ marginTop: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ fontSize: 36 }}>📖</div>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Manual de usuario</h2>
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
+                  Guía completa de Zentric con todas las secciones, consejos y preguntas frecuentes.
+                </p>
+              </div>
+              <a href="https://brachu87.github.io/-zentric-landing/manual-zentric.pdf" target="_blank" rel="noreferrer"
+                download="Manual-Zentric.pdf" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
+                ⬇ Descargar PDF
+              </a>
+            </div>
+          </div>
+        </>
       )}
 
       {showModal && (
@@ -453,6 +403,7 @@ export default function Settings() {
     </div>
   );
 }
+
 
 
 // ── Automatización WhatsApp vía Meta Cloud API ───────────────────────────────
