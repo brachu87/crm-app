@@ -98,6 +98,21 @@ router.post('/', async (req, res) => {
     const start = startDate ? new Date(startDate) : new Date();
     const discount = req.body.discount ? parseFloat(req.body.discount) : 0;
 
+    // Calcular dueDate de la primera cuota según configuración de la actividad
+    const activity = await prisma.activity.findUnique({ where: { id: activityId }, select: { billingDueDay: true } });
+    const firstDueDate = (() => {
+      if (dueDate) return new Date(dueDate);
+      const fixedDay = activity?.billingDueDay;
+      if (fixedDay) {
+        // Día fijo: si hoy es antes del día fijo de este mes → este mes, si no → próximo mes
+        const s = new Date(start);
+        const refMonth = s.getDate() >= fixedDay ? s.getMonth() + 1 : s.getMonth();
+        return new Date(s.getFullYear(), refMonth, fixedDay);
+      }
+      // Rolling: mismo día del mes siguiente
+      return new Date(start.getFullYear(), start.getMonth() + 1, start.getDate());
+    })();
+
     const enrollment = await prisma.enrollment.create({
       data: {
         clientId,
@@ -114,7 +129,7 @@ router.post('/', async (req, res) => {
             amountDue,
             discount,
             paymentStatus: paymentStatus || 'pending',
-            dueDate: dueDate ? new Date(dueDate) : new Date(start.getFullYear(), start.getMonth() + 1, start.getDate()),
+            dueDate: firstDueDate,
           },
         },
       },

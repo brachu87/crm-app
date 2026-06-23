@@ -23,6 +23,7 @@ async function autoRenewCuotas({ businessId }) {
     },
     include: {
       cuotas: { orderBy: { period: 'desc' } },
+      activity: { select: { billingDueDay: true } },
     },
   });
 
@@ -43,7 +44,16 @@ async function autoRenewCuotas({ businessId }) {
 
       const nextPeriod = addMonthToPeriod(latest.period);
       const baseDue = due || today;
-      const nextDue = new Date(baseDue.getFullYear(), baseDue.getMonth() + 1, baseDue.getDate());
+      let nextDue;
+      const fixedDay = e.activity?.billingDueDay;
+      if (fixedDay) {
+        // Día fijo: próxima ocurrencia del día configurado
+        const refMonth = baseDue.getMonth() + (baseDue.getDate() >= fixedDay ? 1 : 0);
+        nextDue = new Date(baseDue.getFullYear(), refMonth, fixedDay);
+      } else {
+        // Rolling: mismo día del mes siguiente
+        nextDue = new Date(baseDue.getFullYear(), baseDue.getMonth() + 1, baseDue.getDate());
+      }
 
       try {
         const newCuota = await prisma.cuota.create({

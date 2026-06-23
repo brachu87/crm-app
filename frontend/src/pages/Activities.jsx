@@ -102,7 +102,7 @@ async function saveSchedules(activityId, branchId, slots, existingIds = []) {
 // ── Activity Modal ────────────────────────────────────────────────────────────
 function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
   const isEdit = !!activity;
-  const [form, setForm] = useState({ name: activity?.name || '', description: activity?.description || '', price: activity?.price || '', capacity: activity?.capacity || '', branchId: activity?.branchId || '', active: activity?.active ?? true });
+  const [form, setForm] = useState({ name: activity?.name || '', description: activity?.description || '', price: activity?.price || '', capacity: activity?.capacity || '', branchId: activity?.branchId || '', active: activity?.active ?? true, billingDueDay: activity?.billingDueDay || '' });
   const [selectedEmployees, setSelectedEmployees] = useState(() => activity?.activityEmployees?.map(ae => ae.employeeId) || []);
   const [slots, setSlots] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -127,7 +127,7 @@ function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
     setSaving(true); setError('');
     try {
       let saved;
-      const payload = { name: form.name, description: form.description, price: parseFloat(form.price) || 0, capacity: form.capacity ? parseInt(form.capacity) : null, branchId: form.branchId || null, active: form.active };
+      const payload = { name: form.name, description: form.description, price: parseFloat(form.price) || 0, capacity: form.capacity ? parseInt(form.capacity) : null, branchId: form.branchId || null, active: form.active, billingDueDay: form.billingDueDay ? parseInt(form.billingDueDay) : null };
       if (isEdit) { saved = await api.put(`/activities/${activity.id}`, payload); }
       else { saved = await api.post('/activities', payload); }
       const actId = saved.data.id;
@@ -153,6 +153,18 @@ function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
             <div className="field"><label>Cupo (opcional)</label><input type="number" min="0" value={form.capacity} onChange={e => update('capacity', e.target.value)} placeholder="Sin límite" /></div>
           </div>
           <div className="field"><label>Descripción (opcional)</label><textarea rows="2" value={form.description} onChange={e => update('description', e.target.value)} /></div>
+          <div className="field">
+            <label>Vencimiento de cuota</label>
+            <select value={form.billingDueDay} onChange={e => update('billingDueDay', e.target.value)} style={{ width: '100%' }}>
+              <option value="">Mes siguiente al alta (ej: alta 23/06 → vence 23/07)</option>
+              {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28].map(d => (
+                <option key={d} value={d}>Día fijo: el {d} de cada mes</option>
+              ))}
+            </select>
+            {form.billingDueDay && <span style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4, display: 'block' }}>
+              Los clientes que se inscriban pagarán siempre el día {form.billingDueDay} de cada mes.
+            </span>}
+          </div>
           {branches.length > 0 && <div className="field"><label>Sede</label><select value={form.branchId} onChange={e => update('branchId', e.target.value)}><option value="">Sin sede</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>}
           {employees.length > 0 && (
             <div className="field"><label>Instructores</label>
@@ -206,6 +218,18 @@ function ServiceModal({ service, employees, onClose, onSaved }) {
         <form onSubmit={handleSubmit}>
           <div className="field"><label>Nombre del servicio</label><input value={form.name} onChange={e => update('name', e.target.value)} placeholder="Ej: Masaje 60 min, Osteopatía inicial" required /></div>
           <div className="field"><label>Descripción (opcional)</label><textarea rows="2" value={form.description} onChange={e => update('description', e.target.value)} /></div>
+          <div className="field">
+            <label>Vencimiento de cuota</label>
+            <select value={form.billingDueDay} onChange={e => update('billingDueDay', e.target.value)} style={{ width: '100%' }}>
+              <option value="">Mes siguiente al alta (ej: alta 23/06 → vence 23/07)</option>
+              {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28].map(d => (
+                <option key={d} value={d}>Día fijo: el {d} de cada mes</option>
+              ))}
+            </select>
+            {form.billingDueDay && <span style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4, display: 'block' }}>
+              Los clientes que se inscriban pagarán siempre el día {form.billingDueDay} de cada mes.
+            </span>}
+          </div>
           <div className="two-col-grid">
             <div className="field"><label>Duración (minutos)</label><input type="number" min="5" step="5" value={form.duration} onChange={e => update('duration', e.target.value)} required /></div>
             <div className="field"><label>Precio base</label><input type="number" min="0" step="0.01" value={form.price} onChange={e => update('price', e.target.value)} placeholder="0" /></div>

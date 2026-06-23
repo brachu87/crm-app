@@ -62,7 +62,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/activities - crear actividad
 router.post('/', async (req, res) => {
   try {
-    const { name, description, price, capacity, schedule, branchId } = req.body;
+    const { name, description, price, capacity, schedule, branchId, billingDueDay } = req.body;
 
     if (!name || price === undefined) {
       return res.status(400).json({ error: 'Nombre y precio son obligatorios' });
@@ -95,11 +95,11 @@ router.put('/:id', async (req, res) => {
     });
     if (!existing) return res.status(404).json({ error: 'Actividad no encontrada' });
 
-    const { name, description, price, capacity, schedule, active, branchId } = req.body;
+    const { name, description, price, capacity, schedule, active, branchId, billingDueDay } = req.body;
 
     const activity = await prisma.activity.update({
       where: { id: req.params.id },
-      data: { name, description, price, capacity, schedule, active,
+      data: { name, description, price, capacity, schedule, billingDueDay: billingDueDay ? parseInt(billingDueDay) : null, active,
               branchId: branchId !== undefined ? (branchId || null) : existing.branchId },
     });
 
