@@ -55,8 +55,8 @@ export default function Suppliers() {
           <p className="page-subtitle">Gestión de proveedores y contactos comerciales</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
           {suppliers.length > 0 && (
-            <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
             <button className="btn btn-secondary" onClick={exportCSV}>↓ Exportar CSV</button>
           )}
           <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>
