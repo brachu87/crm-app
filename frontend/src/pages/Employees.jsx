@@ -48,8 +48,8 @@ export default function Employees() {
           <p className="page-subtitle">Gestión del equipo de trabajo</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
           {employees.length > 0 && (
-            <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>
             <button className="btn btn-secondary" onClick={() => exportCSV(employees)}>↓ Exportar CSV</button>
           )}
           <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>
