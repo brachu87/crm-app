@@ -2110,3 +2110,9 @@ h2 { font-weight: 600; }
     text-align: center;
   }
 }
+
+/* ── Chat de soporte: ocultar en móvil (tapaba botones) ── */
+@media (max-width: 768px) {
+  .support-chat-launcher,
+  .support-chat-panel { display: none !important; }
+}

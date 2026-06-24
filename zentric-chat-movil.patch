@@ -1,0 +1,35 @@
+diff --git a/frontend/src/components/ChatBot.jsx b/frontend/src/components/ChatBot.jsx
+index b999018..65b9575 100644
+--- a/frontend/src/components/ChatBot.jsx
++++ b/frontend/src/components/ChatBot.jsx
+@@ -442,6 +442,7 @@ export default function ChatBot() {
+       <button
+         onClick={() => setOpen(o => !o)}
+         aria-label="Ayuda"
++        className="support-chat-launcher"
+         style={{
+           position: 'fixed', bottom: 24, right: 24, zIndex: 8000,
+           width: 52, height: 52, borderRadius: '50%', border: 'none',
+@@ -465,7 +466,7 @@ export default function ChatBot() {
+ 
+       {/* Panel del chat */}
+       {open && (
+-        <div style={{
++        <div className="support-chat-panel" style={{
+           position: 'fixed', bottom: 86, right: 24, zIndex: 8000,
+           width: 340, maxWidth: 'calc(100vw - 32px)',
+           background: 'var(--surface)', borderRadius: 16,
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index 93f0728..46bbceb 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -2110,3 +2110,9 @@ h2 { font-weight: 600; }
+     text-align: center;
+   }
+ }
++
++/* ── Chat de soporte: ocultar en móvil (tapaba botones) ── */
++@media (max-width: 768px) {
++  .support-chat-launcher,
++  .support-chat-panel { display: none !important; }
++}

@@ -442,6 +442,7 @@ export default function ChatBot() {
       <button
         onClick={() => setOpen(o => !o)}
         aria-label="Ayuda"
+        className="support-chat-launcher"
         style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 8000,
           width: 52, height: 52, borderRadius: '50%', border: 'none',
@@ -465,7 +466,7 @@ export default function ChatBot() {
 
       {/* Panel del chat */}
       {open && (
-        <div style={{
+        <div className="support-chat-panel" style={{
           position: 'fixed', bottom: 86, right: 24, zIndex: 8000,
           width: 340, maxWidth: 'calc(100vw - 32px)',
           background: 'var(--surface)', borderRadius: 16,
