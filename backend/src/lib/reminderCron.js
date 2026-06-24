@@ -40,14 +40,11 @@ async function getTemplate(businessId) {
   }
 }
 
-async function runReminders() {
-  console.log('[wa-cron] Iniciando barrido de recordatorios WhatsApp...');
+async function runReminders(onlyBusinessId = null) {
+  console.log('[wa-cron] Iniciando barrido de recordatorios WhatsApp...' + (onlyBusinessId ? ` (negocio ${onlyBusinessId})` : ' (todos)'));
 
-  const { state } = getState();
-  if (state !== 'connected') {
-    console.log('[wa-cron] WhatsApp no conectado (estado: ' + state + ') — saltando.');
-    return;
-  }
+  // Helper: ¿este negocio aplica y está conectado?
+  const skip = (bid) => (onlyBusinessId && bid !== onlyBusinessId) || getState(bid).state !== 'connected';
 
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -78,6 +75,7 @@ async function runReminders() {
       `, targetStr);
 
       for (const q of cuotas) {
+        if (skip(q.businessId)) continue;
         const biz = await getTemplate(q.businessId);
         if (!biz) continue;
 
@@ -93,7 +91,7 @@ async function runReminders() {
         });
 
         try {
-          await sendMessage(q.clientPhone, msg);
+          await sendMessage(q.businessId, q.clientPhone, msg);
           sent++;
           console.log(`[wa-cron] ✓ Recordatorio → ${q.clientName} (vence en ${days}d)`);
           await new Promise(r => setTimeout(r, 800));
@@ -126,6 +124,7 @@ async function runReminders() {
     `, yesterday.toISOString().slice(0, 10));
 
     for (const q of overdue) {
+      if (skip(q.businessId)) continue;
       const biz = await getTemplate(q.businessId);
       if (!biz) continue;
 
@@ -141,7 +140,7 @@ async function runReminders() {
       });
 
       try {
-        await sendMessage(q.clientPhone, msg);
+        await sendMessage(q.businessId, q.clientPhone, msg);
         sent++;
         console.log(`[wa-cron] ✓ Vencido → ${q.clientName}`);
         await new Promise(r => setTimeout(r, 800));
@@ -173,6 +172,7 @@ async function runReminders() {
     `, tomorrowStr);
 
     for (const appt of appointments) {
+      if (skip(appt.businessId)) continue;
       const biz = await getTemplate(appt.businessId);
       if (!biz) continue;
 
@@ -192,7 +192,7 @@ async function runReminders() {
       });
 
       try {
-        await sendMessage(appt.clientPhone, msg);
+        await sendMessage(appt.businessId, appt.clientPhone, msg);
         sent++;
         console.log(`[wa-cron] ✓ Recordatorio turno → ${appt.clientName} (${tomorrowStr})`);
         await new Promise(r => setTimeout(r, 800));

@@ -14,12 +14,12 @@ router.use(authMiddleware);
 
 // GET /api/whatsapp/status
 router.get('/status', (req, res) => {
-  res.json(getState());
+  res.json(getState(req.user.businessId));
 });
 
 // GET /api/whatsapp/qr  — devuelve el QR como data:image/png;base64
 router.get('/qr', (req, res) => {
-  const qr = getQR();
+  const qr = getQR(req.user.businessId);
   if (!qr) return res.status(404).json({ error: 'No hay QR disponible' });
   res.json({ qr });
 });
@@ -27,31 +27,31 @@ router.get('/qr', (req, res) => {
 // POST /api/whatsapp/connect  — iniciar conexión (genera QR)
 router.post('/connect', async (req, res) => {
   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede conectar WhatsApp' });
-  const { state } = getState();
+  const { state } = getState(req.user.businessId);
   if (state === 'connected') return res.json({ ok: true, message: 'Ya conectado' });
   // initWhatsApp no bloquea — el QR aparece via polling de /status + /qr
-  initWhatsApp().catch(e => console.error('[wa-connect]', e.message));
+  initWhatsApp(req.user.businessId).catch(e => console.error('[wa-connect]', e.message));
   res.json({ ok: true, message: 'Iniciando conexión...' });
 });
 
 // POST /api/whatsapp/logout  — cerrar sesión
 router.post('/logout', async (req, res) => {
   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede desconectar' });
-  await logout();
+  await logout(req.user.businessId);
   res.json({ ok: true });
 });
 
 // POST /api/whatsapp/test  — enviar mensaje de prueba
 router.post('/test', async (req, res) => {
   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
-  const { state } = getState();
+  const { state } = getState(req.user.businessId);
   if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado. Escanear el QR primero.' });
 
   const { phone, message } = req.body;
   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
 
   try {
-    const result = await sendMessage(phone, message);
+    const result = await sendMessage(req.user.businessId, phone, message);
     res.json({ ok: true, to: result.to });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -62,10 +62,10 @@ router.post('/test', async (req, res) => {
 router.post('/send', async (req, res) => {
   const { phone, message } = req.body;
   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
-  const { state } = getState();
+  const { state } = getState(req.user.businessId);
   if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
   try {
-    const result = await sendMessage(phone, message);
+    const result = await sendMessage(req.user.businessId, phone, message);
     res.json({ ok: true, to: result.to });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -76,13 +76,13 @@ router.post('/send', async (req, res) => {
 router.post('/send-receipt', async (req, res) => {
   const { phone, receipt, caption } = req.body;
   if (!phone || !receipt) return res.status(400).json({ error: 'phone y receipt son requeridos' });
-  const { state } = getState();
+  const { state } = getState(req.user.businessId);
   if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
   try {
     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
     const pdf = await generateReceiptPdf({ ...receipt, logoPath });
     const safeNro = String(receipt.nroRecibo || 'pago').replace(/[^\w-]/g, '');
-    const result = await sendDocument(phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
+    const result = await sendDocument(req.user.businessId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
     res.json({ ok: true, to: result.to });
   } catch (err) {
     console.error('[send-receipt]', err.message);
@@ -93,10 +93,10 @@ router.post('/send-receipt', async (req, res) => {
 // POST /api/whatsapp/run-reminders  — disparar cron manualmente
 router.post('/run-reminders', async (req, res) => {
   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
-  const { state } = getState();
+  const { state } = getState(req.user.businessId);
   if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado' });
   res.json({ ok: true, message: 'Barrido iniciado en background' });
-  runReminders().catch(e => console.error('[manual-reminder]', e.message));
+  runReminders(req.user.businessId).catch(e => console.error('[manual-reminder]', e.message));
 });
 
 // GET /api/whatsapp/templates — leer plantillas auto del negocio

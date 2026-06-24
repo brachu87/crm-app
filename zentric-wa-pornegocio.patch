@@ -1,0 +1,533 @@
+diff --git a/backend/src/index.js b/backend/src/index.js
+index 40f7874..febe992 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -37,7 +37,7 @@ const billingRoutes = require('./routes/billing');
+ const pricesRoutes = require('./routes/prices');
+ const whatsappRoutes = require('./routes/whatsapp');
+ const { startReminderCron } = require('./lib/reminderCron');
+-const { initWhatsApp } = require('./lib/whatsappBaileys');
++const { restoreSessions } = require('./lib/whatsappBaileys');
+ 
+ const app = express();
+ 
+@@ -375,7 +375,7 @@ setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
+ setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada hora
+ 
+ // Iniciar WhatsApp Baileys y cron de recordatorios
+-initWhatsApp().catch(e => console.error('[baileys-init]', e.message));
++restoreSessions();
+ startReminderCron();
+ 
+ app.listen(PORT, () => {
+diff --git a/backend/src/lib/reminderCron.js b/backend/src/lib/reminderCron.js
+index 8028ad6..1258e07 100644
+--- a/backend/src/lib/reminderCron.js
++++ b/backend/src/lib/reminderCron.js
+@@ -40,14 +40,11 @@ async function getTemplate(businessId) {
+   }
+ }
+ 
+-async function runReminders() {
+-  console.log('[wa-cron] Iniciando barrido de recordatorios WhatsApp...');
++async function runReminders(onlyBusinessId = null) {
++  console.log('[wa-cron] Iniciando barrido de recordatorios WhatsApp...' + (onlyBusinessId ? ` (negocio ${onlyBusinessId})` : ' (todos)'));
+ 
+-  const { state } = getState();
+-  if (state !== 'connected') {
+-    console.log('[wa-cron] WhatsApp no conectado (estado: ' + state + ') — saltando.');
+-    return;
+-  }
++  // Helper: ¿este negocio aplica y está conectado?
++  const skip = (bid) => (onlyBusinessId && bid !== onlyBusinessId) || getState(bid).state !== 'connected';
+ 
+   const now = new Date();
+   now.setHours(0, 0, 0, 0);
+@@ -78,6 +75,7 @@ async function runReminders() {
+       `, targetStr);
+ 
+       for (const q of cuotas) {
++        if (skip(q.businessId)) continue;
+         const biz = await getTemplate(q.businessId);
+         if (!biz) continue;
+ 
+@@ -93,7 +91,7 @@ async function runReminders() {
+         });
+ 
+         try {
+-          await sendMessage(q.clientPhone, msg);
++          await sendMessage(q.businessId, q.clientPhone, msg);
+           sent++;
+           console.log(`[wa-cron] ✓ Recordatorio → ${q.clientName} (vence en ${days}d)`);
+           await new Promise(r => setTimeout(r, 800));
+@@ -126,6 +124,7 @@ async function runReminders() {
+     `, yesterday.toISOString().slice(0, 10));
+ 
+     for (const q of overdue) {
++      if (skip(q.businessId)) continue;
+       const biz = await getTemplate(q.businessId);
+       if (!biz) continue;
+ 
+@@ -141,7 +140,7 @@ async function runReminders() {
+       });
+ 
+       try {
+-        await sendMessage(q.clientPhone, msg);
++        await sendMessage(q.businessId, q.clientPhone, msg);
+         sent++;
+         console.log(`[wa-cron] ✓ Vencido → ${q.clientName}`);
+         await new Promise(r => setTimeout(r, 800));
+@@ -173,6 +172,7 @@ async function runReminders() {
+     `, tomorrowStr);
+ 
+     for (const appt of appointments) {
++      if (skip(appt.businessId)) continue;
+       const biz = await getTemplate(appt.businessId);
+       if (!biz) continue;
+ 
+@@ -192,7 +192,7 @@ async function runReminders() {
+       });
+ 
+       try {
+-        await sendMessage(appt.clientPhone, msg);
++        await sendMessage(appt.businessId, appt.clientPhone, msg);
+         sent++;
+         console.log(`[wa-cron] ✓ Recordatorio turno → ${appt.clientName} (${tomorrowStr})`);
+         await new Promise(r => setTimeout(r, 800));
+diff --git a/backend/src/lib/whatsappBaileys.js b/backend/src/lib/whatsappBaileys.js
+index 54f44a3..39381fd 100644
+--- a/backend/src/lib/whatsappBaileys.js
++++ b/backend/src/lib/whatsappBaileys.js
+@@ -1,156 +1,114 @@
+ /**
+- * WhatsApp client usando @whiskeysockets/baileys.
+- * Singleton: se inicializa una sola vez al arrancar el servidor.
+- * Estados: disconnected | connecting | qr_ready | connected
++ * WhatsApp client (Baileys) MULTI-TENANT.
++ * Una conexión independiente por negocio (businessId): sesión, socket,
++ * estado y QR separados. La sesión de cada negocio se guarda en su propia
++ * subcarpeta, por lo que un negocio NUNCA ve la sesión de otro.
+  */
+ 
+ const QRCode = require('qrcode');
+ const path  = require('path');
+ const fs    = require('fs');
+ 
+-// ─── estado global ────────────────────────────────────────────────────────────
+-let sock            = null;
+-let connectionState = 'disconnected';  // disconnected | connecting | qr_ready | connected
+-let currentQR       = null;            // string raw QR para re-generar si se pide
+-let currentQRBase64 = null;            // data:image/png;base64,...
+-let connectedPhone  = null;            // número conectado, ej: "5491112345678"
+-let isReconnecting  = false;
+-
+-// Carpeta donde se guarda la sesión (configurable por env var)
+-const SESSION_DIR = process.env.BAILEYS_SESSION_PATH
+-  || (fs.existsSync('/data') ? '/data/baileys-session' : path.join(__dirname, '..', '..', 'baileys-session'));
+-
+-// ─── helpers ──────────────────────────────────────────────────────────────────
+-function ensureDir(dir) {
+-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
++// Carpeta base; cada negocio guarda su sesión en <base>/<businessId>
++const SESSION_BASE = process.env.BAILEYS_SESSION_PATH
++  || (fs.existsSync('/data') ? '/data/baileys-sessions' : path.join(__dirname, '..', '..', 'baileys-sessions'));
++
++// businessId -> { sock, state, qr, qrBase64, phone, reconnecting }
++const sessions = new Map();
++
++function sess(businessId) {
++  let s = sessions.get(businessId);
++  if (!s) {
++    s = { sock: null, state: 'disconnected', qr: null, qrBase64: null, phone: null, reconnecting: false };
++    sessions.set(businessId, s);
++  }
++  return s;
+ }
++function dirFor(businessId) { return path.join(SESSION_BASE, String(businessId)); }
++function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
+ 
+-/**
+- * Normaliza un número argentino al JID de WhatsApp (sin @s.whatsapp.net).
+- * Acepta: 1512345678, 01512345678, 541512345678, +541512345678, 011-1234-5678
+- */
+ function normalizePhone(raw) {
+   if (!raw) return null;
+   let digits = String(raw).replace(/\D/g, '');
+-  // Quitar prefijo 0 de larga distancia
+   if (digits.startsWith('0')) digits = digits.slice(1);
+-  // Agregar código Argentina si no está
+   if (!digits.startsWith('54')) digits = '54' + digits;
+-  // Los celulares argentinos en WhatsApp tienen el 9 después del 54
+-  if (digits.startsWith('54') && !digits.startsWith('549')) {
+-    digits = '549' + digits.slice(2);
+-  }
++  if (digits.startsWith('54') && !digits.startsWith('549')) digits = '549' + digits.slice(2);
+   if (digits.length < 10 || digits.length > 15) return null;
+   return digits;
+ }
+ 
+-// Logger compatible con Pino (Baileys lo requiere internamente)
+ function makeNoopLogger() {
+   const noop = () => {};
+   function logger() {}
+   logger.level = 'silent';
+-  logger.trace = noop;
+-  logger.debug = noop;
+-  logger.info  = noop;
+-  logger.warn  = noop;
+-  logger.error = noop;
+-  logger.fatal = noop;
++  logger.trace = noop; logger.debug = noop; logger.info = noop;
++  logger.warn = noop; logger.error = noop; logger.fatal = noop;
+   logger.child = () => makeNoopLogger();
+   return logger;
+ }
+ 
+-// ─── init ─────────────────────────────────────────────────────────────────────
+-async function initWhatsApp() {
+-  if (connectionState === 'connecting' || connectionState === 'connected') return;
+-  connectionState = 'connecting';
+-  currentQR = null;
+-  currentQRBase64 = null;
+-  connectedPhone  = null;
++async function initWhatsApp(businessId) {
++  if (!businessId) return;
++  const s = sess(businessId);
++  if (s.state === 'connecting' || s.state === 'connected') return;
++  s.state = 'connecting'; s.qr = null; s.qrBase64 = null; s.phone = null;
+ 
+-  ensureDir(SESSION_DIR);
++  const dir = dirFor(businessId);
++  ensureDir(dir);
+ 
+-  // Import dinámico (Baileys es ESM)
+   const {
+-    default: makeWASocket,
+-    useMultiFileAuthState,
+-    DisconnectReason,
+-    Browsers,
+-    fetchLatestBaileysVersion,
++    default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, fetchLatestBaileysVersion,
+   } = await import('@whiskeysockets/baileys');
+-
+   const { Boom } = await import('@hapi/boom');
+ 
+-  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
++  const { state, saveCreds } = await useMultiFileAuthState(dir);
+   const { version } = await fetchLatestBaileysVersion();
+ 
+-  sock = makeWASocket({
+-    version,
+-    auth: state,
+-    browser: Browsers.ubuntu('Chrome'),
+-    printQRInTerminal: false,
+-    logger: makeNoopLogger(),
+-    connectTimeoutMs: 60_000,
+-    defaultQueryTimeoutMs: 60_000,
+-    keepAliveIntervalMs: 30_000,
+-    markOnlineOnConnect: false,
++  const sock = makeWASocket({
++    version, auth: state, browser: Browsers.ubuntu('Chrome'),
++    printQRInTerminal: false, logger: makeNoopLogger(),
++    connectTimeoutMs: 60_000, defaultQueryTimeoutMs: 60_000,
++    keepAliveIntervalMs: 30_000, markOnlineOnConnect: false,
+   });
++  s.sock = sock;
+ 
+-  // ── Guardar credenciales cuando cambian ─────────────────────────────────────
+   sock.ev.on('creds.update', saveCreds);
+ 
+-  // ── Eventos de conexión ─────────────────────────────────────────────────────
+   sock.ev.on('connection.update', async (update) => {
+     const { connection, lastDisconnect, qr } = update;
+ 
+     if (qr) {
+-      currentQR = qr;
+-      connectionState = 'qr_ready';
+-      try {
+-        currentQRBase64 = await QRCode.toDataURL(qr, { width: 280, margin: 2 });
+-      } catch (e) {
+-        console.error('[baileys] Error generando QR:', e.message);
+-      }
+-      console.log('[baileys] QR generado — esperando escaneo...');
++      s.qr = qr; s.state = 'qr_ready';
++      try { s.qrBase64 = await QRCode.toDataURL(qr, { width: 280, margin: 2 }); }
++      catch (e) { console.error(`[baileys][${businessId}] QR err:`, e.message); }
++      console.log(`[baileys][${businessId}] QR generado — esperando escaneo...`);
+     }
+ 
+     if (connection === 'open') {
+-      connectionState = 'connected';
+-      currentQR       = null;
+-      currentQRBase64 = null;
+-      isReconnecting  = false;
+-      connectedPhone  = sock.user?.id?.split(':')[0] || sock.user?.id || null;
+-      console.log('[baileys] Conectado como', connectedPhone);
++      s.state = 'connected'; s.qr = null; s.qrBase64 = null; s.reconnecting = false;
++      s.phone = sock.user?.id?.split(':')[0] || sock.user?.id || null;
++      console.log(`[baileys][${businessId}] conectado como ${s.phone}`);
+     }
+ 
+     if (connection === 'close') {
+       const reason = lastDisconnect?.error;
+       const statusCode = (reason instanceof Boom) ? reason.output?.statusCode : null;
+-      console.log('[baileys] Desconectado. Código:', statusCode, reason?.message);
+-
+-      sock = null;
++      console.log(`[baileys][${businessId}] desconectado. Código: ${statusCode}`);
++      s.sock = null;
+ 
+       if (statusCode === DisconnectReason.loggedOut) {
+-        // Sesión revocada — limpiar todo y pedir nuevo QR
+-        console.log('[baileys] Sesión cerrada. Borrando credenciales...');
+-        fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+-        currentQR = null; currentQRBase64 = null;
+-        connectionState = 'disconnected';
+-        setTimeout(() => initWhatsApp(), 2000);
++        try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {}
++        s.qr = null; s.qrBase64 = null; s.state = 'disconnected';
++        setTimeout(() => initWhatsApp(businessId), 2000);
+       } else {
+-        // Desconexión transitoria — MANTENER el QR visible mientras se reconecta
+-        // No borrar currentQRBase64: el usuario puede seguir viendo (y escaneando) el QR anterior
+-        if (connectionState !== 'qr_ready') {
+-          connectionState = 'connecting';
+-        }
+-        if (!isReconnecting) {
+-          isReconnecting = true;
+-          const delay = connectionState === 'qr_ready' ? 3000 : 5000;
++        if (s.state !== 'qr_ready') s.state = 'connecting';
++        if (!s.reconnecting) {
++          s.reconnecting = true;
++          const delay = s.state === 'qr_ready' ? 3000 : 5000;
+           setTimeout(() => {
+-            isReconnecting = false;
+-            // initWhatsApp() ignora el estado 'connecting'; lo reseteamos a
+-            // 'disconnected' para que la reconexion vuelva a intentar de verdad.
+-            if (connectionState === 'connecting') connectionState = 'disconnected';
+-            initWhatsApp();
++            s.reconnecting = false;
++            if (s.state === 'connecting') s.state = 'disconnected';
++            initWhatsApp(businessId);
+           }, delay);
+         }
+       }
+@@ -158,67 +116,70 @@ async function initWhatsApp() {
+   });
+ }
+ 
+-// ─── API pública ──────────────────────────────────────────────────────────────
+-function getState() {
+-  return {
+-    state: connectionState,
+-    phone: connectedPhone,
+-    hasQR: !!currentQRBase64,
+-  };
++function getState(businessId) {
++  const s = sess(businessId);
++  return { state: s.state, phone: s.phone, hasQR: !!s.qrBase64 };
+ }
+ 
+-function getQR() {
+-  return currentQRBase64;
+-}
++function getQR(businessId) { return sess(businessId).qrBase64; }
+ 
+-/**
+- * Enviar mensaje de texto.
+- * @param {string} phone - número en cualquier formato argentino
+- * @param {string} text  - texto a enviar
+- */
+-async function sendMessage(phone, text) {
+-  if (connectionState !== 'connected') {
+-    throw new Error('WhatsApp no conectado. Escanear el QR primero.');
+-  }
++async function sendMessage(businessId, phone, text) {
++  const s = sess(businessId);
++  if (s.state !== 'connected' || !s.sock) throw new Error('WhatsApp no conectado. Escanear el QR primero.');
+   const number = normalizePhone(phone);
+   if (!number) throw new Error('Número de teléfono inválido: ' + phone);
+-
+-  const jid = number + '@s.whatsapp.net';
+-  await sock.sendMessage(jid, { text });
++  await s.sock.sendMessage(number + '@s.whatsapp.net', { text });
+   return { to: number };
+ }
+ 
+-/**
+- * Cerrar sesión y borrar credenciales guardadas.
+- */
+-async function logout() {
+-  if (sock) {
+-    try { await sock.logout(); } catch (_) {}
+-    try { sock.end(); } catch (_) {}
+-    sock = null;
+-  }
+-  fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+-  connectionState = 'disconnected';
+-  currentQR       = null;
+-  currentQRBase64 = null;
+-  connectedPhone  = null;
+-  console.log('[baileys] Sesión cerrada y credenciales borradas.');
+-}
+-
+-async function sendDocument(phone, buffer, fileName, caption) {
+-  if (connectionState !== 'connected') {
+-    throw new Error('WhatsApp no conectado. Escanear el QR primero.');
+-  }
++async function sendDocument(businessId, phone, buffer, fileName, caption) {
++  const s = sess(businessId);
++  if (s.state !== 'connected' || !s.sock) throw new Error('WhatsApp no conectado. Escanear el QR primero.');
+   const number = normalizePhone(phone);
+   if (!number) throw new Error('Número de teléfono inválido: ' + phone);
+-  const jid = number + '@s.whatsapp.net';
+-  await sock.sendMessage(jid, {
+-    document: buffer,
+-    mimetype: 'application/pdf',
+-    fileName: fileName || 'recibo.pdf',
+-    caption: caption || undefined,
++  await s.sock.sendMessage(number + '@s.whatsapp.net', {
++    document: buffer, mimetype: 'application/pdf',
++    fileName: fileName || 'recibo.pdf', caption: caption || undefined,
+   });
+   return { to: number };
+ }
+ 
+-module.exports = { initWhatsApp, getState, getQR, sendMessage, sendDocument, logout, normalizePhone };
++async function logout(businessId) {
++  const s = sess(businessId);
++  if (s.sock) {
++    try { await s.sock.logout(); } catch (_) {}
++    try { s.sock.end(); } catch (_) {}
++    s.sock = null;
++  }
++  try { fs.rmSync(dirFor(businessId), { recursive: true, force: true }); } catch (_) {}
++  s.state = 'disconnected'; s.qr = null; s.qrBase64 = null; s.phone = null;
++  console.log(`[baileys][${businessId}] sesión cerrada y credenciales borradas.`);
++}
++
++// Restaura al arrancar todas las sesiones guardadas (una subcarpeta por negocio con creds.json)
++function restoreSessions() {
++  try {
++    ensureDir(SESSION_BASE);
++    const dirs = fs.readdirSync(SESSION_BASE, { withFileTypes: true }).filter(d => d.isDirectory());
++    let n = 0;
++    for (const d of dirs) {
++      if (fs.existsSync(path.join(SESSION_BASE, d.name, 'creds.json'))) {
++        n++;
++        initWhatsApp(d.name).catch(e => console.error('[baileys-restore]', d.name, e.message));
++      }
++    }
++    console.log(`[baileys] Restaurando ${n} sesión(es) de negocio`);
++  } catch (e) { console.error('[baileys-restore]', e.message); }
++}
++
++// businessIds actualmente conectados (para el cron)
++function connectedBusinessIds() {
++  const out = [];
++  for (const [bid, s] of sessions) if (s.state === 'connected') out.push(bid);
++  return out;
++}
++
++module.exports = {
++  initWhatsApp, getState, getQR, sendMessage, sendDocument, logout,
++  normalizePhone, restoreSessions, connectedBusinessIds,
++};
+diff --git a/backend/src/routes/whatsapp.js b/backend/src/routes/whatsapp.js
+index ea27f40..6c3ee5a 100644
+--- a/backend/src/routes/whatsapp.js
++++ b/backend/src/routes/whatsapp.js
+@@ -14,12 +14,12 @@ router.use(authMiddleware);
+ 
+ // GET /api/whatsapp/status
+ router.get('/status', (req, res) => {
+-  res.json(getState());
++  res.json(getState(req.user.businessId));
+ });
+ 
+ // GET /api/whatsapp/qr  — devuelve el QR como data:image/png;base64
+ router.get('/qr', (req, res) => {
+-  const qr = getQR();
++  const qr = getQR(req.user.businessId);
+   if (!qr) return res.status(404).json({ error: 'No hay QR disponible' });
+   res.json({ qr });
+ });
+@@ -27,31 +27,31 @@ router.get('/qr', (req, res) => {
+ // POST /api/whatsapp/connect  — iniciar conexión (genera QR)
+ router.post('/connect', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede conectar WhatsApp' });
+-  const { state } = getState();
++  const { state } = getState(req.user.businessId);
+   if (state === 'connected') return res.json({ ok: true, message: 'Ya conectado' });
+   // initWhatsApp no bloquea — el QR aparece via polling de /status + /qr
+-  initWhatsApp().catch(e => console.error('[wa-connect]', e.message));
++  initWhatsApp(req.user.businessId).catch(e => console.error('[wa-connect]', e.message));
+   res.json({ ok: true, message: 'Iniciando conexión...' });
+ });
+ 
+ // POST /api/whatsapp/logout  — cerrar sesión
+ router.post('/logout', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede desconectar' });
+-  await logout();
++  await logout(req.user.businessId);
+   res.json({ ok: true });
+ });
+ 
+ // POST /api/whatsapp/test  — enviar mensaje de prueba
+ router.post('/test', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+-  const { state } = getState();
++  const { state } = getState(req.user.businessId);
+   if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado. Escanear el QR primero.' });
+ 
+   const { phone, message } = req.body;
+   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
+ 
+   try {
+-    const result = await sendMessage(phone, message);
++    const result = await sendMessage(req.user.businessId, phone, message);
+     res.json({ ok: true, to: result.to });
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+@@ -62,10 +62,10 @@ router.post('/test', async (req, res) => {
+ router.post('/send', async (req, res) => {
+   const { phone, message } = req.body;
+   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
+-  const { state } = getState();
++  const { state } = getState(req.user.businessId);
+   if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
+   try {
+-    const result = await sendMessage(phone, message);
++    const result = await sendMessage(req.user.businessId, phone, message);
+     res.json({ ok: true, to: result.to });
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+@@ -76,13 +76,13 @@ router.post('/send', async (req, res) => {
+ router.post('/send-receipt', async (req, res) => {
+   const { phone, receipt, caption } = req.body;
+   if (!phone || !receipt) return res.status(400).json({ error: 'phone y receipt son requeridos' });
+-  const { state } = getState();
++  const { state } = getState(req.user.businessId);
+   if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
+   try {
+     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+     const pdf = await generateReceiptPdf({ ...receipt, logoPath });
+     const safeNro = String(receipt.nroRecibo || 'pago').replace(/[^\w-]/g, '');
+-    const result = await sendDocument(phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
++    const result = await sendDocument(req.user.businessId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
+     res.json({ ok: true, to: result.to });
+   } catch (err) {
+     console.error('[send-receipt]', err.message);
+@@ -93,10 +93,10 @@ router.post('/send-receipt', async (req, res) => {
+ // POST /api/whatsapp/run-reminders  — disparar cron manualmente
+ router.post('/run-reminders', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+-  const { state } = getState();
++  const { state } = getState(req.user.businessId);
+   if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado' });
+   res.json({ ok: true, message: 'Barrido iniciado en background' });
+-  runReminders().catch(e => console.error('[manual-reminder]', e.message));
++  runReminders(req.user.businessId).catch(e => console.error('[manual-reminder]', e.message));
+ });
+ 
+ // GET /api/whatsapp/templates — leer plantillas auto del negocio
