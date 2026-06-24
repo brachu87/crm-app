@@ -121,7 +121,7 @@ export default function Clients() {
           {filtered.length === 0 ? (
             <p style={{ color: 'var(--ink-soft)', padding: 8 }}>Sin resultados para "{search}"</p>
           ) : (
-            <div className="table-wrap"><table className="table">
+            <div className="table-wrap"><table className="table cards-mobile">
               <thead>
                 <tr>
                   <th>Nombre</th>
@@ -134,7 +134,7 @@ export default function Clients() {
               <tbody>
                 {filtered.map((c) => (
                   <tr key={c.id} style={{ opacity: c.active === false ? 0.5 : 1 }}>
-                    <td>
+                    <td data-label="Nombre">
                       <Link to={`/clientes/${c.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#6366f1' }}>
                           <AuthImage
@@ -147,10 +147,10 @@ export default function Clients() {
                         {c.name}
                       </Link>
                     </td>
-                    <td>{c.phone || '-'}</td>
-                    <td>{c.email || '-'}</td>
-                    <td><SaldoBadge saldo={c.saldo} /></td>
-                    <td style={{ display: 'flex', gap: 6 }}>
+                    <td data-label="Teléfono">{c.phone || '-'}</td>
+                    <td data-label="Email">{c.email || '-'}</td>
+                    <td data-label="Saldo"><SaldoBadge saldo={c.saldo} /></td>
+                    <td className="actions-cell" style={{ display: 'flex', gap: 6 }}>
                     {c.active !== false ? (
                       <>
                         <Link to={`/clientes/${c.id}`} className="btn btn-secondary btn-sm">Ver</Link>

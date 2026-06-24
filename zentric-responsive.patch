@@ -1,0 +1,216 @@
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index 3a4bce7..93f0728 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -2061,3 +2061,52 @@ h2 { font-weight: 600; }
+   .toast-container { bottom: 16px; right: 16px; left: 16px; }
+   .toast { max-width: 100%; }
+ }
++
++/* ── Tablas como tarjetas apiladas en móvil ──────────── */
++@media (max-width: 600px) {
++  table.cards-mobile { min-width: 0 !important; width: 100%; }
++  table.cards-mobile thead { display: none; }
++  table.cards-mobile tbody { display: block; }
++  table.cards-mobile tr {
++    display: block;
++    border: 1px solid var(--border);
++    border-radius: 12px;
++    padding: 6px 14px;
++    margin-bottom: 10px;
++    background: var(--surface);
++  }
++  table.cards-mobile td {
++    display: flex !important;
++    justify-content: space-between;
++    align-items: center;
++    gap: 12px;
++    text-align: right;
++    padding: 8px 0 !important;
++    border: none !important;
++    border-bottom: 1px solid var(--border) !important;
++    min-width: 0;
++    width: auto;
++    white-space: normal;
++  }
++  table.cards-mobile tr td:last-child { border-bottom: none !important; }
++  table.cards-mobile td::before {
++    content: attr(data-label);
++    font-weight: 600;
++    color: var(--ink-soft);
++    text-align: left;
++    flex-shrink: 0;
++    white-space: nowrap;
++  }
++  table.cards-mobile td.actions-cell {
++    justify-content: stretch;
++    flex-wrap: wrap;
++    gap: 8px;
++    padding-top: 10px !important;
++  }
++  table.cards-mobile td.actions-cell::before { display: none; }
++  table.cards-mobile td.actions-cell > * {
++    flex: 1 1 auto;
++    justify-content: center;
++    text-align: center;
++  }
++}
+diff --git a/frontend/src/pages/Clients.jsx b/frontend/src/pages/Clients.jsx
+index 98aa666..d8b11d1 100644
+--- a/frontend/src/pages/Clients.jsx
++++ b/frontend/src/pages/Clients.jsx
+@@ -121,7 +121,7 @@ export default function Clients() {
+           {filtered.length === 0 ? (
+             <p style={{ color: 'var(--ink-soft)', padding: 8 }}>Sin resultados para "{search}"</p>
+           ) : (
+-            <div className="table-wrap"><table className="table">
++            <div className="table-wrap"><table className="table cards-mobile">
+               <thead>
+                 <tr>
+                   <th>Nombre</th>
+@@ -134,7 +134,7 @@ export default function Clients() {
+               <tbody>
+                 {filtered.map((c) => (
+                   <tr key={c.id} style={{ opacity: c.active === false ? 0.5 : 1 }}>
+-                    <td>
++                    <td data-label="Nombre">
+                       <Link to={`/clientes/${c.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                         <span style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#6366f1' }}>
+                           <AuthImage
+@@ -147,10 +147,10 @@ export default function Clients() {
+                         {c.name}
+                       </Link>
+                     </td>
+-                    <td>{c.phone || '-'}</td>
+-                    <td>{c.email || '-'}</td>
+-                    <td><SaldoBadge saldo={c.saldo} /></td>
+-                    <td style={{ display: 'flex', gap: 6 }}>
++                    <td data-label="Teléfono">{c.phone || '-'}</td>
++                    <td data-label="Email">{c.email || '-'}</td>
++                    <td data-label="Saldo"><SaldoBadge saldo={c.saldo} /></td>
++                    <td className="actions-cell" style={{ display: 'flex', gap: 6 }}>
+                     {c.active !== false ? (
+                       <>
+                         <Link to={`/clientes/${c.id}`} className="btn btn-secondary btn-sm">Ver</Link>
+diff --git a/frontend/src/pages/Employees.jsx b/frontend/src/pages/Employees.jsx
+index 2ce2441..266dd88 100644
+--- a/frontend/src/pages/Employees.jsx
++++ b/frontend/src/pages/Employees.jsx
+@@ -70,7 +70,7 @@ export default function Employees() {
+         </div>
+       ) : (
+         <div className="card">
+-          <div className="table-wrap"><table className="table">
++          <div className="table-wrap"><table className="table cards-mobile">
+             <thead>
+               <tr>
+                 <th>Nombre</th>
+@@ -87,14 +87,14 @@ export default function Employees() {
+             <tbody>
+               {employees.map((e) => (
+                 <tr key={e.id}>
+-                  <td><strong>{e.name}</strong></td>
+-                  <td>{e.role}</td>
+-                  <td>{e.branch?.name || <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
+-                  <td style={{fontSize:13}}>{e.activityEmployees?.length > 0 ? e.activityEmployees.map(ae => ae.activity?.name).filter(Boolean).join(', ') : <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
+-                  <td>{e.phone || '-'}</td>
+-                  <td>{e.payType === 'hourly' ? 'Por hora' : e.payType === 'fixed' ? 'Fijo' : '-'}</td>
+-                  <td>{e.salary != null ? `$${Number(e.salary).toLocaleString('es-AR')}` : '-'}</td>
+-                  <td>
++                  <td data-label="Nombre"><strong>{e.name}</strong></td>
++                  <td data-label="Rol">{e.role}</td>
++                  <td data-label="Sede">{e.branch?.name || <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
++                  <td data-label="Actividades" style={{fontSize:13}}>{e.activityEmployees?.length > 0 ? e.activityEmployees.map(ae => ae.activity?.name).filter(Boolean).join(', ') : <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
++                  <td data-label="Teléfono">{e.phone || '-'}</td>
++                  <td data-label="Tipo pago">{e.payType === 'hourly' ? 'Por hora' : e.payType === 'fixed' ? 'Fijo' : '-'}</td>
++                  <td data-label="Tarifa">{e.salary != null ? `$${Number(e.salary).toLocaleString('es-AR')}` : '-'}</td>
++                  <td data-label="Estado">
+                     <span style={{
+                       padding: '2px 8px',
+                       borderRadius: 12,
+@@ -105,7 +105,7 @@ export default function Employees() {
+                       {e.active ? 'Activo' : 'Inactivo'}
+                     </span>
+                   </td>
+-                  <td style={{ display: 'flex', gap: 6 }}>
++                  <td className="actions-cell" style={{ display: 'flex', gap: 6 }}>
+                     {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(e); setShowModal(true); }}>Editar</button>}
+                     <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>
+                       Eliminar
+diff --git a/frontend/src/pages/Expenses.jsx b/frontend/src/pages/Expenses.jsx
+index 37a7b39..206cbfc 100644
+--- a/frontend/src/pages/Expenses.jsx
++++ b/frontend/src/pages/Expenses.jsx
+@@ -93,7 +93,7 @@ export default function Expenses() {
+         </div>
+       ) : (
+         <div className="card">
+-          <div className="table-wrap"><table className="table">
++          <div className="table-wrap"><table className="table cards-mobile">
+             <thead>
+               <tr>
+                 <th>Fecha</th>
+@@ -108,8 +108,8 @@ export default function Expenses() {
+             <tbody>
+               {expenses.map((e) => (
+                 <tr key={e.id}>
+-                  <td>{new Date(e.date).toLocaleDateString('es-AR')}</td>
+-                  <td>
++                  <td data-label="Fecha">{new Date(e.date).toLocaleDateString('es-AR')}</td>
++                  <td data-label="Categoría">
+                     <span style={{
+                       padding: '2px 8px',
+                       borderRadius: 12,
+@@ -120,13 +120,13 @@ export default function Expenses() {
+                       {e.category}
+                     </span>
+                   </td>
+-                  <td style={{ color: 'var(--text-secondary)' }}>{e.description || '-'}</td>
+-                  <td style={{ color: 'var(--ink-soft)', fontSize: 13 }}>{e.supplier?.name || '-'}</td>
+-                  <td>{e.paymentMethod || '-'}</td>
+-                  <td style={{ fontWeight: 600, color: '#dc2626' }}>
++                  <td data-label="Descripción" style={{ color: 'var(--text-secondary)' }}>{e.description || '-'}</td>
++                  <td data-label="Proveedor" style={{ color: 'var(--ink-soft)', fontSize: 13 }}>{e.supplier?.name || '-'}</td>
++                  <td data-label="Método">{e.paymentMethod || '-'}</td>
++                  <td data-label="Monto" style={{ fontWeight: 600, color: '#dc2626' }}>
+                     ${Number(e.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                   </td>
+-                  <td style={{ display: 'flex', gap: 6 }}>
++                  <td className="actions-cell" style={{ display: 'flex', gap: 6 }}>
+                     {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(e); setShowModal(true); }}>Editar</button>}
+                     {can.eliminar && <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>
+                       Eliminar
+diff --git a/frontend/src/pages/Suppliers.jsx b/frontend/src/pages/Suppliers.jsx
+index d5c71f1..5febb56 100644
+--- a/frontend/src/pages/Suppliers.jsx
++++ b/frontend/src/pages/Suppliers.jsx
+@@ -92,7 +92,7 @@ export default function Suppliers() {
+           {filtered.length === 0 ? (
+             <p style={{ color: 'var(--ink-soft)', padding: 8 }}>Sin resultados para "{search}"</p>
+           ) : (
+-            <div className="table-wrap"><table className="table">
++            <div className="table-wrap"><table className="table cards-mobile">
+               <thead>
+                 <tr>
+                   <th>Nombre</th>
+@@ -106,14 +106,14 @@ export default function Suppliers() {
+               <tbody>
+                 {filtered.map((s) => (
+                   <tr key={s.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/proveedores/${s.id}`)}>
+-                    <td><strong style={{ color: 'var(--primary)' }}>{s.name}</strong>{s.contact && <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-soft)', fontWeight: 400 }}>{s.contact}</span>}</td>
+-                    <td>{s.phone ? <a href={`https://wa.me/${s.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{s.phone}</a> : '-'}</td>
+-                    <td style={{ fontSize: 13 }}>{[s.cuit, s.dni].filter(Boolean).join(' / ') || '-'}</td>
+-                    <td>{s.category ? <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }}>{s.category}</span> : '-'}</td>
+-                    <td style={{ fontWeight: 600, color: (s.totalExpenses || 0) > 0 ? '#dc2626' : 'var(--ink-soft)' }}>
++                    <td data-label="Nombre"><strong style={{ color: 'var(--primary)' }}>{s.name}</strong>{s.contact && <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-soft)', fontWeight: 400 }}>{s.contact}</span>}</td>
++                    <td data-label="Teléfono">{s.phone ? <a href={`https://wa.me/${s.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{s.phone}</a> : '-'}</td>
++                    <td data-label="CUIT / DNI" style={{ fontSize: 13 }}>{[s.cuit, s.dni].filter(Boolean).join(' / ') || '-'}</td>
++                    <td data-label="Categoría">{s.category ? <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }}>{s.category}</span> : '-'}</td>
++                    <td data-label="Total gastado" style={{ fontWeight: 600, color: (s.totalExpenses || 0) > 0 ? '#dc2626' : 'var(--ink-soft)' }}>
+                       {(s.totalExpenses || 0) > 0 ? '$' + Number(s.totalExpenses).toLocaleString('es-AR', { minimumFractionDigits: 2 }) : '-'}
+                     </td>
+-                    <td onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
++                    <td className="actions-cell" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
+                       {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowModal(true); }}>Editar</button>}
+                       {can.eliminar && <button className="btn btn-danger btn-sm" onClick={() => handleDelete(s.id)}>Eliminar</button>}
+                     </td>

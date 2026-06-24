@@ -70,7 +70,7 @@ export default function Employees() {
         </div>
       ) : (
         <div className="card">
-          <div className="table-wrap"><table className="table">
+          <div className="table-wrap"><table className="table cards-mobile">
             <thead>
               <tr>
                 <th>Nombre</th>
@@ -87,14 +87,14 @@ export default function Employees() {
             <tbody>
               {employees.map((e) => (
                 <tr key={e.id}>
-                  <td><strong>{e.name}</strong></td>
-                  <td>{e.role}</td>
-                  <td>{e.branch?.name || <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
-                  <td style={{fontSize:13}}>{e.activityEmployees?.length > 0 ? e.activityEmployees.map(ae => ae.activity?.name).filter(Boolean).join(', ') : <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
-                  <td>{e.phone || '-'}</td>
-                  <td>{e.payType === 'hourly' ? 'Por hora' : e.payType === 'fixed' ? 'Fijo' : '-'}</td>
-                  <td>{e.salary != null ? `$${Number(e.salary).toLocaleString('es-AR')}` : '-'}</td>
-                  <td>
+                  <td data-label="Nombre"><strong>{e.name}</strong></td>
+                  <td data-label="Rol">{e.role}</td>
+                  <td data-label="Sede">{e.branch?.name || <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
+                  <td data-label="Actividades" style={{fontSize:13}}>{e.activityEmployees?.length > 0 ? e.activityEmployees.map(ae => ae.activity?.name).filter(Boolean).join(', ') : <span style={{color:'var(--ink-soft)'}}>-</span>}</td>
+                  <td data-label="Teléfono">{e.phone || '-'}</td>
+                  <td data-label="Tipo pago">{e.payType === 'hourly' ? 'Por hora' : e.payType === 'fixed' ? 'Fijo' : '-'}</td>
+                  <td data-label="Tarifa">{e.salary != null ? `$${Number(e.salary).toLocaleString('es-AR')}` : '-'}</td>
+                  <td data-label="Estado">
                     <span style={{
                       padding: '2px 8px',
                       borderRadius: 12,
@@ -105,7 +105,7 @@ export default function Employees() {
                       {e.active ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td style={{ display: 'flex', gap: 6 }}>
+                  <td className="actions-cell" style={{ display: 'flex', gap: 6 }}>
                     {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(e); setShowModal(true); }}>Editar</button>}
                     <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>
                       Eliminar

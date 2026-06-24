@@ -93,7 +93,7 @@ export default function Expenses() {
         </div>
       ) : (
         <div className="card">
-          <div className="table-wrap"><table className="table">
+          <div className="table-wrap"><table className="table cards-mobile">
             <thead>
               <tr>
                 <th>Fecha</th>
@@ -108,8 +108,8 @@ export default function Expenses() {
             <tbody>
               {expenses.map((e) => (
                 <tr key={e.id}>
-                  <td>{new Date(e.date).toLocaleDateString('es-AR')}</td>
-                  <td>
+                  <td data-label="Fecha">{new Date(e.date).toLocaleDateString('es-AR')}</td>
+                  <td data-label="Categoría">
                     <span style={{
                       padding: '2px 8px',
                       borderRadius: 12,
@@ -120,13 +120,13 @@ export default function Expenses() {
                       {e.category}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{e.description || '-'}</td>
-                  <td style={{ color: 'var(--ink-soft)', fontSize: 13 }}>{e.supplier?.name || '-'}</td>
-                  <td>{e.paymentMethod || '-'}</td>
-                  <td style={{ fontWeight: 600, color: '#dc2626' }}>
+                  <td data-label="Descripción" style={{ color: 'var(--text-secondary)' }}>{e.description || '-'}</td>
+                  <td data-label="Proveedor" style={{ color: 'var(--ink-soft)', fontSize: 13 }}>{e.supplier?.name || '-'}</td>
+                  <td data-label="Método">{e.paymentMethod || '-'}</td>
+                  <td data-label="Monto" style={{ fontWeight: 600, color: '#dc2626' }}>
                     ${Number(e.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                   </td>
-                  <td style={{ display: 'flex', gap: 6 }}>
+                  <td className="actions-cell" style={{ display: 'flex', gap: 6 }}>
                     {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(e); setShowModal(true); }}>Editar</button>}
                     {can.eliminar && <button className="btn btn-danger btn-sm" onClick={() => handleDelete(e.id)}>
                       Eliminar

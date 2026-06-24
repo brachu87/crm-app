@@ -92,7 +92,7 @@ export default function Suppliers() {
           {filtered.length === 0 ? (
             <p style={{ color: 'var(--ink-soft)', padding: 8 }}>Sin resultados para "{search}"</p>
           ) : (
-            <div className="table-wrap"><table className="table">
+            <div className="table-wrap"><table className="table cards-mobile">
               <thead>
                 <tr>
                   <th>Nombre</th>
@@ -106,14 +106,14 @@ export default function Suppliers() {
               <tbody>
                 {filtered.map((s) => (
                   <tr key={s.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/proveedores/${s.id}`)}>
-                    <td><strong style={{ color: 'var(--primary)' }}>{s.name}</strong>{s.contact && <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-soft)', fontWeight: 400 }}>{s.contact}</span>}</td>
-                    <td>{s.phone ? <a href={`https://wa.me/${s.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{s.phone}</a> : '-'}</td>
-                    <td style={{ fontSize: 13 }}>{[s.cuit, s.dni].filter(Boolean).join(' / ') || '-'}</td>
-                    <td>{s.category ? <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }}>{s.category}</span> : '-'}</td>
-                    <td style={{ fontWeight: 600, color: (s.totalExpenses || 0) > 0 ? '#dc2626' : 'var(--ink-soft)' }}>
+                    <td data-label="Nombre"><strong style={{ color: 'var(--primary)' }}>{s.name}</strong>{s.contact && <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-soft)', fontWeight: 400 }}>{s.contact}</span>}</td>
+                    <td data-label="Teléfono">{s.phone ? <a href={`https://wa.me/${s.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: 'var(--primary)', textDecoration: 'none' }}>{s.phone}</a> : '-'}</td>
+                    <td data-label="CUIT / DNI" style={{ fontSize: 13 }}>{[s.cuit, s.dni].filter(Boolean).join(' / ') || '-'}</td>
+                    <td data-label="Categoría">{s.category ? <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: 'var(--bg)', color: 'var(--ink)' }}>{s.category}</span> : '-'}</td>
+                    <td data-label="Total gastado" style={{ fontWeight: 600, color: (s.totalExpenses || 0) > 0 ? '#dc2626' : 'var(--ink-soft)' }}>
                       {(s.totalExpenses || 0) > 0 ? '$' + Number(s.totalExpenses).toLocaleString('es-AR', { minimumFractionDigits: 2 }) : '-'}
                     </td>
-                    <td onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
+                    <td className="actions-cell" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
                       {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowModal(true); }}>Editar</button>}
                       {can.eliminar && <button className="btn btn-danger btn-sm" onClick={() => handleDelete(s.id)}>Eliminar</button>}
                     </td>
