@@ -1098,7 +1098,7 @@ function ApptDetailModal({ appt, onClose, onUpdated }) {
 
         <div className="cal-modal-footer" style={{ flexWrap: 'wrap', gap: 8 }}>
           {appt.status !== 'cancelled' && can.eliminar && <button className="btn-danger-sm" onClick={handleCancel} disabled={saving}>Cancelar turno</button>}
-          {appt.client?.phone && (() => {
+          {appt.client?.phone && can.recordatorio && (() => {
             const phone = appt.client.phone.replace(/\D/g, '');
             const intlPhone = phone.startsWith('54') ? phone : `54${phone}`;
             const fmtDateShort = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long' }) : '';

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../api/client'
+import { useSectionPerms } from '../config/permissions'
 
 const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -10,6 +11,7 @@ const colorMap = [
 ]
 
 export default function Horarios() {
+  const can = useSectionPerms('horarios')
   const [schedules, setSchedules] = useState([])
   const [activities, setActivities] = useState([])
   const [employees, setEmployees] = useState([])
@@ -83,7 +85,7 @@ export default function Horarios() {
           <h1>Horarios</h1>
           <p className="page-subtitle">Grilla semanal de clases y actividades</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openNew()}>+ Nuevo horario</button>
+        {can.editar && <button className="btn btn-primary" onClick={() => openNew()}>+ Nuevo horario</button>}
       </div>
 
       {/* Filters */}
@@ -107,7 +109,7 @@ export default function Horarios() {
             <div className="schedule-day-header">
               <span className="day-full">{DAYS[day]}</span>
               <span className="day-short">{DAYS_SHORT[day]}</span>
-              <button className="add-slot-btn" onClick={() => openNew(day)} title="Agregar horario">+</button>
+              {can.editar && <button className="add-slot-btn" onClick={() => openNew(day)} title="Agregar horario">+</button>}
             </div>
             <div className="schedule-slots">
               {byDay[day].length === 0 ? (
@@ -120,8 +122,8 @@ export default function Horarios() {
                   {s.branch && <div className="sc-branch">🏢 {s.branch.name}</div>}
                   {s.maxCapacity && <div className="sc-capacity">👥 cupo {s.maxCapacity}</div>}
                   <div className="sc-actions">
-                    <button onClick={() => openEdit(s)}>✏️</button>
-                    <button onClick={() => del(s)}>🗑️</button>
+                    {can.editar && <button onClick={() => openEdit(s)}>✏️</button>}
+                    {can.editar && <button onClick={() => del(s)}>🗑️</button>}
                   </div>
                 </div>
               ))}

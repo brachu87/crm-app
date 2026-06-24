@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import api from '../api/client'
+import { useSectionPerms } from '../config/permissions'
 
 export default function Sedes() {
+  const can = useSectionPerms('sedes')
   const [branches, setBranches] = useState([])
   const [modal, setModal] = useState(null) // null | 'new' | branch object
   const [form, setForm] = useState({ name: '', address: '', phone: '' })
@@ -47,13 +49,13 @@ export default function Sedes() {
           <h1>Sedes</h1>
           <p className="page-subtitle">Gestioná las sucursales o locales del negocio</p>
         </div>
-        <button className="btn btn-primary" onClick={openNew}>+ Nueva sede</button>
+        {can.crear && <button className="btn btn-primary" onClick={openNew}>+ Nueva sede</button>}
       </div>
 
       {branches.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--ink-soft)' }}>
                     <p>No hay sedes cargadas todavía.</p>
-          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={openNew}>Crear primera sede</button>
+          {can.crear && <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={openNew}>Crear primera sede</button>}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
@@ -74,9 +76,9 @@ export default function Sedes() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <button className="btn btn-sm" onClick={() => openEdit(b)}>Editar</button>
-                  <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.active ? 'Desactivar' : 'Activar'}</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => del(b)} disabled={deleting === b.id}>Eliminar</button>
+                  {can.editar && <button className="btn btn-sm" onClick={() => openEdit(b)}>Editar</button>}
+                  {can.editar && <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.active ? 'Desactivar' : 'Activar'}</button>}
+                  {can.eliminar && <button className="btn btn-sm btn-danger" onClick={() => del(b)} disabled={deleting === b.id}>Eliminar</button>}
                 </div>
               </div>
             </div>

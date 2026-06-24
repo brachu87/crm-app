@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 
 const statusLabels = {
   paid: 'Pagado',
@@ -18,6 +19,8 @@ function formatDate(value) {
 }
 
 export default function ActivityDetail() {
+  const can = useSectionPerms('actividades');
+  const canCob = useSectionPerms('cobranza');
   const { id } = useParams();
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,8 +58,8 @@ export default function ActivityDetail() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>Editar</button>
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Inscribir cliente</button>
+          {can.editar && <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>Editar</button>}
+          {can.inscribir && <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Inscribir cliente</button>}
         </div>
       </div>
 
@@ -67,9 +70,9 @@ export default function ActivityDetail() {
           <div className="empty-state">
             <h3>Nadie inscripto todavía</h3>
             <p>Inscribí clientes a esta actividad para empezar a seguir sus pagos.</p>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12 }}>
+            {can.inscribir && <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12 }}>
               + Inscribir cliente
-            </button>
+            </button>}
           </div>
         ) : (
           <div className="table-wrap"><table className="table">
@@ -94,7 +97,7 @@ export default function ActivityDetail() {
                     </span>
                   </td>
                   <td>
-                    <button className="btn-danger-text" onClick={() => removeEnrollment(e.id)}>Quitar</button>
+                    {canCob.eliminar && <button className="btn-danger-text" onClick={() => removeEnrollment(e.id)}>Quitar</button>}
                   </td>
                 </tr>
               ))}

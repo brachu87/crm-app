@@ -1,0 +1,306 @@
+diff --git a/frontend/src/pages/ActivityDetail.jsx b/frontend/src/pages/ActivityDetail.jsx
+index 62cbebe..369c994 100644
+--- a/frontend/src/pages/ActivityDetail.jsx
++++ b/frontend/src/pages/ActivityDetail.jsx
+@@ -1,6 +1,7 @@
+ import { useEffect, useState } from 'react';
+ import { Link, useParams } from 'react-router-dom';
+ import api from '../api/client';
++import { useSectionPerms } from '../config/permissions';
+ 
+ const statusLabels = {
+   paid: 'Pagado',
+@@ -18,6 +19,8 @@ function formatDate(value) {
+ }
+ 
+ export default function ActivityDetail() {
++  const can = useSectionPerms('actividades');
++  const canCob = useSectionPerms('cobranza');
+   const { id } = useParams();
+   const [activity, setActivity] = useState(null);
+   const [loading, setLoading] = useState(true);
+@@ -55,8 +58,8 @@ export default function ActivityDetail() {
+           </p>
+         </div>
+         <div style={{ display: 'flex', gap: 8 }}>
+-          <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>Editar</button>
+-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Inscribir cliente</button>
++          {can.editar && <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>Editar</button>}
++          {can.inscribir && <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Inscribir cliente</button>}
+         </div>
+       </div>
+ 
+@@ -67,9 +70,9 @@ export default function ActivityDetail() {
+           <div className="empty-state">
+             <h3>Nadie inscripto todavía</h3>
+             <p>Inscribí clientes a esta actividad para empezar a seguir sus pagos.</p>
+-            <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12 }}>
++            {can.inscribir && <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ marginTop: 12 }}>
+               + Inscribir cliente
+-            </button>
++            </button>}
+           </div>
+         ) : (
+           <div className="table-wrap"><table className="table">
+@@ -94,7 +97,7 @@ export default function ActivityDetail() {
+                     </span>
+                   </td>
+                   <td>
+-                    <button className="btn-danger-text" onClick={() => removeEnrollment(e.id)}>Quitar</button>
++                    {canCob.eliminar && <button className="btn-danger-text" onClick={() => removeEnrollment(e.id)}>Quitar</button>}
+                   </td>
+                 </tr>
+               ))}
+diff --git a/frontend/src/pages/ClientDetail.jsx b/frontend/src/pages/ClientDetail.jsx
+index b5d4010..dd5063f 100644
+--- a/frontend/src/pages/ClientDetail.jsx
++++ b/frontend/src/pages/ClientDetail.jsx
+@@ -1,6 +1,7 @@
+ import { useEffect, useState } from 'react';
+ import { Link, useParams } from 'react-router-dom';
+ import api from '../api/client';
++import { useSectionPerms } from '../config/permissions';
+ import AuthImage from '../components/AuthImage';
+ import ClientModal from './ClientModal';
+ 
+@@ -20,6 +21,7 @@ function formatDate(value) {
+ }
+ 
+ export default function ClientDetail() {
++  const can = useSectionPerms('clientes');
+   const { id } = useParams();
+   const [client, setClient] = useState(null);
+   const [loading, setLoading] = useState(true);
+@@ -97,7 +99,7 @@ export default function ClientDetail() {
+               />
+             </div>
+             <div style={{ position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white' }}>+</div>
+-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0])} />
++            {can.foto && <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0])} />}
+           </label>
+           <div>
+             <h1>{client.name}</h1>
+@@ -107,7 +109,7 @@ export default function ClientDetail() {
+           </div>
+         </div>
+         <div style={{ display: 'flex', gap: 8 }}>
+-          <button className="btn btn-secondary" onClick={() => setShowStatement(true)}>📄 Estado de cuenta</button>
++          {can.cuenta && <button className="btn btn-secondary" onClick={() => setShowStatement(true)}>📄 Estado de cuenta</button>}
+           <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>Editar</button>
+           <Link to="/clientes" className="btn btn-secondary">Volver</Link>
+         </div>
+diff --git a/frontend/src/pages/Collections.jsx b/frontend/src/pages/Collections.jsx
+index afa3a9c..2bb8ebd 100644
+--- a/frontend/src/pages/Collections.jsx
++++ b/frontend/src/pages/Collections.jsx
+@@ -127,12 +127,12 @@ export default function Collections() {
+         <button style={tabStyle(view === 'paid')} onClick={() => { setView('paid'); setSearch(''); }}>
+           ✅ Cobradas
+         </button>
+-        <button style={tabStyle(view === 'otros')} onClick={() => { setView('otros'); setSearch(''); }}>
++        {can.otros && <button style={tabStyle(view === 'otros')} onClick={() => { setView('otros'); setSearch(''); }}>
+           💰 Otros ingresos
+-        </button>
+-        <button style={tabStyle(view === 'recordatorios')} onClick={() => { setView('recordatorios'); setSearch(''); }}>
++        </button>}
++        {can.recordatorio && <button style={tabStyle(view === 'recordatorios')} onClick={() => { setView('recordatorios'); setSearch(''); }}>
+           📱 Recordatorios
+-        </button>
++        </button>}
+       </div>
+ 
+       {view !== 'otros' && <>
+@@ -234,7 +234,7 @@ export default function Collections() {
+                               <>
+                                 <span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span>
+                                 {can.editar_cuota && <button className="btn btn-sm btn-secondary" onClick={() => setEditModal(e)} title="Editar cuota">✏️</button>}
+-                                {g.client.phone && (
++                                {g.client.phone && can.recordatorio && (
+                                   <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} onClick={() => setWaModal(e)} title="WhatsApp">📱</button>
+                                 )}
+                                 {can.cobrar && <button className="btn btn-sm btn-primary" onClick={() => setCobrarModal(e)}>Cobrar</button>}
+@@ -273,7 +273,7 @@ export default function Collections() {
+                 </div>
+                 <div className="appt-card-actions">
+                   <strong style={{ fontSize: 17 }}>{fmt(a.price)}</strong>
+-                  {a.client?.phone && (
++                  {a.client?.phone && can.recordatorio && (
+                     <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }}
+                       onClick={() => {
+                         const phone = a.client.phone.replace(/\D/g, '');
+@@ -308,7 +308,7 @@ export default function Collections() {
+                     onClick={() => setRecibo({ client: a.client, activity: { name: apptLabel(a) }, startDate: a.date, dueDate: null, amountDue: a.price, discount: 0, metodoPago: 'Efectivo', id: a.id, isAppointment: true, appointmentDate: a.date, startTime: a.startTime, endTime: a.endTime, employeeName: a.employee?.name || null })}>
+                     🖨️ Recibo
+                   </button>
+-                  {a.client?.phone && (
++                  {a.client?.phone && can.recordatorio && (
+                     <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} title="WhatsApp"
+                       onClick={() => {
+                         const phone = a.client.phone.replace(/\D/g, '');
+diff --git a/frontend/src/pages/Horarios.jsx b/frontend/src/pages/Horarios.jsx
+index 070e43b..dc68a28 100644
+--- a/frontend/src/pages/Horarios.jsx
++++ b/frontend/src/pages/Horarios.jsx
+@@ -1,5 +1,6 @@
+ import { useState, useEffect } from 'react'
+ import api from '../api/client'
++import { useSectionPerms } from '../config/permissions'
+ 
+ const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+ const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+@@ -10,6 +11,7 @@ const colorMap = [
+ ]
+ 
+ export default function Horarios() {
++  const can = useSectionPerms('horarios')
+   const [schedules, setSchedules] = useState([])
+   const [activities, setActivities] = useState([])
+   const [employees, setEmployees] = useState([])
+@@ -83,7 +85,7 @@ export default function Horarios() {
+           <h1>Horarios</h1>
+           <p className="page-subtitle">Grilla semanal de clases y actividades</p>
+         </div>
+-        <button className="btn btn-primary" onClick={() => openNew()}>+ Nuevo horario</button>
++        {can.editar && <button className="btn btn-primary" onClick={() => openNew()}>+ Nuevo horario</button>}
+       </div>
+ 
+       {/* Filters */}
+@@ -107,7 +109,7 @@ export default function Horarios() {
+             <div className="schedule-day-header">
+               <span className="day-full">{DAYS[day]}</span>
+               <span className="day-short">{DAYS_SHORT[day]}</span>
+-              <button className="add-slot-btn" onClick={() => openNew(day)} title="Agregar horario">+</button>
++              {can.editar && <button className="add-slot-btn" onClick={() => openNew(day)} title="Agregar horario">+</button>}
+             </div>
+             <div className="schedule-slots">
+               {byDay[day].length === 0 ? (
+@@ -120,8 +122,8 @@ export default function Horarios() {
+                   {s.branch && <div className="sc-branch">🏢 {s.branch.name}</div>}
+                   {s.maxCapacity && <div className="sc-capacity">👥 cupo {s.maxCapacity}</div>}
+                   <div className="sc-actions">
+-                    <button onClick={() => openEdit(s)}>✏️</button>
+-                    <button onClick={() => del(s)}>🗑️</button>
++                    {can.editar && <button onClick={() => openEdit(s)}>✏️</button>}
++                    {can.editar && <button onClick={() => del(s)}>🗑️</button>}
+                   </div>
+                 </div>
+               ))}
+diff --git a/frontend/src/pages/Notes.jsx b/frontend/src/pages/Notes.jsx
+index d796d6e..d2525d0 100644
+--- a/frontend/src/pages/Notes.jsx
++++ b/frontend/src/pages/Notes.jsx
+@@ -1098,7 +1098,7 @@ function ApptDetailModal({ appt, onClose, onUpdated }) {
+ 
+         <div className="cal-modal-footer" style={{ flexWrap: 'wrap', gap: 8 }}>
+           {appt.status !== 'cancelled' && can.eliminar && <button className="btn-danger-sm" onClick={handleCancel} disabled={saving}>Cancelar turno</button>}
+-          {appt.client?.phone && (() => {
++          {appt.client?.phone && can.recordatorio && (() => {
+             const phone = appt.client.phone.replace(/\D/g, '');
+             const intlPhone = phone.startsWith('54') ? phone : `54${phone}`;
+             const fmtDateShort = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long' }) : '';
+diff --git a/frontend/src/pages/Payroll.jsx b/frontend/src/pages/Payroll.jsx
+index 1759d95..7997d1c 100644
+--- a/frontend/src/pages/Payroll.jsx
++++ b/frontend/src/pages/Payroll.jsx
+@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
+ import api from '../api/client';
+ import { sendWA } from '../lib/waSend';
+ import { useAuth } from '../context/AuthContext';
++import { useSectionPerms } from '../config/permissions';
+ 
+ const FREQ_LABELS = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' };
+ const STATUS_COLORS = { pending: '#f59e0b', paid: '#10b981' };
+@@ -117,6 +118,7 @@ function sendWhatsApp(r, businessName) {
+ }
+ 
+ export default function Payroll() {
++  const can = useSectionPerms('liquidaciones');
+   const { business } = useAuth();
+   const businessName = business?.name || '';
+   const [employees, setEmployees] = useState([]);
+@@ -200,10 +202,10 @@ export default function Payroll() {
+     <div style={{ padding: '24px 20px', maxWidth: 900, margin: '0 auto' }}>
+       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+         <h1 style={{ fontSize: 26, fontWeight: 800 }}>Liquidaciones</h1>
+-        <button className="btn btn-primary" style={{ marginLeft: 'auto' }}
++        {can.generar && <button className="btn btn-primary" style={{ marginLeft: 'auto' }}
+           onClick={() => { setShowForm(true); setPreview(null); setNewRecord(null); setForm({ employeeId: '', from: '', to: '' }); }}>
+           + Nueva liquidación
+-        </button>
++        </button>}
+       </div>
+       <p style={{ color: 'var(--muted)', marginBottom: 20, fontSize: 14 }}>Calculá y registrá el pago de sueldos y horas</p>
+ 
+@@ -312,7 +314,7 @@ export default function Payroll() {
+ 
+             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+               <button className="btn btn-secondary" onClick={() => { setShowForm(false); setPreview(null); }}>Cancelar</button>
+-              <button className="btn btn-primary" onClick={createRecord} disabled={!preview}>Crear liquidación</button>
++              {can.generar && <button className="btn btn-primary" onClick={createRecord} disabled={!preview}>Crear liquidación</button>}
+             </div>
+           </div>
+         </div>
+@@ -322,6 +324,7 @@ export default function Payroll() {
+ }
+ 
+ function RecordRow({ r, onPay, onDelete, businessName }) {
++  const can = useSectionPerms('liquidaciones');
+   const [open, setOpen] = useState(false);
+   const emp = r.employee;
+   const from = new Date(r.periodStart).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+@@ -351,10 +354,10 @@ function RecordRow({ r, onPay, onDelete, businessName }) {
+             <button className="btn btn-secondary btn-sm" onClick={() => printReceipt(r, businessName)}>🖨️ Imprimir recibo</button>
+             <button className="btn btn-secondary btn-sm" style={{ background: '#25d366', color: '#fff', borderColor: '#25d366' }}
+               onClick={() => sendWhatsApp(r, businessName)}>📲 WhatsApp</button>
+-            {r.status === 'pending' && (
++            {can.pagar && r.status === 'pending' && (
+               <button className="btn btn-primary btn-sm" onClick={() => onPay(r.id)}>✅ Marcar pagado</button>
+             )}
+-            <button className="btn btn-danger btn-sm" style={{ marginLeft: 'auto' }} onClick={() => onDelete(r.id)}>Eliminar</button>
++            {can.generar && <button className="btn btn-danger btn-sm" style={{ marginLeft: 'auto' }} onClick={() => onDelete(r.id)}>Eliminar</button>}
+           </div>
+         </div>
+       )}
+diff --git a/frontend/src/pages/Sedes.jsx b/frontend/src/pages/Sedes.jsx
+index 0fffb94..f527aee 100644
+--- a/frontend/src/pages/Sedes.jsx
++++ b/frontend/src/pages/Sedes.jsx
+@@ -1,7 +1,9 @@
+ import { useState, useEffect } from 'react'
+ import api from '../api/client'
++import { useSectionPerms } from '../config/permissions'
+ 
+ export default function Sedes() {
++  const can = useSectionPerms('sedes')
+   const [branches, setBranches] = useState([])
+   const [modal, setModal] = useState(null) // null | 'new' | branch object
+   const [form, setForm] = useState({ name: '', address: '', phone: '' })
+@@ -47,13 +49,13 @@ export default function Sedes() {
+           <h1>Sedes</h1>
+           <p className="page-subtitle">Gestioná las sucursales o locales del negocio</p>
+         </div>
+-        <button className="btn btn-primary" onClick={openNew}>+ Nueva sede</button>
++        {can.crear && <button className="btn btn-primary" onClick={openNew}>+ Nueva sede</button>}
+       </div>
+ 
+       {branches.length === 0 ? (
+         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--ink-soft)' }}>
+                     <p>No hay sedes cargadas todavía.</p>
+-          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={openNew}>Crear primera sede</button>
++          {can.crear && <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={openNew}>Crear primera sede</button>}
+         </div>
+       ) : (
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+@@ -74,9 +76,9 @@ export default function Sedes() {
+                   </div>
+                 </div>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+-                  <button className="btn btn-sm" onClick={() => openEdit(b)}>Editar</button>
+-                  <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.active ? 'Desactivar' : 'Activar'}</button>
+-                  <button className="btn btn-sm btn-danger" onClick={() => del(b)} disabled={deleting === b.id}>Eliminar</button>
++                  {can.editar && <button className="btn btn-sm" onClick={() => openEdit(b)}>Editar</button>}
++                  {can.editar && <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.active ? 'Desactivar' : 'Activar'}</button>}
++                  {can.eliminar && <button className="btn btn-sm btn-danger" onClick={() => del(b)} disabled={deleting === b.id}>Eliminar</button>}
+                 </div>
+               </div>
+             </div>

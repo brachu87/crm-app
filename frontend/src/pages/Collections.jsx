@@ -127,12 +127,12 @@ export default function Collections() {
         <button style={tabStyle(view === 'paid')} onClick={() => { setView('paid'); setSearch(''); }}>
           ✅ Cobradas
         </button>
-        <button style={tabStyle(view === 'otros')} onClick={() => { setView('otros'); setSearch(''); }}>
+        {can.otros && <button style={tabStyle(view === 'otros')} onClick={() => { setView('otros'); setSearch(''); }}>
           💰 Otros ingresos
-        </button>
-        <button style={tabStyle(view === 'recordatorios')} onClick={() => { setView('recordatorios'); setSearch(''); }}>
+        </button>}
+        {can.recordatorio && <button style={tabStyle(view === 'recordatorios')} onClick={() => { setView('recordatorios'); setSearch(''); }}>
           📱 Recordatorios
-        </button>
+        </button>}
       </div>
 
       {view !== 'otros' && <>
@@ -234,7 +234,7 @@ export default function Collections() {
                               <>
                                 <span className={`pill pill-${e.paymentStatus}`}>{statusLabels[e.paymentStatus]}</span>
                                 {can.editar_cuota && <button className="btn btn-sm btn-secondary" onClick={() => setEditModal(e)} title="Editar cuota">✏️</button>}
-                                {g.client.phone && (
+                                {g.client.phone && can.recordatorio && (
                                   <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} onClick={() => setWaModal(e)} title="WhatsApp">📱</button>
                                 )}
                                 {can.cobrar && <button className="btn btn-sm btn-primary" onClick={() => setCobrarModal(e)}>Cobrar</button>}
@@ -273,7 +273,7 @@ export default function Collections() {
                 </div>
                 <div className="appt-card-actions">
                   <strong style={{ fontSize: 17 }}>{fmt(a.price)}</strong>
-                  {a.client?.phone && (
+                  {a.client?.phone && can.recordatorio && (
                     <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }}
                       onClick={() => {
                         const phone = a.client.phone.replace(/\D/g, '');
@@ -308,7 +308,7 @@ export default function Collections() {
                     onClick={() => setRecibo({ client: a.client, activity: { name: apptLabel(a) }, startDate: a.date, dueDate: null, amountDue: a.price, discount: 0, metodoPago: 'Efectivo', id: a.id, isAppointment: true, appointmentDate: a.date, startTime: a.startTime, endTime: a.endTime, employeeName: a.employee?.name || null })}>
                     🖨️ Recibo
                   </button>
-                  {a.client?.phone && (
+                  {a.client?.phone && can.recordatorio && (
                     <button className="btn btn-sm btn-secondary" style={{ color: '#25d366' }} title="WhatsApp"
                       onClick={() => {
                         const phone = a.client.phone.replace(/\D/g, '');

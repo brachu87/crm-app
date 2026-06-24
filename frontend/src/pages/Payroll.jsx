@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api/client';
 import { sendWA } from '../lib/waSend';
 import { useAuth } from '../context/AuthContext';
+import { useSectionPerms } from '../config/permissions';
 
 const FREQ_LABELS = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' };
 const STATUS_COLORS = { pending: '#f59e0b', paid: '#10b981' };
@@ -117,6 +118,7 @@ function sendWhatsApp(r, businessName) {
 }
 
 export default function Payroll() {
+  const can = useSectionPerms('liquidaciones');
   const { business } = useAuth();
   const businessName = business?.name || '';
   const [employees, setEmployees] = useState([]);
@@ -200,10 +202,10 @@ export default function Payroll() {
     <div style={{ padding: '24px 20px', maxWidth: 900, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
         <h1 style={{ fontSize: 26, fontWeight: 800 }}>Liquidaciones</h1>
-        <button className="btn btn-primary" style={{ marginLeft: 'auto' }}
+        {can.generar && <button className="btn btn-primary" style={{ marginLeft: 'auto' }}
           onClick={() => { setShowForm(true); setPreview(null); setNewRecord(null); setForm({ employeeId: '', from: '', to: '' }); }}>
           + Nueva liquidación
-        </button>
+        </button>}
       </div>
       <p style={{ color: 'var(--muted)', marginBottom: 20, fontSize: 14 }}>Calculá y registrá el pago de sueldos y horas</p>
 
@@ -312,7 +314,7 @@ export default function Payroll() {
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => { setShowForm(false); setPreview(null); }}>Cancelar</button>
-              <button className="btn btn-primary" onClick={createRecord} disabled={!preview}>Crear liquidación</button>
+              {can.generar && <button className="btn btn-primary" onClick={createRecord} disabled={!preview}>Crear liquidación</button>}
             </div>
           </div>
         </div>
@@ -322,6 +324,7 @@ export default function Payroll() {
 }
 
 function RecordRow({ r, onPay, onDelete, businessName }) {
+  const can = useSectionPerms('liquidaciones');
   const [open, setOpen] = useState(false);
   const emp = r.employee;
   const from = new Date(r.periodStart).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
@@ -351,10 +354,10 @@ function RecordRow({ r, onPay, onDelete, businessName }) {
             <button className="btn btn-secondary btn-sm" onClick={() => printReceipt(r, businessName)}>🖨️ Imprimir recibo</button>
             <button className="btn btn-secondary btn-sm" style={{ background: '#25d366', color: '#fff', borderColor: '#25d366' }}
               onClick={() => sendWhatsApp(r, businessName)}>📲 WhatsApp</button>
-            {r.status === 'pending' && (
+            {can.pagar && r.status === 'pending' && (
               <button className="btn btn-primary btn-sm" onClick={() => onPay(r.id)}>✅ Marcar pagado</button>
             )}
-            <button className="btn btn-danger btn-sm" style={{ marginLeft: 'auto' }} onClick={() => onDelete(r.id)}>Eliminar</button>
+            {can.generar && <button className="btn btn-danger btn-sm" style={{ marginLeft: 'auto' }} onClick={() => onDelete(r.id)}>Eliminar</button>}
           </div>
         </div>
       )}

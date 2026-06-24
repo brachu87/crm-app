@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 import AuthImage from '../components/AuthImage';
 import ClientModal from './ClientModal';
 
@@ -20,6 +21,7 @@ function formatDate(value) {
 }
 
 export default function ClientDetail() {
+  const can = useSectionPerms('clientes');
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +99,7 @@ export default function ClientDetail() {
               />
             </div>
             <div style={{ position: 'absolute', bottom: 0, right: 0, width: 18, height: 18, borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white' }}>+</div>
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0])} />
+            {can.foto && <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0])} />}
           </label>
           <div>
             <h1>{client.name}</h1>
@@ -107,7 +109,7 @@ export default function ClientDetail() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => setShowStatement(true)}>📄 Estado de cuenta</button>
+          {can.cuenta && <button className="btn btn-secondary" onClick={() => setShowStatement(true)}>📄 Estado de cuenta</button>}
           <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>Editar</button>
           <Link to="/clientes" className="btn btn-secondary">Volver</Link>
         </div>
