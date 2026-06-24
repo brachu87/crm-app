@@ -4,6 +4,7 @@ import ChatBot from './ChatBot';
 import AuthImage from './AuthImage';
 import { useAuth } from '../context/AuthContext';
 import { ALL_MODULES } from '../config/modules';
+import { canViewModule, ROUTE_MODULE } from '../config/permissions';
 import { useEffect, useState, useCallback, useRef } from 'react';
 
 const NAV_GROUPS = [
@@ -266,7 +267,11 @@ export default function Layout() {
           // Owner y admin ven todo; staff solo ve lo que tiene habilitado
           const perms = user?.permissions;
           const visibleLinks = (perms && user?.role === 'staff')
-            ? group.links.filter(l => perms.includes(l.to))
+            ? group.links.filter(l => {
+                const mod = ROUTE_MODULE[l.to];
+                if (!mod) return true; // rutas sin módulo (ej. Ajustes) siempre visibles
+                return canViewModule(user, mod);
+              })
             : group.links;
           if (visibleLinks.length === 0) return null;
 

@@ -1,0 +1,305 @@
+diff --git a/frontend/src/components/Layout.jsx b/frontend/src/components/Layout.jsx
+index 3e8f65a..a5d0345 100644
+--- a/frontend/src/components/Layout.jsx
++++ b/frontend/src/components/Layout.jsx
+@@ -4,6 +4,7 @@ import ChatBot from './ChatBot';
+ import AuthImage from './AuthImage';
+ import { useAuth } from '../context/AuthContext';
+ import { ALL_MODULES } from '../config/modules';
++import { canViewModule, ROUTE_MODULE } from '../config/permissions';
+ import { useEffect, useState, useCallback, useRef } from 'react';
+ 
+ const NAV_GROUPS = [
+@@ -266,7 +267,11 @@ export default function Layout() {
+           // Owner y admin ven todo; staff solo ve lo que tiene habilitado
+           const perms = user?.permissions;
+           const visibleLinks = (perms && user?.role === 'staff')
+-            ? group.links.filter(l => perms.includes(l.to))
++            ? group.links.filter(l => {
++                const mod = ROUTE_MODULE[l.to];
++                if (!mod) return true; // rutas sin módulo (ej. Ajustes) siempre visibles
++                return canViewModule(user, mod);
++              })
+             : group.links;
+           if (visibleLinks.length === 0) return null;
+ 
+diff --git a/frontend/src/config/permissions.js b/frontend/src/config/permissions.js
+index d185efd..55de4be 100644
+--- a/frontend/src/config/permissions.js
++++ b/frontend/src/config/permissions.js
+@@ -1,14 +1,17 @@
+ import { useAuth } from '../context/AuthContext';
+ 
+-// Árbol completo de permisos por módulo
++// Árbol completo de permisos por módulo (cada módulo subdividido en sus funciones)
+ export const PERMISSION_TREE = [
+   {
+     key: 'clientes', label: 'Clientes', icon: '👤',
+     actions: [
+       { key: 'ver',      label: 'Ver listado' },
++      { key: 'ver_ficha',label: 'Ver ficha / detalle' },
+       { key: 'crear',    label: 'Agregar cliente' },
+       { key: 'editar',   label: 'Editar datos' },
+-      { key: 'baja',     label: 'Dar de baja' },
++      { key: 'baja',     label: 'Dar de baja / reactivar' },
++      { key: 'cuenta',   label: 'Cuenta corriente / pagos' },
++      { key: 'foto',     label: 'Cambiar foto' },
+       { key: 'exportar', label: 'Exportar CSV' },
+       { key: 'importar', label: 'Importar Excel' },
+     ],
+@@ -19,26 +22,48 @@ export const PERMISSION_TREE = [
+       { key: 'ver',    label: 'Ver listado' },
+       { key: 'crear',  label: 'Crear actividad/servicio' },
+       { key: 'editar', label: 'Editar' },
+-      { key: 'baja',   label: 'Dar de baja' },
++      { key: 'baja',   label: 'Activar / desactivar' },
++      { key: 'inscribir', label: 'Inscribir clientes' },
+     ],
+   },
+   {
+-    key: 'agenda', label: 'Agenda', icon: '📅',
++    key: 'agenda', label: 'Agenda / Turnos', icon: '📅',
+     actions: [
+-      { key: 'ver',      label: 'Ver agenda' },
+-      { key: 'crear',    label: 'Agendar turno' },
+-      { key: 'eliminar', label: 'Cancelar/eliminar turno' },
++      { key: 'ver',         label: 'Ver agenda' },
++      { key: 'crear',       label: 'Agendar turno' },
++      { key: 'editar',      label: 'Editar turno' },
++      { key: 'eliminar',    label: 'Cancelar / eliminar turno' },
++      { key: 'recordatorio',label: 'Enviar recordatorio WhatsApp' },
+     ],
+   },
+   {
+-    key: 'empleados', label: 'Equipo (Legajos)', icon: '👥',
++    key: 'cobranza', label: 'Cobranza', icon: '💳',
+     actions: [
+-      { key: 'ver',      label: 'Ver legajos' },
+-      { key: 'crear',    label: 'Agregar empleado' },
++      { key: 'ver',         label: 'Ver cobranza' },
++      { key: 'cobrar',      label: 'Registrar pago' },
++      { key: 'editar_cuota',label: 'Editar cuota' },
++      { key: 'eliminar',    label: 'Eliminar inscripción' },
++      { key: 'renovar',     label: 'Renovar cuotas del mes' },
++      { key: 'otros',       label: 'Registrar otros ingresos' },
++      { key: 'recordatorio',label: 'Enviar recordatorio / recibo WhatsApp' },
++    ],
++  },
++  {
++    key: 'caja', label: 'Caja del día', icon: '🏦',
++    actions: [
++      { key: 'ver',    label: 'Ver movimientos' },
++      { key: 'crear',  label: 'Registrar movimiento' },
++      { key: 'cerrar', label: 'Abrir / cerrar caja' },
++    ],
++  },
++  {
++    key: 'gastos', label: 'Gastos', icon: '💸',
++    actions: [
++      { key: 'ver',      label: 'Ver gastos' },
++      { key: 'crear',    label: 'Registrar gasto' },
+       { key: 'editar',   label: 'Editar' },
+       { key: 'eliminar', label: 'Eliminar' },
+       { key: 'exportar', label: 'Exportar CSV' },
+-      { key: 'importar', label: 'Importar Excel' },
+     ],
+   },
+   {
+@@ -48,33 +73,42 @@ export const PERMISSION_TREE = [
+       { key: 'crear',    label: 'Agregar proveedor' },
+       { key: 'editar',   label: 'Editar' },
+       { key: 'eliminar', label: 'Eliminar' },
++      { key: 'cuenta',   label: 'Ver cuenta corriente' },
+       { key: 'exportar', label: 'Exportar CSV' },
+       { key: 'importar', label: 'Importar Excel' },
+     ],
+   },
+   {
+-    key: 'cobranza', label: 'Cobranza', icon: '💳',
++    key: 'empleados', label: 'Equipo (Legajos)', icon: '👥',
+     actions: [
+-      { key: 'ver',         label: 'Ver cobranza' },
+-      { key: 'cobrar',      label: 'Registrar pago' },
+-      { key: 'editar_cuota', label: 'Editar cuota' },
++      { key: 'ver',      label: 'Ver legajos' },
++      { key: 'crear',    label: 'Agregar empleado' },
++      { key: 'editar',   label: 'Editar' },
++      { key: 'eliminar', label: 'Eliminar' },
++      { key: 'exportar', label: 'Exportar CSV' },
++      { key: 'importar', label: 'Importar Excel' },
+     ],
+   },
+   {
+-    key: 'caja', label: 'Caja del día', icon: '🏦',
++    key: 'asistencias', label: 'Asistencias', icon: '🕒',
+     actions: [
+-      { key: 'ver',   label: 'Ver movimientos' },
+-      { key: 'crear', label: 'Registrar movimiento' },
++      { key: 'ver',       label: 'Ver asistencias' },
++      { key: 'registrar', label: 'Registrar asistencia' },
+     ],
+   },
+   {
+-    key: 'gastos', label: 'Gastos', icon: '💸',
++    key: 'liquidaciones', label: 'Liquidaciones', icon: '🧾',
+     actions: [
+-      { key: 'ver',      label: 'Ver gastos' },
+-      { key: 'crear',    label: 'Registrar gasto' },
+-      { key: 'editar',   label: 'Editar' },
+-      { key: 'eliminar', label: 'Eliminar' },
+-      { key: 'exportar', label: 'Exportar CSV' },
++      { key: 'ver',     label: 'Ver liquidaciones' },
++      { key: 'generar', label: 'Generar liquidación' },
++      { key: 'pagar',   label: 'Marcar como pagada' },
++    ],
++  },
++  {
++    key: 'horarios', label: 'Horarios', icon: '📆',
++    actions: [
++      { key: 'ver',    label: 'Ver horarios' },
++      { key: 'editar', label: 'Editar horarios' },
+     ],
+   },
+   {
+@@ -91,37 +125,89 @@ export const PERMISSION_TREE = [
+       { key: 'editar', label: 'Editar precios' },
+     ],
+   },
++  {
++    key: 'sedes', label: 'Sedes', icon: '📍',
++    actions: [
++      { key: 'ver',      label: 'Ver sedes' },
++      { key: 'crear',    label: 'Agregar sede' },
++      { key: 'editar',   label: 'Editar' },
++      { key: 'eliminar', label: 'Eliminar' },
++    ],
++  },
++  {
++    key: 'usuarios', label: 'Usuarios y permisos', icon: '🔑',
++    actions: [
++      { key: 'ver',      label: 'Ver usuarios' },
++      { key: 'crear',    label: 'Crear usuario' },
++      { key: 'editar',   label: 'Editar / permisos' },
++      { key: 'eliminar', label: 'Eliminar usuario' },
++    ],
++  },
++  {
++    key: 'facturacion', label: 'Facturación', icon: '🧾',
++    actions: [
++      { key: 'ver',      label: 'Ver estado del plan' },
++      { key: 'gestionar',label: 'Gestionar pago / renovar' },
++    ],
++  },
+ ];
+ 
++// Mapa ruta -> módulo (para filtrar el menú lateral por permiso 'ver')
++export const ROUTE_MODULE = {
++  '/clientes': 'clientes',
++  '/actividades': 'actividades',
++  '/agenda': 'agenda',
++  '/proveedores': 'proveedores',
++  '/empleados': 'empleados',
++  '/asistencias': 'asistencias',
++  '/liquidaciones': 'liquidaciones',
++  '/horarios': 'horarios',
++  '/cobranza': 'cobranza',
++  '/caja': 'caja',
++  '/reportes': 'reportes',
++  '/gastos': 'gastos',
++  '/precios': 'precios',
++  '/sedes': 'sedes',
++};
++
+ /**
+  * Hook para verificar permisos de acciones específicas en un módulo.
+  * Owners y admins siempre tienen acceso total.
+  * Si permissions es null → sin restricciones (acceso total).
+  * Si permissions es array → solo las acciones listadas.
+  *
+- * Formato nuevo:  ['clientes.ver', 'clientes.editar', ...]
+- * Formato viejo:  ['/clientes', '/reportes', ...]  (compatibilidad)
++ * Formato:  ['clientes.ver', 'clientes.editar', ...]
++ * Compat:   ['/clientes', ...]  (formato viejo de rutas → acceso total al módulo)
+  */
+ export function useSectionPerms(section) {
+   const { user } = useAuth();
+ 
+   function can(action) {
+     if (!user) return false;
+-    // Owner y admin: acceso total siempre
+     if (user.role === 'owner' || user.role === 'admin') return true;
+     const perms = user.permissions;
+-    // Sin restricciones: acceso total
+     if (!perms) return true;
+-    // Formato nuevo: 'clientes.ver'
+     if (perms.includes(`${section}.${action}`)) return true;
+-    // Backward compat: formato viejo '/clientes' → acceso total a ese módulo
+-    if (perms.includes('/' + section)) return true;
++    if (perms.includes('/' + section)) return true; // compat formato viejo
+     return false;
+   }
+ 
+-  // Devuelve objeto con cada acción del módulo como propiedad booleana
+   const tree = PERMISSION_TREE.find(p => p.key === section);
+   const result = {};
+   if (tree) tree.actions.forEach(a => { result[a.key] = can(a.key); });
+   return result;
+ }
++
++/**
++ * ¿El usuario puede ver/entrar a un módulo? (permiso '<modulo>.ver')
++ * Usado por el menú lateral. Owner/admin o sin restricciones → true.
++ */
++export function canViewModule(user, moduleKey) {
++  if (!user) return false;
++  if (user.role === 'owner' || user.role === 'admin') return true;
++  const perms = user.permissions;
++  if (!perms) return true;
++  if (perms.includes(`${moduleKey}.ver`)) return true;
++  if (perms.includes('/' + moduleKey)) return true; // compat
++  return false;
++}
+diff --git a/frontend/src/pages/DailyCash.jsx b/frontend/src/pages/DailyCash.jsx
+index a9cbe42..8da829d 100644
+--- a/frontend/src/pages/DailyCash.jsx
++++ b/frontend/src/pages/DailyCash.jsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useState } from 'react';
+ import api from '../api/client';
++import { useSectionPerms } from '../config/permissions';
+ 
+ function fmt(n) {
+   return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2 });
+@@ -80,6 +81,7 @@ function HistorialTab() {
+ }
+ 
+ export default function DailyCash() {
++  const can = useSectionPerms('caja');
+   const [tab, setTab] = useState('today');
+   const [data, setData] = useState(null);
+   const [loading, setLoading] = useState(true);
+@@ -114,10 +116,10 @@ export default function DailyCash() {
+           <p className="page-subtitle">{new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+         </div>
+         <div style={{ display: 'flex', gap: 8 }}>
+-          {tab === 'today' && data && !data.cashRecord && (
++          {can.cerrar && tab === 'today' && data && !data.cashRecord && (
+             <button className="btn btn-primary" onClick={() => setShowOpenModal(true)}>Abrir caja</button>
+           )}
+-          {tab === 'today' && data?.cashRecord && !data.cashRecord.closingBalance && (
++          {can.cerrar && tab === 'today' && data?.cashRecord && !data.cashRecord.closingBalance && (
+             <button className="btn btn-secondary" onClick={() => setShowCloseModal(true)}>Cerrar caja</button>
+           )}
+         </div>
+@@ -186,9 +188,9 @@ export default function DailyCash() {
+               <div className="empty-state">
+                 <h3>Caja no abierta</h3>
+                 <p>Abrí la caja del día ingresando el saldo inicial en efectivo.</p>
+-                <button className="btn btn-primary" onClick={() => setShowOpenModal(true)} style={{ marginTop: 12 }}>
++                {can.cerrar && <button className="btn btn-primary" onClick={() => setShowOpenModal(true)} style={{ marginTop: 12 }}>
+                   Abrir caja
+-                </button>
++                </button>}
+               </div>
+             </div>
+           )}

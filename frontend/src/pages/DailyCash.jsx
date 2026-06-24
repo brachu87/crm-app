@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
+import { useSectionPerms } from '../config/permissions';
 
 function fmt(n) {
   return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2 });
@@ -80,6 +81,7 @@ function HistorialTab() {
 }
 
 export default function DailyCash() {
+  const can = useSectionPerms('caja');
   const [tab, setTab] = useState('today');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -114,10 +116,10 @@ export default function DailyCash() {
           <p className="page-subtitle">{new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {tab === 'today' && data && !data.cashRecord && (
+          {can.cerrar && tab === 'today' && data && !data.cashRecord && (
             <button className="btn btn-primary" onClick={() => setShowOpenModal(true)}>Abrir caja</button>
           )}
-          {tab === 'today' && data?.cashRecord && !data.cashRecord.closingBalance && (
+          {can.cerrar && tab === 'today' && data?.cashRecord && !data.cashRecord.closingBalance && (
             <button className="btn btn-secondary" onClick={() => setShowCloseModal(true)}>Cerrar caja</button>
           )}
         </div>
@@ -186,9 +188,9 @@ export default function DailyCash() {
               <div className="empty-state">
                 <h3>Caja no abierta</h3>
                 <p>Abrí la caja del día ingresando el saldo inicial en efectivo.</p>
-                <button className="btn btn-primary" onClick={() => setShowOpenModal(true)} style={{ marginTop: 12 }}>
+                {can.cerrar && <button className="btn btn-primary" onClick={() => setShowOpenModal(true)} style={{ marginTop: 12 }}>
                   Abrir caja
-                </button>
+                </button>}
               </div>
             </div>
           )}
