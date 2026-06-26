@@ -50,7 +50,7 @@ async function subscriptionCheck(req, res, next) {
     const isBonif = bonificado === 1 || bonificado === true;
     if (subscriptionStatus === 'expired' && !isBonif) {
       return res.status(402).json({
-        error: 'Tu período de prueba ha vencido. Realizá el pago para continuar usando Zentric.',
+        error: 'Tu período de prueba ha vencido. Realizá el pago para continuar usando Gestumio.',
         code: 'SUBSCRIPTION_EXPIRED',
       });
     }

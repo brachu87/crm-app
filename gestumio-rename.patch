@@ -1,0 +1,323 @@
+diff --git a/backend/src/admin-panel.html b/backend/src/admin-panel.html
+index 0e23344..4c249c2 100644
+--- a/backend/src/admin-panel.html
++++ b/backend/src/admin-panel.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="UTF-8"/>
+   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+-  <title>Zentric Admin</title>
++  <title>Gestumio Admin</title>
+   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cline x1='11' y1='14' x2='37' y2='14' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='37' y1='14' x2='11' y2='34' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='11' y1='34' x2='37' y2='34' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"/>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+   <style>
+@@ -88,7 +88,7 @@
+   <nav>
+     <div class="logo">
+       <svg width="24" height="24" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="rgba(255,255,255,0.2)"/><line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/><line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/><line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/></svg>
+-      Zentric Admin
++      Gestumio Admin
+     </div>
+     <div style="display:flex;align-items:center;gap:16px">
+       <span id="lastUpdated" style="color:#a8c5b5;font-size:12px"></span>
+diff --git a/backend/src/lib/mailer.js b/backend/src/lib/mailer.js
+index 36bf34a..9b708c2 100644
+--- a/backend/src/lib/mailer.js
++++ b/backend/src/lib/mailer.js
+@@ -34,7 +34,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+         <tr>
+           <td style="background:#3D5A4C;padding:36px 40px;text-align:center;">
+             <div style="display:inline-block;background:rgba(255,255,255,0.12);border-radius:12px;width:56px;height:56px;line-height:56px;font-size:32px;font-weight:900;color:#E8674A;text-align:center;">z</div>
+-            <div style="margin-top:12px;font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">zentric</div>
++            <div style="margin-top:12px;font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">gestumio</div>
+             <div style="margin-top:4px;font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:0.08em;text-transform:uppercase;">Gestión inteligente para tu negocio</div>
+           </td>
+         </tr>
+@@ -44,7 +44,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+           <td style="padding:40px 40px 32px;">
+             <p style="margin:0 0 6px;font-size:23px;font-weight:700;color:#111;">¡Hola, ${toName}! 👋</p>
+             <p style="margin:0 0 24px;font-size:15px;color:#4B5563;line-height:1.7;">
+-              Gracias por confiar en <strong style="color:#3D5A4C;">Zentric</strong> para gestionar <strong>${businessName}</strong>.<br/>
++              Gracias por confiar en <strong style="color:#3D5A4C;">Gestumio</strong> para gestionar <strong>${businessName}</strong>.<br/>
+               Tu cuenta fue creada exitosamente.
+             </p>
+ 
+@@ -89,7 +89,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+             <table width="100%" cellpadding="0" cellspacing="0">
+               <tr>
+                 <td align="center">
+-                  <a href="https://wa.me/5491176353062?text=Hola%2C%20acabo%20de%20registrarme%20en%20Zentric%20y%20quiero%20activar%20mi%20cuenta"
++                  <a href="https://wa.me/5491176353062?text=Hola%2C%20acabo%20de%20registrarme%20en%20Gestumio%20y%20quiero%20activar%20mi%20cuenta"
+                      style="display:inline-block;background:#25D366;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;letter-spacing:0.01em;">
+                     💬 Escribinos por WhatsApp
+                   </a>
+@@ -103,10 +103,10 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+         <tr>
+           <td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:22px 40px;text-align:center;">
+             <p style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">
+-              Recibiste este mail porque alguien creó una cuenta en Zentric con esta dirección.
++              Recibiste este mail porque alguien creó una cuenta en Gestumio con esta dirección.
+             </p>
+             <p style="margin:0;font-size:12px;color:#9CA3AF;">
+-              © 2026 Zentric &nbsp;·&nbsp;
++              © 2026 Gestumio &nbsp;·&nbsp;
+               <a href="https://wa.me/5491176353062" style="color:#3D5A4C;text-decoration:none;">Soporte</a>
+             </p>
+           </td>
+@@ -120,9 +120,9 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+ 
+   try {
+     await transporter.sendMail({
+-      from: `"Zentric" <${process.env.GMAIL_USER}>`,
++      from: `"Gestumio" <${process.env.GMAIL_USER}>`,
+       to: toEmail,
+-      subject: '¡Bienvenido a Zentric! Tu cuenta está siendo procesada 🎉',
++      subject: '¡Bienvenido a Gestumio! Tu cuenta está siendo procesada 🎉',
+       html,
+     });
+     console.log(`[mailer] Mail de bienvenida enviado a ${toEmail}`);
+diff --git a/backend/src/middleware/auth.js b/backend/src/middleware/auth.js
+index 8fd9fd3..b66bb01 100644
+--- a/backend/src/middleware/auth.js
++++ b/backend/src/middleware/auth.js
+@@ -50,7 +50,7 @@ async function subscriptionCheck(req, res, next) {
+     const isBonif = bonificado === 1 || bonificado === true;
+     if (subscriptionStatus === 'expired' && !isBonif) {
+       return res.status(402).json({
+-        error: 'Tu período de prueba ha vencido. Realizá el pago para continuar usando Zentric.',
++        error: 'Tu período de prueba ha vencido. Realizá el pago para continuar usando Gestumio.',
+         code: 'SUBSCRIPTION_EXPIRED',
+       });
+     }
+diff --git a/backend/src/routes/billing.js b/backend/src/routes/billing.js
+index ba6f841..1e6d6fb 100644
+--- a/backend/src/routes/billing.js
++++ b/backend/src/routes/billing.js
+@@ -52,8 +52,8 @@ router.post('/preference', authMiddleware, async (req, res) => {
+       body: {
+         items: [
+           {
+-            id: `zentric-plan-${biz.id}`,
+-            title: 'Zentric — Plan Mensual',
++            id: `gestumio-plan-${biz.id}`,
++            title: 'Gestumio — Plan Mensual',
+             description: `Suscripción mensual para ${biz.name}`,
+             quantity: 1,
+             currency_id: 'ARS',
+@@ -71,7 +71,7 @@ router.post('/preference', authMiddleware, async (req, res) => {
+         },
+         auto_return: 'approved',
+         notification_url: `${APP_URL}/api/billing/webhook`,
+-        statement_descriptor: 'ZENTRIC',
++        statement_descriptor: 'GESTUMIO',
+         expires: false,
+       },
+     });
+@@ -94,8 +94,8 @@ router.get('/public-checkout', async (req, res) => {
+       body: {
+         items: [
+           {
+-            id: 'zentric-plan-publico',
+-            title: 'Zentric — Plan Mensual',
++            id: 'gestumio-plan-publico',
++            title: 'Gestumio — Plan Mensual',
+             description: 'Gestión completa de tu negocio. 15 días de prueba gratuita incluidos.',
+             quantity: 1,
+             currency_id: 'ARS',
+@@ -109,7 +109,7 @@ router.get('/public-checkout', async (req, res) => {
+         },
+         auto_return: 'approved',
+         notification_url: `${APP_URL}/api/billing/webhook`,
+-        statement_descriptor: 'ZENTRIC',
++        statement_descriptor: 'GESTUMIO',
+         expires: false,
+       },
+     });
+diff --git a/frontend/index.html b/frontend/index.html
+index ff36e26..0d7daa8 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -4,9 +4,9 @@
+     <meta charset="UTF-8" />
+     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <meta name="description" content="Zentric — Gestioná tu negocio de servicios: clientes, cobros, empleados y más." />
++    <meta name="description" content="Gestumio — Gestioná tu negocio de servicios: clientes, cobros, empleados y más." />
+     <meta name="theme-color" content="#3D5A4C" />
+-    <title>Zentric</title>
++    <title>Gestumio</title>
+   </head>
+   <body>
+     <div id="root"></div>
+diff --git a/frontend/src/components/ChatBot.jsx b/frontend/src/components/ChatBot.jsx
+index 65b9575..4f25324 100644
+--- a/frontend/src/components/ChatBot.jsx
++++ b/frontend/src/components/ChatBot.jsx
+@@ -301,7 +301,7 @@ const FAQ = [
+     id: 'manual',
+     keywords: ['manual','instructivo','guia','guía','como usar','ayuda','documentacion'],
+     q: '¿Hay un manual de la aplicación?',
+-    a: 'Sí. En Ajustes → "Descargar manual" para bajar el PDF completo.\n\nTambién está disponible en la página principal de Zentric.',
++    a: 'Sí. En Ajustes → "Descargar manual" para bajar el PDF completo.\n\nTambién está disponible en la página principal de Gestumio.',
+   },
+   {
+     id: 'global-search',
+@@ -319,7 +319,7 @@ const FAQ = [
+     id: 'contact',
+     keywords: ['contacto','soporte','ayuda tecnica','problema','error','falla','no funciona'],
+     q: '¿Cómo contacto al soporte?',
+-    a: 'Escribinos a contacto@zentric.app 📧\n\nTambién podés comunicarte directamente por WhatsApp desde la página de Zentric. Respondemos a la brevedad.',
++    a: 'Escribinos a contacto@gestumio.app 📧\n\nTambién podés comunicarte directamente por WhatsApp desde la página de Gestumio. Respondemos a la brevedad.',
+   },
+ ];
+ 
+@@ -380,7 +380,7 @@ function getMenu(pathname) {
+   return DEFAULT_MENU;
+ }
+ 
+-const WELCOME = '¡Hola! 👋 Soy el asistente de Zentric.\n¿Sobre qué querés saber?';
++const WELCOME = '¡Hola! 👋 Soy el asistente de Gestumio.\n¿Sobre qué querés saber?';
+ 
+ // ── Componente ───────────────────────────────────────────────────────────────
+ export default function ChatBot() {
+@@ -425,7 +425,7 @@ export default function ChatBot() {
+       const match = findAnswer(userMsg);
+       const response = match
+         ? match.a
+-        : 'No encontré una respuesta para eso 🤔\n\nProbá eligiendo una de las opciones del menú, o escribinos a contacto@zentric.app 📧';
++        : 'No encontré una respuesta para eso 🤔\n\nProbá eligiendo una de las opciones del menú, o escribinos a contacto@gestumio.app 📧';
+       setTyping(false);
+       setMessages(m => [...m, { from: 'bot', text: response, showMenu: true }]);
+       if (!open) setUnread(u => u + 1);
+@@ -487,7 +487,7 @@ export default function ChatBot() {
+               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+             }}>🌿</div>
+             <div>
+-              <div style={{ fontWeight: 700, fontSize: 14 }}>Asistente Zentric</div>
++              <div style={{ fontWeight: 700, fontSize: 14 }}>Asistente Gestumio</div>
+               <div style={{ fontSize: 11, opacity: 0.8 }}>● En línea</div>
+             </div>
+           </div>
+diff --git a/frontend/src/components/Layout.jsx b/frontend/src/components/Layout.jsx
+index a5d0345..c6ec6b4 100644
+--- a/frontend/src/components/Layout.jsx
++++ b/frontend/src/components/Layout.jsx
+@@ -350,7 +350,7 @@ export default function Layout() {
+           >Cerrar sesión</button>
+           <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+             <span style={{ fontSize: 11, opacity: 0.4, letterSpacing: '0.03em' }}>
+-              <span style={{ fontWeight: 700 }}>z</span>entric
++              <span style={{ fontWeight: 700 }}>G</span>estumio
+             </span>
+           </div>
+         </div>
+diff --git a/frontend/src/components/OnboardingWizard.jsx b/frontend/src/components/OnboardingWizard.jsx
+index 929a1d9..c85d782 100644
+--- a/frontend/src/components/OnboardingWizard.jsx
++++ b/frontend/src/components/OnboardingWizard.jsx
+@@ -110,7 +110,7 @@ export default function OnboardingWizard({ onComplete }) {
+           {step === 0 && (
+             <div style={{ textAlign: 'center' }}>
+               <div style={{ fontSize: 56, marginBottom: 16 }}>👋</div>
+-              <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 10, color: 'var(--primary)' }}>¡Bienvenido a Zentric!</h2>
++              <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 10, color: 'var(--primary)' }}>¡Bienvenido a Gestumio!</h2>
+               <p style={{ color: 'var(--ink-soft)', fontSize: 15, lineHeight: 1.6, marginBottom: 8 }}>
+                 Vamos a configurar tu cuenta en <strong>3 pasos rápidos</strong> para que puedas empezar a gestionar tu negocio hoy mismo.
+               </p>
+diff --git a/frontend/src/pages/Login.jsx b/frontend/src/pages/Login.jsx
+index 481079d..43eb0da 100644
+--- a/frontend/src/pages/Login.jsx
++++ b/frontend/src/pages/Login.jsx
+@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
+ import { GoogleLogin } from '@react-oauth/google';
+ import { useAuth } from '../context/AuthContext';
+ 
+-function ZentricLogo({ size = 52 }) {
++function GestumioLogo({ size = 52 }) {
+   return (
+     <div style={{ textAlign: 'center', marginBottom: 20 }}>
+       <svg width={size} height={size} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+@@ -13,7 +13,7 @@ function ZentricLogo({ size = 52 }) {
+         <line x1="11" y1="34" x2="37" y2="34" stroke="white" strokeWidth="5" strokeLinecap="round"/>
+       </svg>
+       <div style={{ marginTop: 10, fontSize: 30, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>
+-        <span style={{ color: '#3D5A4C' }}>z</span><span style={{ color: 'var(--ink)' }}>entric</span>
++        <span style={{ color: '#3D5A4C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
+       </div>
+     </div>
+   );
+@@ -59,7 +59,7 @@ export default function Login() {
+   return (
+     <div className="auth-page">
+       <div className="auth-card">
+-        <ZentricLogo />
++        <GestumioLogo />
+         <p className="page-subtitle" style={{ textAlign: 'center', marginTop: -8, marginBottom: 24 }}>Ingresá para gestionar tu negocio</p>
+ 
+         {error && <div className="error-banner">{error}</div>}
+diff --git a/frontend/src/pages/Register.jsx b/frontend/src/pages/Register.jsx
+index 619e180..a04f8de 100644
+--- a/frontend/src/pages/Register.jsx
++++ b/frontend/src/pages/Register.jsx
+@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
+ import { GoogleLogin } from '@react-oauth/google';
+ import { useAuth } from '../context/AuthContext';
+ 
+-function ZentricLogo({ size = 52 }) {
++function GestumioLogo({ size = 52 }) {
+   return (
+     <div style={{ textAlign: 'center', marginBottom: 20 }}>
+       <svg width={size} height={size} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+@@ -13,7 +13,7 @@ function ZentricLogo({ size = 52 }) {
+         <line x1="11" y1="34" x2="37" y2="34" stroke="white" strokeWidth="5" strokeLinecap="round"/>
+       </svg>
+       <div style={{ marginTop: 10, fontSize: 30, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>
+-        <span style={{ color: '#3D5A4C' }}>z</span><span style={{ color: 'var(--ink)' }}>entric</span>
++        <span style={{ color: '#3D5A4C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
+       </div>
+     </div>
+   );
+@@ -76,7 +76,7 @@ export default function Register() {
+   return (
+     <div className="auth-page">
+       <div className="auth-card">
+-        <ZentricLogo />
++        <GestumioLogo />
+         <p className="page-subtitle" style={{ textAlign: 'center', marginTop: -8, marginBottom: 24 }}>Empezá a gestionar tu negocio en minutos</p>
+ 
+         {error && <div className="error-banner">{error}</div>}
+diff --git a/frontend/src/pages/Reports.jsx b/frontend/src/pages/Reports.jsx
+index 4122e06..cb6cd03 100644
+--- a/frontend/src/pages/Reports.jsx
++++ b/frontend/src/pages/Reports.jsx
+@@ -207,7 +207,7 @@ function exportPDF(title, subtitle, sheets) {
+       <h1>${title}</h1>
+       <p class="sub">${subtitle} — Generado: ${new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})}</p>
+       ${tableHTML}
+-      <div class="footer">Zentric CRM</div>
++      <div class="footer">Gestumio CRM</div>
+     </body></html>`;
+   const w = window.open('', '_blank', 'width=900,height=700');
+   if (!can.exportar) { alert('No tenés permiso para exportar.'); return; }
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index 24783c3..ee87e3d 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -463,7 +463,7 @@ export default function Settings() {
+                 </p>
+               </div>
+               <a href="https://brachu87.github.io/-zentric-landing/manual-zentric.pdf" target="_blank" rel="noreferrer"
+-                download="Manual-Zentric.pdf" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
++                download="Manual-Gestumio.pdf" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
+                 ⬇ Descargar PDF
+               </a>
+             </div>
+@@ -489,7 +489,7 @@ function WhatsAppAuto() {
+   const [status, setStatus] = useState(null);
+   const [qr, setQR] = useState(null);
+   const [testPhone, setTestPhone] = useState('');
+-  const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Zentric 🌿');
++  const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Gestumio 🌿');
+   const [testing, setTesting] = useState(false);
+   const [running, setRunning] = useState(false);
+   const [connecting, setConnecting] = useState(false);

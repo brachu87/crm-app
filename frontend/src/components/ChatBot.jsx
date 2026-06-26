@@ -301,7 +301,7 @@ const FAQ = [
     id: 'manual',
     keywords: ['manual','instructivo','guia','guía','como usar','ayuda','documentacion'],
     q: '¿Hay un manual de la aplicación?',
-    a: 'Sí. En Ajustes → "Descargar manual" para bajar el PDF completo.\n\nTambién está disponible en la página principal de Zentric.',
+    a: 'Sí. En Ajustes → "Descargar manual" para bajar el PDF completo.\n\nTambién está disponible en la página principal de Gestumio.',
   },
   {
     id: 'global-search',
@@ -319,7 +319,7 @@ const FAQ = [
     id: 'contact',
     keywords: ['contacto','soporte','ayuda tecnica','problema','error','falla','no funciona'],
     q: '¿Cómo contacto al soporte?',
-    a: 'Escribinos a contacto@zentric.app 📧\n\nTambién podés comunicarte directamente por WhatsApp desde la página de Zentric. Respondemos a la brevedad.',
+    a: 'Escribinos a contacto@gestumio.app 📧\n\nTambién podés comunicarte directamente por WhatsApp desde la página de Gestumio. Respondemos a la brevedad.',
   },
 ];
 
@@ -380,7 +380,7 @@ function getMenu(pathname) {
   return DEFAULT_MENU;
 }
 
-const WELCOME = '¡Hola! 👋 Soy el asistente de Zentric.\n¿Sobre qué querés saber?';
+const WELCOME = '¡Hola! 👋 Soy el asistente de Gestumio.\n¿Sobre qué querés saber?';
 
 // ── Componente ───────────────────────────────────────────────────────────────
 export default function ChatBot() {
@@ -425,7 +425,7 @@ export default function ChatBot() {
       const match = findAnswer(userMsg);
       const response = match
         ? match.a
-        : 'No encontré una respuesta para eso 🤔\n\nProbá eligiendo una de las opciones del menú, o escribinos a contacto@zentric.app 📧';
+        : 'No encontré una respuesta para eso 🤔\n\nProbá eligiendo una de las opciones del menú, o escribinos a contacto@gestumio.app 📧';
       setTyping(false);
       setMessages(m => [...m, { from: 'bot', text: response, showMenu: true }]);
       if (!open) setUnread(u => u + 1);
@@ -487,7 +487,7 @@ export default function ChatBot() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
             }}>🌿</div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>Asistente Zentric</div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Asistente Gestumio</div>
               <div style={{ fontSize: 11, opacity: 0.8 }}>● En línea</div>
             </div>
           </div>

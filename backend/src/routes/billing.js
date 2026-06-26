@@ -52,8 +52,8 @@ router.post('/preference', authMiddleware, async (req, res) => {
       body: {
         items: [
           {
-            id: `zentric-plan-${biz.id}`,
-            title: 'Zentric — Plan Mensual',
+            id: `gestumio-plan-${biz.id}`,
+            title: 'Gestumio — Plan Mensual',
             description: `Suscripción mensual para ${biz.name}`,
             quantity: 1,
             currency_id: 'ARS',
@@ -71,7 +71,7 @@ router.post('/preference', authMiddleware, async (req, res) => {
         },
         auto_return: 'approved',
         notification_url: `${APP_URL}/api/billing/webhook`,
-        statement_descriptor: 'ZENTRIC',
+        statement_descriptor: 'GESTUMIO',
         expires: false,
       },
     });
@@ -94,8 +94,8 @@ router.get('/public-checkout', async (req, res) => {
       body: {
         items: [
           {
-            id: 'zentric-plan-publico',
-            title: 'Zentric — Plan Mensual',
+            id: 'gestumio-plan-publico',
+            title: 'Gestumio — Plan Mensual',
             description: 'Gestión completa de tu negocio. 15 días de prueba gratuita incluidos.',
             quantity: 1,
             currency_id: 'ARS',
@@ -109,7 +109,7 @@ router.get('/public-checkout', async (req, res) => {
         },
         auto_return: 'approved',
         notification_url: `${APP_URL}/api/billing/webhook`,
-        statement_descriptor: 'ZENTRIC',
+        statement_descriptor: 'GESTUMIO',
         expires: false,
       },
     });

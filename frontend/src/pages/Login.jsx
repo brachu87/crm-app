@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 
-function ZentricLogo({ size = 52 }) {
+function GestumioLogo({ size = 52 }) {
   return (
     <div style={{ textAlign: 'center', marginBottom: 20 }}>
       <svg width={size} height={size} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
@@ -13,7 +13,7 @@ function ZentricLogo({ size = 52 }) {
         <line x1="11" y1="34" x2="37" y2="34" stroke="white" strokeWidth="5" strokeLinecap="round"/>
       </svg>
       <div style={{ marginTop: 10, fontSize: 30, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>
-        <span style={{ color: '#3D5A4C' }}>z</span><span style={{ color: 'var(--ink)' }}>entric</span>
+        <span style={{ color: '#3D5A4C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
       </div>
     </div>
   );
@@ -59,7 +59,7 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <ZentricLogo />
+        <GestumioLogo />
         <p className="page-subtitle" style={{ textAlign: 'center', marginTop: -8, marginBottom: 24 }}>Ingresá para gestionar tu negocio</p>
 
         {error && <div className="error-banner">{error}</div>}

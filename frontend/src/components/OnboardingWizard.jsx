@@ -110,7 +110,7 @@ export default function OnboardingWizard({ onComplete }) {
           {step === 0 && (
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>👋</div>
-              <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 10, color: 'var(--primary)' }}>¡Bienvenido a Zentric!</h2>
+              <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 10, color: 'var(--primary)' }}>¡Bienvenido a Gestumio!</h2>
               <p style={{ color: 'var(--ink-soft)', fontSize: 15, lineHeight: 1.6, marginBottom: 8 }}>
                 Vamos a configurar tu cuenta en <strong>3 pasos rápidos</strong> para que puedas empezar a gestionar tu negocio hoy mismo.
               </p>

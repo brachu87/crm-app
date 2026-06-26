@@ -34,7 +34,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
         <tr>
           <td style="background:#3D5A4C;padding:36px 40px;text-align:center;">
             <div style="display:inline-block;background:rgba(255,255,255,0.12);border-radius:12px;width:56px;height:56px;line-height:56px;font-size:32px;font-weight:900;color:#E8674A;text-align:center;">z</div>
-            <div style="margin-top:12px;font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">zentric</div>
+            <div style="margin-top:12px;font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">gestumio</div>
             <div style="margin-top:4px;font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:0.08em;text-transform:uppercase;">Gestión inteligente para tu negocio</div>
           </td>
         </tr>
@@ -44,7 +44,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
           <td style="padding:40px 40px 32px;">
             <p style="margin:0 0 6px;font-size:23px;font-weight:700;color:#111;">¡Hola, ${toName}! 👋</p>
             <p style="margin:0 0 24px;font-size:15px;color:#4B5563;line-height:1.7;">
-              Gracias por confiar en <strong style="color:#3D5A4C;">Zentric</strong> para gestionar <strong>${businessName}</strong>.<br/>
+              Gracias por confiar en <strong style="color:#3D5A4C;">Gestumio</strong> para gestionar <strong>${businessName}</strong>.<br/>
               Tu cuenta fue creada exitosamente.
             </p>
 
@@ -89,7 +89,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td align="center">
-                  <a href="https://wa.me/5491176353062?text=Hola%2C%20acabo%20de%20registrarme%20en%20Zentric%20y%20quiero%20activar%20mi%20cuenta"
+                  <a href="https://wa.me/5491176353062?text=Hola%2C%20acabo%20de%20registrarme%20en%20Gestumio%20y%20quiero%20activar%20mi%20cuenta"
                      style="display:inline-block;background:#25D366;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;letter-spacing:0.01em;">
                     💬 Escribinos por WhatsApp
                   </a>
@@ -103,10 +103,10 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
         <tr>
           <td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:22px 40px;text-align:center;">
             <p style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">
-              Recibiste este mail porque alguien creó una cuenta en Zentric con esta dirección.
+              Recibiste este mail porque alguien creó una cuenta en Gestumio con esta dirección.
             </p>
             <p style="margin:0;font-size:12px;color:#9CA3AF;">
-              © 2026 Zentric &nbsp;·&nbsp;
+              © 2026 Gestumio &nbsp;·&nbsp;
               <a href="https://wa.me/5491176353062" style="color:#3D5A4C;text-decoration:none;">Soporte</a>
             </p>
           </td>
@@ -120,9 +120,9 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
 
   try {
     await transporter.sendMail({
-      from: `"Zentric" <${process.env.GMAIL_USER}>`,
+      from: `"Gestumio" <${process.env.GMAIL_USER}>`,
       to: toEmail,
-      subject: '¡Bienvenido a Zentric! Tu cuenta está siendo procesada 🎉',
+      subject: '¡Bienvenido a Gestumio! Tu cuenta está siendo procesada 🎉',
       html,
     });
     console.log(`[mailer] Mail de bienvenida enviado a ${toEmail}`);

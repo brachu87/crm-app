@@ -463,7 +463,7 @@ export default function Settings() {
                 </p>
               </div>
               <a href="https://brachu87.github.io/-zentric-landing/manual-zentric.pdf" target="_blank" rel="noreferrer"
-                download="Manual-Zentric.pdf" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
+                download="Manual-Gestumio.pdf" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
                 ⬇ Descargar PDF
               </a>
             </div>
@@ -489,7 +489,7 @@ function WhatsAppAuto() {
   const [status, setStatus] = useState(null);
   const [qr, setQR] = useState(null);
   const [testPhone, setTestPhone] = useState('');
-  const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Zentric 🌿');
+  const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Gestumio 🌿');
   const [testing, setTesting] = useState(false);
   const [running, setRunning] = useState(false);
   const [connecting, setConnecting] = useState(false);

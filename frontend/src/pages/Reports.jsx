@@ -207,7 +207,7 @@ function exportPDF(title, subtitle, sheets) {
       <h1>${title}</h1>
       <p class="sub">${subtitle} — Generado: ${new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})}</p>
       ${tableHTML}
-      <div class="footer">Zentric CRM</div>
+      <div class="footer">Gestumio CRM</div>
     </body></html>`;
   const w = window.open('', '_blank', 'width=900,height=700');
   if (!can.exportar) { alert('No tenés permiso para exportar.'); return; }
