@@ -1,0 +1,59 @@
+diff --git a/backend/prisma/migrations/20260619500000_google_auth/migration.sql b/backend/prisma/migrations/20260619500000_google_auth/migration.sql
+index e8a2fe5..3435352 100644
+--- a/backend/prisma/migrations/20260619500000_google_auth/migration.sql
++++ b/backend/prisma/migrations/20260619500000_google_auth/migration.sql
+@@ -1,2 +1,5 @@
+--- Allow null password for Google OAuth users
+-ALTER TABLE "User" ALTER COLUMN "password" DROP NOT NULL;
++-- Google OAuth: el password puede quedar vacío.
++-- En SQLite NO se puede `ALTER COLUMN ... DROP NOT NULL` (eso es sintaxis de PostgreSQL),
++-- y la app crea los usuarios de Google con password = '' (string vacío), así que no se
++-- requiere que la columna sea nullable. Migración no-op (válida en SQLite).
++PRAGMA foreign_keys=ON;
+diff --git a/start.js b/start.js
+index 441cfda..2aee5a8 100644
+--- a/start.js
++++ b/start.js
+@@ -3,24 +3,28 @@ const path = require('path');
+ 
+ const backendDir = path.join(__dirname, 'backend');
+ 
+-// Resolver migraciones fallidas antes de hacer deploy
+-// (evita el error P3009 por migraciones interrumpidas)
+-console.log('Resolviendo migraciones fallidas (si las hay)...');
+-try {
+-  execSync('npx prisma migrate resolve --rolled-back 20260619500000_google_auth', {
+-    cwd: backendDir,
+-    stdio: 'inherit',
+-  });
+-} catch (_) {
+-  // Ignorar si ya estaba resuelta o no existe
++// Estas migraciones quedan reflejadas en la base por las funciones ensure*() del arranque
++// (agregan las columnas permissions, lastAccessAt, bonificado de forma idempotente).
++// Las marcamos como YA APLICADAS para que `prisma migrate deploy` no intente re-ejecutar
++// SQL que rompe en SQLite (ALTER COLUMN) ni columnas que ya existen ("duplicate column").
++const baseline = [
++  '20260619500000_google_auth',
++  '20260620200000_add_user_permissions',
++  '20260621010000_add_last_access_bonificado',
++];
++
++console.log('Normalizando estado de migraciones...');
++for (const m of baseline) {
++  try {
++    execSync(`npx prisma migrate resolve --applied ${m}`, { cwd: backendDir, stdio: 'pipe' });
++  } catch (_) {
++    // Ya estaba aplicada o no está pendiente: se ignora.
++  }
+ }
+ 
+ console.log('Ejecutando migraciones...');
+ try {
+-  execSync('npx prisma migrate deploy', {
+-    cwd: backendDir,
+-    stdio: 'inherit',
+-  });
++  execSync('npx prisma migrate deploy', { cwd: backendDir, stdio: 'inherit' });
+ } catch (e) {
+   console.error('Error en migraciones:', e.message);
+ }
