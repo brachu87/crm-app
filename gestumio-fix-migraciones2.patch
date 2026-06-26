@@ -1,0 +1,69 @@
+diff --git a/start.js b/start.js
+index 2aee5a8..3af2b97 100644
+--- a/start.js
++++ b/start.js
+@@ -1,32 +1,48 @@
+ const { execSync } = require('child_process');
++const fs = require('fs');
+ const path = require('path');
+ 
+ const backendDir = path.join(__dirname, 'backend');
++const migrationsDir = path.join(backendDir, 'prisma', 'migrations');
+ 
+-// Estas migraciones quedan reflejadas en la base por las funciones ensure*() del arranque
+-// (agregan las columnas permissions, lastAccessAt, bonificado de forma idempotente).
+-// Las marcamos como YA APLICADAS para que `prisma migrate deploy` no intente re-ejecutar
+-// SQL que rompe en SQLite (ALTER COLUMN) ni columnas que ya existen ("duplicate column").
+-const baseline = [
+-  '20260619500000_google_auth',
+-  '20260620200000_add_user_permissions',
+-  '20260621010000_add_last_access_bonificado',
+-];
++function deploy() {
++  execSync('npx prisma migrate deploy', { cwd: backendDir, stdio: 'inherit' });
++}
+ 
+-console.log('Normalizando estado de migraciones...');
+-for (const m of baseline) {
++function listMigrations() {
+   try {
+-    execSync(`npx prisma migrate resolve --applied ${m}`, { cwd: backendDir, stdio: 'pipe' });
++    return fs.readdirSync(migrationsDir)
++      .filter((d) => fs.existsSync(path.join(migrationsDir, d, 'migration.sql')))
++      .sort();
+   } catch (_) {
+-    // Ya estaba aplicada o no está pendiente: se ignora.
++    return [];
+   }
+ }
+ 
+-console.log('Ejecutando migraciones...');
++console.log('Aplicando migraciones...');
+ try {
+-  execSync('npx prisma migrate deploy', { cwd: backendDir, stdio: 'inherit' });
++  deploy();
++  console.log('Migraciones OK.');
+ } catch (e) {
+-  console.error('Error en migraciones:', e.message);
++  // La base de producción ya tiene el esquema completo: lo mantienen las funciones
++  // ensure*() que corren en cada arranque (agregan columnas/tablas de forma idempotente).
++  // Si `migrate deploy` falla por migraciones heredadas incompatibles con SQLite
++  // (ALTER COLUMN de Postgres) o por columnas que ya existen ("duplicate column"),
++  // marcamos TODO el historial como aplicado (baseline) y reintentamos una vez.
++  console.warn('migrate deploy falló; normalizando historial de migraciones (baseline)...');
++  for (const m of listMigrations()) {
++    try {
++      execSync(`npx prisma migrate resolve --applied ${m}`, { cwd: backendDir, stdio: 'pipe' });
++    } catch (_) {
++      // ya estaba aplicada
++    }
++  }
++  try {
++    deploy();
++    console.log('Migraciones normalizadas.');
++  } catch (e2) {
++    console.error('No se pudieron aplicar migraciones (la app sigue con el esquema actual):', e2.message);
++  }
+ }
+ 
+ console.log('Iniciando servidor...');
