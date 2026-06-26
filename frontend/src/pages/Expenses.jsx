@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
+import ImportModal from '../components/ImportModal';
+import { ExportMenu, ImportMenu } from '../lib/dataIO';
 
 const CATEGORIAS = ['Alquiler', 'Sueldos', 'Servicios', 'Mantenimiento', 'Marketing', 'Equipamiento', 'Limpieza', 'Impuestos', 'Otro'];
 const METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro'];
@@ -29,6 +31,7 @@ export default function Expenses() {
   const [editing, setEditing] = useState(null);
 
   const [suppliers, setSuppliers] = useState([]);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [search, setSearch] = useState('');
   const [fCategory, setFCategory] = useState('');
   const [fSupplier, setFSupplier] = useState('');
@@ -80,7 +83,8 @@ export default function Expenses() {
           <p className="page-subtitle">Control de egresos del negocio</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {expenses.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(filtered)}>↓ Exportar CSV</button>}
+          {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
+          {expenses.length > 0 && can.exportar && <ExportMenu rows={filtered} filename="gastos" title="Gastos" columns={[{ header: 'Fecha', value: (e) => e.date ? new Date(e.date).toLocaleDateString('es-AR') : '' }, { header: 'Categoría', value: (e) => e.category || '' }, { header: 'Descripción', value: (e) => e.description || '' }, { header: 'Proveedor', value: (e) => e.supplier?.name || '' }, { header: 'Método de pago', value: (e) => e.paymentMethod || '' }, { header: 'Monto', value: (e) => e.amount }]} />}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo gasto</button>}
         </div>
       </div>
@@ -191,6 +195,23 @@ export default function Expenses() {
           suppliers={suppliers}
           onClose={() => setShowModal(false)}
           onSaved={() => { setShowModal(false); load(); }}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportModal
+          title="Importar gastos desde Excel o CSV"
+          columns={[
+            { key: 'category', labels: ['categoria','categoría','category','rubro','tipo'] },
+            { key: 'amount', labels: ['monto','importe','amount','total','valor'] },
+            { key: 'description', labels: ['descripcion','descripción','description','detalle','concepto'] },
+            { key: 'paymentMethod', labels: ['metodo','método','metodo de pago','método de pago','forma de pago','payment','paymentmethod','pago'] },
+            { key: 'date', labels: ['fecha','date','dia','día'] },
+          ]}
+          apiPath="/expenses/import"
+          payloadKey="expenses"
+          onClose={() => setShowImportModal(false)}
+          onImported={() => { setShowImportModal(false); load(); }}
         />
       )}
     </div>

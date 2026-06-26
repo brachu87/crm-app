@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
+import { ExportMenu } from '../lib/dataIO';
 
 const STATUS_LABELS = { present: 'Presente', absent: 'Ausente', late: 'Tardanza', half: 'Medio día' };
 const STATUS_COLORS = { present: '#10b981', absent: '#ef4444', late: '#f59e0b', half: '#6366f1' };
@@ -131,6 +132,21 @@ export default function Attendance() {
             </span>
             <button className="btn btn-sm btn-secondary" onClick={() => setWeekStart(toISO(addDays(new Date(weekStart + 'T12:00:00'), 7)))}>Sem. siguiente →</button>
             <button className="btn btn-sm btn-secondary" onClick={() => setWeekStart(toISO(getWeekRange(new Date()).from))}>Hoy</button>
+            {selectedEmp && attendances.length > 0 && (
+              <ExportMenu
+                rows={attendances}
+                filename={`asistencias-${selectedEmp.name || ''}`}
+                title={`Asistencias — ${selectedEmp.name || ''}`}
+                columns={[
+                  { header: 'Fecha', value: (a) => a.date ? new Date(a.date).toLocaleDateString('es-AR') : '' },
+                  { header: 'Empleado', value: () => selectedEmp?.name || '' },
+                  { header: 'Turno', value: (a) => a.classSchedule ? `${a.classSchedule.activity?.name || ''} ${a.classSchedule.startTime || ''}-${a.classSchedule.endTime || ''}`.trim() : 'General' },
+                  { header: 'Estado', value: (a) => ({ present: 'Presente', absent: 'Ausente', half: 'Medio día', late: 'Tarde', holiday: 'Feriado' }[a.status] || a.status || '') },
+                  { header: 'Horas', value: (a) => a.hoursWorked ?? '' },
+                  { header: 'Notas', value: (a) => a.notes || '' },
+                ]}
+              />
+            )}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
               {['day', 'shift'].map(m => (
                 <button key={m} onClick={() => setViewMode(m)}

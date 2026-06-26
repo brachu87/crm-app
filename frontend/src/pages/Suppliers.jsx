@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ImportModal from '../components/ImportModal';
+import { ExportMenu, ImportMenu } from '../lib/dataIO';
 import { useToast } from '../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
@@ -57,8 +58,8 @@ export default function Suppliers() {
           <p className="page-subtitle">Gestión de proveedores y contactos comerciales</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
-          {suppliers.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={exportCSV}>↓ Exportar CSV</button>}
+          {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
+          {suppliers.length > 0 && can.exportar && <ExportMenu rows={suppliers} filename="proveedores" title="Proveedores" columns={[{ header: 'Nombre', value: (s) => s.name }, { header: 'Contacto', value: (s) => s.contact || '' }, { header: 'Teléfono', value: (s) => s.phone || '' }, { header: 'Email', value: (s) => s.email || '' }, { header: 'CUIT', value: (s) => s.cuit || '' }, { header: 'DNI', value: (s) => s.dni || '' }, { header: 'Categoría', value: (s) => s.category || '' }, { header: 'Notas', value: (s) => s.notes || '' }]} />}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo proveedor</button>}
         </div>
       </div>

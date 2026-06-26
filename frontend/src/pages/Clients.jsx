@@ -5,6 +5,7 @@ import api from '../api/client';
 import AuthImage from '../components/AuthImage';
 import ClientModal from './ClientModal';
 import ImportModal from '../components/ImportModal';
+import { ExportMenu, ImportMenu } from '../lib/dataIO';
 
 const fmtMoney = (v) => '$ ' + Math.round(v || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
@@ -84,11 +85,11 @@ export default function Clients() {
           <p className="page-subtitle">Tu base de clientes</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
+          {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
           <button className="btn btn-secondary" onClick={() => setShowInactive(!showInactive)} style={{ color: showInactive ? 'var(--primary)' : undefined }}>
             {showInactive ? 'Ver activos' : 'Ver dados de baja'}
           </button>
-          {clients.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(clients)}>↓ Exportar CSV</button>}
+          {clients.length > 0 && can.exportar && <ExportMenu rows={clients} filename="clientes" title="Clientes" columns={[{ header: 'Nombre', value: (c) => c.name }, { header: 'Teléfono', value: (c) => c.phone || '' }, { header: 'Email', value: (c) => c.email || '' }, { header: 'Notas', value: (c) => c.notes || '' }]} />}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo cliente</button>}
         </div>
       </div>

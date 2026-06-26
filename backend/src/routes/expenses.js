@@ -6,6 +6,51 @@ const { scopedWhere } = require('../middleware/tenant');
 const router = express.Router();
 router.use(authMiddleware);
 
+function parseExpDate(s) {
+  s = String(s || '').trim();
+  if (!s) return new Date();
+  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) { let [, d, mo, y] = m; if (y.length === 2) y = '20' + y; const dt = new Date(Number(y), Number(mo) - 1, Number(d)); return isNaN(dt) ? new Date() : dt; }
+  const dt = new Date(s);
+  return isNaN(dt) ? new Date() : dt;
+}
+
+// POST /api/expenses/import  — alta masiva desde Excel/CSV
+router.post('/import', async (req, res) => {
+  try {
+    const { expenses } = req.body;
+    if (!Array.isArray(expenses) || expenses.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un array de gastos' });
+    }
+    const created = [];
+    const errors = [];
+    for (const e of expenses) {
+      if (!e.category) { errors.push({ row: e, error: 'Sin categoría' }); continue; }
+      const amount = parseFloat(String(e.amount).replace(/[^0-9.,-]/g, '').replace(/\.(?=.*\.)/g, '').replace(',', '.'));
+      if (!amount || isNaN(amount)) { errors.push({ row: e, error: 'Monto inválido' }); continue; }
+      try {
+        const exp = await prisma.expense.create({
+          data: {
+            amount,
+            category: e.category,
+            description: e.description || null,
+            paymentMethod: e.paymentMethod || null,
+            date: parseExpDate(e.date),
+            businessId: req.user.businessId,
+          },
+        });
+        created.push(exp);
+      } catch (er) {
+        errors.push({ row: e, error: er.message });
+      }
+    }
+    res.status(201).json({ created: created.length, errors });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al importar gastos' });
+  }
+});
+
 // GET /api/expenses
 router.get('/', async (req, res) => {
   try {

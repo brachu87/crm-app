@@ -1,0 +1,352 @@
+diff --git a/backend/src/routes/expenses.js b/backend/src/routes/expenses.js
+index 0f77d93..c4d1293 100644
+--- a/backend/src/routes/expenses.js
++++ b/backend/src/routes/expenses.js
+@@ -6,6 +6,51 @@ const { scopedWhere } = require('../middleware/tenant');
+ const router = express.Router();
+ router.use(authMiddleware);
+ 
++function parseExpDate(s) {
++  s = String(s || '').trim();
++  if (!s) return new Date();
++  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
++  if (m) { let [, d, mo, y] = m; if (y.length === 2) y = '20' + y; const dt = new Date(Number(y), Number(mo) - 1, Number(d)); return isNaN(dt) ? new Date() : dt; }
++  const dt = new Date(s);
++  return isNaN(dt) ? new Date() : dt;
++}
++
++// POST /api/expenses/import  — alta masiva desde Excel/CSV
++router.post('/import', async (req, res) => {
++  try {
++    const { expenses } = req.body;
++    if (!Array.isArray(expenses) || expenses.length === 0) {
++      return res.status(400).json({ error: 'Se requiere un array de gastos' });
++    }
++    const created = [];
++    const errors = [];
++    for (const e of expenses) {
++      if (!e.category) { errors.push({ row: e, error: 'Sin categoría' }); continue; }
++      const amount = parseFloat(String(e.amount).replace(/[^0-9.,-]/g, '').replace(/\.(?=.*\.)/g, '').replace(',', '.'));
++      if (!amount || isNaN(amount)) { errors.push({ row: e, error: 'Monto inválido' }); continue; }
++      try {
++        const exp = await prisma.expense.create({
++          data: {
++            amount,
++            category: e.category,
++            description: e.description || null,
++            paymentMethod: e.paymentMethod || null,
++            date: parseExpDate(e.date),
++            businessId: req.user.businessId,
++          },
++        });
++        created.push(exp);
++      } catch (er) {
++        errors.push({ row: e, error: er.message });
++      }
++    }
++    res.status(201).json({ created: created.length, errors });
++  } catch (err) {
++    console.error(err);
++    res.status(500).json({ error: 'Error al importar gastos' });
++  }
++});
++
+ // GET /api/expenses
+ router.get('/', async (req, res) => {
+   try {
+diff --git a/frontend/src/config/permissions.js b/frontend/src/config/permissions.js
+index 55de4be..4b834c4 100644
+--- a/frontend/src/config/permissions.js
++++ b/frontend/src/config/permissions.js
+@@ -63,7 +63,8 @@ export const PERMISSION_TREE = [
+       { key: 'crear',    label: 'Registrar gasto' },
+       { key: 'editar',   label: 'Editar' },
+       { key: 'eliminar', label: 'Eliminar' },
+-      { key: 'exportar', label: 'Exportar CSV' },
++      { key: 'importar', label: 'Importar Excel/CSV' },
++      { key: 'exportar', label: 'Exportar Excel/CSV/PDF' },
+     ],
+   },
+   {
+diff --git a/frontend/src/lib/dataIO.jsx b/frontend/src/lib/dataIO.jsx
+new file mode 100644
+index 0000000..69f2567
+--- /dev/null
++++ b/frontend/src/lib/dataIO.jsx
+@@ -0,0 +1,118 @@
++import { useState, useRef, useEffect } from 'react';
++import * as XLSX from 'xlsx';
++
++// columns: [{ header: 'Nombre', value: (row) => row.name }]
++function buildMatrix(rows, columns) {
++  const header = columns.map((c) => c.header);
++  const body = rows.map((r) => columns.map((c) => {
++    const v = c.value(r);
++    return v == null ? '' : v;
++  }));
++  return { header, body };
++}
++
++function downloadCSV(rows, columns, filename) {
++  const { header, body } = buildMatrix(rows, columns);
++  const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
++  const csv = [header, ...body].map((r) => r.map(esc).join(',')).join('\n');
++  const a = document.createElement('a');
++  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }));
++  a.download = filename + '.csv';
++  a.click();
++}
++
++function downloadXLSX(rows, columns, filename, sheetName) {
++  const { header, body } = buildMatrix(rows, columns);
++  const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
++  ws['!cols'] = header.map((h, i) => {
++    const maxLen = Math.max(String(h).length, ...body.map((r) => String(r[i] ?? '').length), 0);
++    return { wch: Math.min(45, Math.max(10, maxLen + 2)) };
++  });
++  const wb = XLSX.utils.book_new();
++  XLSX.utils.book_append_sheet(wb, ws, String(sheetName || 'Datos').slice(0, 31));
++  XLSX.writeFile(wb, filename + '.xlsx');
++}
++
++function printPDF(rows, columns, title) {
++  const { header, body } = buildMatrix(rows, columns);
++  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
++  const ths = header.map((h) => `<th>${esc(h)}</th>`).join('');
++  const trs = body.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('');
++  const today = new Date().toLocaleDateString('es-AR');
++  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${esc(title)}</title>
++<style>
++  body{font-family:Arial,Helvetica,sans-serif;color:#222;margin:24px;}
++  h1{font-size:20px;margin:0 0 2px;color:#1E2A38;}
++  .sub{color:#777;font-size:12px;margin:0 0 16px;}
++  table{width:100%;border-collapse:collapse;font-size:12px;}
++  th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top;}
++  th{background:#1BA84C;color:#fff;}
++  tr:nth-child(even) td{background:#f5f7f6;}
++</style></head><body>
++<h1>${esc(title)}</h1>
++<p class="sub">${body.length} registros &middot; ${today}</p>
++<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>
++<script>window.onload=function(){setTimeout(function(){window.print();},350);};</script>
++</body></html>`;
++  const w = window.open('', '_blank', 'width=900,height=700');
++  if (!w) { alert('Permití las ventanas emergentes para exportar a PDF.'); return; }
++  w.document.write(html);
++  w.document.close();
++}
++
++function useOutside(ref, onClose) {
++  useEffect(() => {
++    function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose(); }
++    document.addEventListener('mousedown', h);
++    return () => document.removeEventListener('mousedown', h);
++  }, []);
++}
++
++const menuStyle = {
++  position: 'absolute', top: 'calc(100% + 4px)', right: 0,
++  background: 'var(--surface, #fff)', border: '1px solid var(--border, #e5e7eb)',
++  borderRadius: 8, boxShadow: '0 8px 28px rgba(0,0,0,.14)', minWidth: 180, zIndex: 60, overflow: 'hidden',
++};
++const itemStyle = {
++  display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px',
++  background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--ink, #222)',
++};
++function hoverOn(e) { e.currentTarget.style.background = 'var(--primary-soft, #eef6ee)'; }
++function hoverOff(e) { e.currentTarget.style.background = 'none'; }
++
++export function ExportMenu({ rows = [], columns = [], filename = 'export', title = 'Listado', disabled }) {
++  const [open, setOpen] = useState(false);
++  const ref = useRef(null);
++  useOutside(ref, () => setOpen(false));
++  const run = (fn) => { setOpen(false); fn(); };
++  return (
++    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
++      <button className="btn btn-secondary" disabled={disabled} onClick={() => setOpen((o) => !o)}>↓ Exportar ▾</button>
++      {open && (
++        <div style={menuStyle}>
++          <button style={itemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff} onClick={() => run(() => downloadXLSX(rows, columns, filename, title))}>📊 Excel (.xlsx)</button>
++          <button style={itemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff} onClick={() => run(() => downloadCSV(rows, columns, filename))}>📄 CSV (.csv)</button>
++          <button style={itemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff} onClick={() => run(() => printPDF(rows, columns, title))}>📕 PDF</button>
++        </div>
++      )}
++    </div>
++  );
++}
++
++export function ImportMenu({ onPick }) {
++  const [open, setOpen] = useState(false);
++  const ref = useRef(null);
++  useOutside(ref, () => setOpen(false));
++  const run = () => { setOpen(false); onPick(); };
++  return (
++    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
++      <button className="btn btn-secondary" onClick={() => setOpen((o) => !o)}>↑ Importar ▾</button>
++      {open && (
++        <div style={menuStyle}>
++          <button style={itemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff} onClick={run}>📊 Desde Excel (.xlsx)</button>
++          <button style={itemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff} onClick={run}>📄 Desde CSV (.csv)</button>
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/frontend/src/pages/Attendance.jsx b/frontend/src/pages/Attendance.jsx
+index f401e99..a7b5713 100644
+--- a/frontend/src/pages/Attendance.jsx
++++ b/frontend/src/pages/Attendance.jsx
+@@ -1,5 +1,6 @@
+ import { useState, useEffect, useCallback } from 'react';
+ import api from '../api/client';
++import { ExportMenu } from '../lib/dataIO';
+ 
+ const STATUS_LABELS = { present: 'Presente', absent: 'Ausente', late: 'Tardanza', half: 'Medio día' };
+ const STATUS_COLORS = { present: '#10b981', absent: '#ef4444', late: '#f59e0b', half: '#6366f1' };
+@@ -131,6 +132,21 @@ export default function Attendance() {
+             </span>
+             <button className="btn btn-sm btn-secondary" onClick={() => setWeekStart(toISO(addDays(new Date(weekStart + 'T12:00:00'), 7)))}>Sem. siguiente →</button>
+             <button className="btn btn-sm btn-secondary" onClick={() => setWeekStart(toISO(getWeekRange(new Date()).from))}>Hoy</button>
++            {selectedEmp && attendances.length > 0 && (
++              <ExportMenu
++                rows={attendances}
++                filename={`asistencias-${selectedEmp.name || ''}`}
++                title={`Asistencias — ${selectedEmp.name || ''}`}
++                columns={[
++                  { header: 'Fecha', value: (a) => a.date ? new Date(a.date).toLocaleDateString('es-AR') : '' },
++                  { header: 'Empleado', value: () => selectedEmp?.name || '' },
++                  { header: 'Turno', value: (a) => a.classSchedule ? `${a.classSchedule.activity?.name || ''} ${a.classSchedule.startTime || ''}-${a.classSchedule.endTime || ''}`.trim() : 'General' },
++                  { header: 'Estado', value: (a) => ({ present: 'Presente', absent: 'Ausente', half: 'Medio día', late: 'Tarde', holiday: 'Feriado' }[a.status] || a.status || '') },
++                  { header: 'Horas', value: (a) => a.hoursWorked ?? '' },
++                  { header: 'Notas', value: (a) => a.notes || '' },
++                ]}
++              />
++            )}
+             <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+               {['day', 'shift'].map(m => (
+                 <button key={m} onClick={() => setViewMode(m)}
+diff --git a/frontend/src/pages/Clients.jsx b/frontend/src/pages/Clients.jsx
+index d8b11d1..cf8fa05 100644
+--- a/frontend/src/pages/Clients.jsx
++++ b/frontend/src/pages/Clients.jsx
+@@ -5,6 +5,7 @@ import api from '../api/client';
+ import AuthImage from '../components/AuthImage';
+ import ClientModal from './ClientModal';
+ import ImportModal from '../components/ImportModal';
++import { ExportMenu, ImportMenu } from '../lib/dataIO';
+ 
+ const fmtMoney = (v) => '$ ' + Math.round(v || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+ 
+@@ -84,11 +85,11 @@ export default function Clients() {
+           <p className="page-subtitle">Tu base de clientes</p>
+         </div>
+         <div style={{ display: 'flex', gap: 8 }}>
+-          {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
++          {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
+           <button className="btn btn-secondary" onClick={() => setShowInactive(!showInactive)} style={{ color: showInactive ? 'var(--primary)' : undefined }}>
+             {showInactive ? 'Ver activos' : 'Ver dados de baja'}
+           </button>
+-          {clients.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(clients)}>↓ Exportar CSV</button>}
++          {clients.length > 0 && can.exportar && <ExportMenu rows={clients} filename="clientes" title="Clientes" columns={[{ header: 'Nombre', value: (c) => c.name }, { header: 'Teléfono', value: (c) => c.phone || '' }, { header: 'Email', value: (c) => c.email || '' }, { header: 'Notas', value: (c) => c.notes || '' }]} />}
+           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo cliente</button>}
+         </div>
+       </div>
+diff --git a/frontend/src/pages/Employees.jsx b/frontend/src/pages/Employees.jsx
+index 266dd88..d20822a 100644
+--- a/frontend/src/pages/Employees.jsx
++++ b/frontend/src/pages/Employees.jsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useState } from 'react';
+ import ImportModal from '../components/ImportModal';
++import { ExportMenu, ImportMenu } from '../lib/dataIO';
+ import api from '../api/client';
+ import { useSectionPerms } from '../config/permissions';
+ 
+@@ -50,8 +51,8 @@ export default function Employees() {
+           <p className="page-subtitle">Gestión del equipo de trabajo</p>
+         </div>
+         <div style={{ display: 'flex', gap: 8 }}>
+-          {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
+-          {employees.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(employees)}>↓ Exportar CSV</button>}
++          {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
++          {employees.length > 0 && can.exportar && <ExportMenu rows={employees} filename="empleados" title="Empleados" columns={[{ header: 'Nombre', value: (e) => e.name }, { header: 'Rol', value: (e) => e.role || '' }, { header: 'Teléfono', value: (e) => e.phone || '' }, { header: 'Email', value: (e) => e.email || '' }, { header: 'Sueldo', value: (e) => e.salary ?? '' }, { header: 'Fecha ingreso', value: (e) => e.startDate ? new Date(e.startDate).toLocaleDateString('es-AR') : '' }, { header: 'Activo', value: (e) => e.active ? 'Sí' : 'No' }, { header: 'Notas', value: (e) => e.notes || '' }]} />}
+           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo empleado</button>}
+         </div>
+       </div>
+diff --git a/frontend/src/pages/Expenses.jsx b/frontend/src/pages/Expenses.jsx
+index ef3de59..e102fbe 100644
+--- a/frontend/src/pages/Expenses.jsx
++++ b/frontend/src/pages/Expenses.jsx
+@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
+ import { useToast } from '../context/ToastContext';
+ import api from '../api/client';
+ import { useSectionPerms } from '../config/permissions';
++import ImportModal from '../components/ImportModal';
++import { ExportMenu, ImportMenu } from '../lib/dataIO';
+ 
+ const CATEGORIAS = ['Alquiler', 'Sueldos', 'Servicios', 'Mantenimiento', 'Marketing', 'Equipamiento', 'Limpieza', 'Impuestos', 'Otro'];
+ const METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro'];
+@@ -29,6 +31,7 @@ export default function Expenses() {
+   const [editing, setEditing] = useState(null);
+ 
+   const [suppliers, setSuppliers] = useState([]);
++  const [showImportModal, setShowImportModal] = useState(false);
+   const [search, setSearch] = useState('');
+   const [fCategory, setFCategory] = useState('');
+   const [fSupplier, setFSupplier] = useState('');
+@@ -80,7 +83,8 @@ export default function Expenses() {
+           <p className="page-subtitle">Control de egresos del negocio</p>
+         </div>
+         <div style={{ display: 'flex', gap: 8 }}>
+-          {expenses.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(filtered)}>↓ Exportar CSV</button>}
++          {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
++          {expenses.length > 0 && can.exportar && <ExportMenu rows={filtered} filename="gastos" title="Gastos" columns={[{ header: 'Fecha', value: (e) => e.date ? new Date(e.date).toLocaleDateString('es-AR') : '' }, { header: 'Categoría', value: (e) => e.category || '' }, { header: 'Descripción', value: (e) => e.description || '' }, { header: 'Proveedor', value: (e) => e.supplier?.name || '' }, { header: 'Método de pago', value: (e) => e.paymentMethod || '' }, { header: 'Monto', value: (e) => e.amount }]} />}
+           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo gasto</button>}
+         </div>
+       </div>
+@@ -193,6 +197,23 @@ export default function Expenses() {
+           onSaved={() => { setShowModal(false); load(); }}
+         />
+       )}
++
++      {showImportModal && (
++        <ImportModal
++          title="Importar gastos desde Excel o CSV"
++          columns={[
++            { key: 'category', labels: ['categoria','categoría','category','rubro','tipo'] },
++            { key: 'amount', labels: ['monto','importe','amount','total','valor'] },
++            { key: 'description', labels: ['descripcion','descripción','description','detalle','concepto'] },
++            { key: 'paymentMethod', labels: ['metodo','método','metodo de pago','método de pago','forma de pago','payment','paymentmethod','pago'] },
++            { key: 'date', labels: ['fecha','date','dia','día'] },
++          ]}
++          apiPath="/expenses/import"
++          payloadKey="expenses"
++          onClose={() => setShowImportModal(false)}
++          onImported={() => { setShowImportModal(false); load(); }}
++        />
++      )}
+     </div>
+   );
+ }
+diff --git a/frontend/src/pages/Suppliers.jsx b/frontend/src/pages/Suppliers.jsx
+index 5febb56..6398d8a 100644
+--- a/frontend/src/pages/Suppliers.jsx
++++ b/frontend/src/pages/Suppliers.jsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useState } from 'react';
+ import ImportModal from '../components/ImportModal';
++import { ExportMenu, ImportMenu } from '../lib/dataIO';
+ import { useToast } from '../context/ToastContext';
+ import { useNavigate } from 'react-router-dom';
+ import api from '../api/client';
+@@ -57,8 +58,8 @@ export default function Suppliers() {
+           <p className="page-subtitle">Gestión de proveedores y contactos comerciales</p>
+         </div>
+         <div style={{ display: 'flex', gap: 8 }}>
+-          {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
+-          {suppliers.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={exportCSV}>↓ Exportar CSV</button>}
++          {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
++          {suppliers.length > 0 && can.exportar && <ExportMenu rows={suppliers} filename="proveedores" title="Proveedores" columns={[{ header: 'Nombre', value: (s) => s.name }, { header: 'Contacto', value: (s) => s.contact || '' }, { header: 'Teléfono', value: (s) => s.phone || '' }, { header: 'Email', value: (s) => s.email || '' }, { header: 'CUIT', value: (s) => s.cuit || '' }, { header: 'DNI', value: (s) => s.dni || '' }, { header: 'Categoría', value: (s) => s.category || '' }, { header: 'Notas', value: (s) => s.notes || '' }]} />}
+           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo proveedor</button>}
+         </div>
+       </div>

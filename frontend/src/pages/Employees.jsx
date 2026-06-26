@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ImportModal from '../components/ImportModal';
+import { ExportMenu, ImportMenu } from '../lib/dataIO';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
 
@@ -50,8 +51,8 @@ export default function Employees() {
           <p className="page-subtitle">Gestión del equipo de trabajo</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {can.importar && <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>↑ Importar Excel/CSV</button>}
-          {employees.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(employees)}>↓ Exportar CSV</button>}
+          {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
+          {employees.length > 0 && can.exportar && <ExportMenu rows={employees} filename="empleados" title="Empleados" columns={[{ header: 'Nombre', value: (e) => e.name }, { header: 'Rol', value: (e) => e.role || '' }, { header: 'Teléfono', value: (e) => e.phone || '' }, { header: 'Email', value: (e) => e.email || '' }, { header: 'Sueldo', value: (e) => e.salary ?? '' }, { header: 'Fecha ingreso', value: (e) => e.startDate ? new Date(e.startDate).toLocaleDateString('es-AR') : '' }, { header: 'Activo', value: (e) => e.active ? 'Sí' : 'No' }, { header: 'Notas', value: (e) => e.notes || '' }]} />}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo empleado</button>}
         </div>
       </div>

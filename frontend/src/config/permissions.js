@@ -63,7 +63,8 @@ export const PERMISSION_TREE = [
       { key: 'crear',    label: 'Registrar gasto' },
       { key: 'editar',   label: 'Editar' },
       { key: 'eliminar', label: 'Eliminar' },
-      { key: 'exportar', label: 'Exportar CSV' },
+      { key: 'importar', label: 'Importar Excel/CSV' },
+      { key: 'exportar', label: 'Exportar Excel/CSV/PDF' },
     ],
   },
   {
