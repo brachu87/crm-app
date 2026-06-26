@@ -147,6 +147,8 @@ export default function Payroll() {
   const [employees, setEmployees] = useState([]);
   const [records, setRecords] = useState([]);
   const [filterEmp, setFilterEmp] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [preview, setPreview] = useState(null);
   const [form, setForm] = useState({ employeeId: '', from: '', to: '' });
@@ -217,7 +219,12 @@ export default function Payroll() {
     if (newRecord?.id === id) setNewRecord(null);
   }
 
-  const filtered = records.filter(r => !filterEmp || r.employeeId === filterEmp);
+  const filtered = records.filter(r => {
+    if (filterEmp && r.employeeId !== filterEmp) return false;
+    if (dateFrom && r.periodEnd && r.periodEnd.slice(0, 10) < dateFrom) return false;
+    if (dateTo && r.periodStart && r.periodStart.slice(0, 10) > dateTo) return false;
+    return true;
+  });
   const pending = filtered.filter(r => r.status === 'pending');
   const paid = filtered.filter(r => r.status === 'paid');
 
@@ -247,11 +254,16 @@ export default function Payroll() {
       )}
 
       {/* Filter */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={filterEmp} onChange={e => setFilterEmp(e.target.value)} className="input" style={{ maxWidth: 220 }}>
           <option value="">Todos los empleados</option>
           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
+        <label style={{ fontSize: 13, color: 'var(--muted)' }}>Desde</label>
+        <input type="date" className="input" style={{ maxWidth: 160 }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <label style={{ fontSize: 13, color: 'var(--muted)' }}>Hasta</label>
+        <input type="date" className="input" style={{ maxWidth: 160 }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        {(dateFrom || dateTo || filterEmp) && <button className="btn btn-secondary btn-sm" onClick={() => { setDateFrom(''); setDateTo(''); setFilterEmp(''); }}>Limpiar</button>}
       </div>
 
       {/* Pending */}

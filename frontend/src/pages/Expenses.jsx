@@ -29,6 +29,12 @@ export default function Expenses() {
   const [editing, setEditing] = useState(null);
 
   const [suppliers, setSuppliers] = useState([]);
+  const [search, setSearch] = useState('');
+  const [fCategory, setFCategory] = useState('');
+  const [fSupplier, setFSupplier] = useState('');
+  const [fMethod, setFMethod] = useState('');
+  const [fFrom, setFFrom] = useState('');
+  const [fTo, setFTo] = useState('');
 
   function load() {
     setLoading(true);
@@ -49,7 +55,22 @@ export default function Expenses() {
     load();
   }
 
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const filtered = expenses.filter((e) => {
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hay = `${e.category || ''} ${e.description || ''} ${e.supplier?.name || ''} ${e.paymentMethod || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (fCategory && e.category !== fCategory) return false;
+    if (fSupplier && e.supplierId !== fSupplier) return false;
+    if (fMethod && e.paymentMethod !== fMethod) return false;
+    const d = e.date ? String(e.date).slice(0, 10) : '';
+    if (fFrom && d < fFrom) return false;
+    if (fTo && d > fTo) return false;
+    return true;
+  });
+  const hasFilters = search || fCategory || fSupplier || fMethod || fFrom || fTo;
+  const total = filtered.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div>
@@ -59,7 +80,7 @@ export default function Expenses() {
           <p className="page-subtitle">Control de egresos del negocio</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {expenses.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(expenses)}>↓ Exportar CSV</button>}
+          {expenses.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(filtered)}>↓ Exportar CSV</button>}
           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo gasto</button>}
         </div>
       </div>
@@ -74,8 +95,31 @@ export default function Expenses() {
           </div>
           <div className="card" style={{ flex: 1, padding: '16px 20px' }}>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>Cantidad de registros</p>
-            <p style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{expenses.length}</p>
+            <p style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{filtered.length}</p>
           </div>
+        </div>
+      )}
+
+      {!loading && expenses.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input className="field-input" style={{ maxWidth: 220 }} placeholder="Buscar (descripción, categoría, proveedor)…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select className="field-input" style={{ maxWidth: 170 }} value={fCategory} onChange={(e) => setFCategory(e.target.value)}>
+            <option value="">Toda categoría</option>
+            {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select className="field-input" style={{ maxWidth: 190 }} value={fSupplier} onChange={(e) => setFSupplier(e.target.value)}>
+            <option value="">Todo proveedor</option>
+            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select className="field-input" style={{ maxWidth: 150 }} value={fMethod} onChange={(e) => setFMethod(e.target.value)}>
+            <option value="">Todo método</option>
+            {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Desde</label>
+          <input type="date" className="field-input" style={{ maxWidth: 150 }} value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
+          <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Hasta</label>
+          <input type="date" className="field-input" style={{ maxWidth: 150 }} value={fTo} onChange={(e) => setFTo(e.target.value)} />
+          {hasFilters && <button className="btn btn-secondary btn-sm" onClick={() => { setSearch(''); setFCategory(''); setFSupplier(''); setFMethod(''); setFFrom(''); setFTo(''); }}>Limpiar</button>}
         </div>
       )}
 
@@ -91,6 +135,8 @@ export default function Expenses() {
             </button>
           </div>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="card"><div className="empty-state"><p>No hay gastos que coincidan con los filtros.</p></div></div>
       ) : (
         <div className="card">
           <div className="table-wrap"><table className="table cards-mobile">
@@ -106,7 +152,7 @@ export default function Expenses() {
               </tr>
             </thead>
             <tbody>
-              {expenses.map((e) => (
+              {filtered.map((e) => (
                 <tr key={e.id}>
                   <td data-label="Fecha">{new Date(e.date).toLocaleDateString('es-AR')}</td>
                   <td data-label="Categoría">

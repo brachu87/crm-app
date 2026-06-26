@@ -36,6 +36,8 @@ export default function Collections() {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const can = useSectionPerms('cobranza');
   const [cobrarModal, setCobrarModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
@@ -71,7 +73,7 @@ export default function Collections() {
     }
   }
 
-  useEffect(() => { load(); }, [view]);
+  useEffect(() => { load(); setDateFrom(''); setDateTo(''); }, [view]);
 
   const grouped = useMemo(() => {
     const map = {};
@@ -87,10 +89,26 @@ export default function Collections() {
   }, [enrollments]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return grouped;
-    const q = search.toLowerCase();
-    return grouped.filter(g => g.client?.name?.toLowerCase().includes(q) || g.client?.dni?.includes(q));
-  }, [grouped, search]);
+    const q = search.trim().toLowerCase();
+    const hasDate = dateFrom || dateTo;
+    const inRange = (e) => {
+      if (!hasDate) return true;
+      const raw = view === 'paid' ? e.payments?.[0]?.date : e.dueDate;
+      if (!raw) return false;
+      const d = String(raw).slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    };
+    return grouped
+      .filter(g => !q || g.client?.name?.toLowerCase().includes(q) || g.client?.dni?.includes(q))
+      .map(g => {
+        if (!hasDate) return g;
+        const ens = g.enrollments.filter(inRange);
+        return { ...g, enrollments: ens, total: ens.reduce((acc, e) => acc + e.net, 0) };
+      })
+      .filter(g => g.enrollments.length > 0);
+  }, [grouped, search, dateFrom, dateTo, view]);
 
   const totalGeneral = filtered.reduce((s, g) => s + g.total, 0);
 
@@ -137,14 +155,19 @@ export default function Collections() {
 
       {view !== 'otros' && <>
       {/* Search */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           className="field-input"
-          style={{ maxWidth: 320 }}
+          style={{ maxWidth: 280 }}
           placeholder="Buscar cliente…"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+        <label style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{view === 'paid' ? 'Cobrado desde' : 'Vence desde'}</label>
+        <input type="date" className="field-input" style={{ maxWidth: 160 }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <label style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Hasta</label>
+        <input type="date" className="field-input" style={{ maxWidth: 160 }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        {(dateFrom || dateTo) && <button className="btn btn-secondary btn-sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>Limpiar fechas</button>}
       </div>
 
       {loading ? (

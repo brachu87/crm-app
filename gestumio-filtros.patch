@@ -1,0 +1,224 @@
+diff --git a/frontend/src/pages/Collections.jsx b/frontend/src/pages/Collections.jsx
+index 2bb8ebd..d94cc5f 100644
+--- a/frontend/src/pages/Collections.jsx
++++ b/frontend/src/pages/Collections.jsx
+@@ -36,6 +36,8 @@ export default function Collections() {
+   const [enrollments, setEnrollments] = useState([]);
+   const [loading, setLoading] = useState(true);
+   const [search, setSearch] = useState('');
++  const [dateFrom, setDateFrom] = useState('');
++  const [dateTo, setDateTo] = useState('');
+   const can = useSectionPerms('cobranza');
+   const [cobrarModal, setCobrarModal] = useState(null);
+   const [editModal, setEditModal] = useState(null);
+@@ -71,7 +73,7 @@ export default function Collections() {
+     }
+   }
+ 
+-  useEffect(() => { load(); }, [view]);
++  useEffect(() => { load(); setDateFrom(''); setDateTo(''); }, [view]);
+ 
+   const grouped = useMemo(() => {
+     const map = {};
+@@ -87,10 +89,26 @@ export default function Collections() {
+   }, [enrollments]);
+ 
+   const filtered = useMemo(() => {
+-    if (!search.trim()) return grouped;
+-    const q = search.toLowerCase();
+-    return grouped.filter(g => g.client?.name?.toLowerCase().includes(q) || g.client?.dni?.includes(q));
+-  }, [grouped, search]);
++    const q = search.trim().toLowerCase();
++    const hasDate = dateFrom || dateTo;
++    const inRange = (e) => {
++      if (!hasDate) return true;
++      const raw = view === 'paid' ? e.payments?.[0]?.date : e.dueDate;
++      if (!raw) return false;
++      const d = String(raw).slice(0, 10);
++      if (dateFrom && d < dateFrom) return false;
++      if (dateTo && d > dateTo) return false;
++      return true;
++    };
++    return grouped
++      .filter(g => !q || g.client?.name?.toLowerCase().includes(q) || g.client?.dni?.includes(q))
++      .map(g => {
++        if (!hasDate) return g;
++        const ens = g.enrollments.filter(inRange);
++        return { ...g, enrollments: ens, total: ens.reduce((acc, e) => acc + e.net, 0) };
++      })
++      .filter(g => g.enrollments.length > 0);
++  }, [grouped, search, dateFrom, dateTo, view]);
+ 
+   const totalGeneral = filtered.reduce((s, g) => s + g.total, 0);
+ 
+@@ -137,14 +155,19 @@ export default function Collections() {
+ 
+       {view !== 'otros' && <>
+       {/* Search */}
+-      <div style={{ marginBottom: 16 }}>
++      <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+         <input
+           className="field-input"
+-          style={{ maxWidth: 320 }}
++          style={{ maxWidth: 280 }}
+           placeholder="Buscar cliente…"
+           value={search}
+           onChange={e => setSearch(e.target.value)}
+         />
++        <label style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{view === 'paid' ? 'Cobrado desde' : 'Vence desde'}</label>
++        <input type="date" className="field-input" style={{ maxWidth: 160 }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
++        <label style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Hasta</label>
++        <input type="date" className="field-input" style={{ maxWidth: 160 }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
++        {(dateFrom || dateTo) && <button className="btn btn-secondary btn-sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>Limpiar fechas</button>}
+       </div>
+ 
+       {loading ? (
+diff --git a/frontend/src/pages/Expenses.jsx b/frontend/src/pages/Expenses.jsx
+index 206cbfc..ef3de59 100644
+--- a/frontend/src/pages/Expenses.jsx
++++ b/frontend/src/pages/Expenses.jsx
+@@ -29,6 +29,12 @@ export default function Expenses() {
+   const [editing, setEditing] = useState(null);
+ 
+   const [suppliers, setSuppliers] = useState([]);
++  const [search, setSearch] = useState('');
++  const [fCategory, setFCategory] = useState('');
++  const [fSupplier, setFSupplier] = useState('');
++  const [fMethod, setFMethod] = useState('');
++  const [fFrom, setFFrom] = useState('');
++  const [fTo, setFTo] = useState('');
+ 
+   function load() {
+     setLoading(true);
+@@ -49,7 +55,22 @@ export default function Expenses() {
+     load();
+   }
+ 
+-  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
++  const filtered = expenses.filter((e) => {
++    if (search.trim()) {
++      const q = search.toLowerCase();
++      const hay = `${e.category || ''} ${e.description || ''} ${e.supplier?.name || ''} ${e.paymentMethod || ''}`.toLowerCase();
++      if (!hay.includes(q)) return false;
++    }
++    if (fCategory && e.category !== fCategory) return false;
++    if (fSupplier && e.supplierId !== fSupplier) return false;
++    if (fMethod && e.paymentMethod !== fMethod) return false;
++    const d = e.date ? String(e.date).slice(0, 10) : '';
++    if (fFrom && d < fFrom) return false;
++    if (fTo && d > fTo) return false;
++    return true;
++  });
++  const hasFilters = search || fCategory || fSupplier || fMethod || fFrom || fTo;
++  const total = filtered.reduce((sum, e) => sum + e.amount, 0);
+ 
+   return (
+     <div>
+@@ -59,7 +80,7 @@ export default function Expenses() {
+           <p className="page-subtitle">Control de egresos del negocio</p>
+         </div>
+         <div style={{ display: 'flex', gap: 8 }}>
+-          {expenses.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(expenses)}>↓ Exportar CSV</button>}
++          {expenses.length > 0 && can.exportar && <button className="btn btn-secondary" onClick={() => exportCSV(filtered)}>↓ Exportar CSV</button>}
+           {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo gasto</button>}
+         </div>
+       </div>
+@@ -74,11 +95,34 @@ export default function Expenses() {
+           </div>
+           <div className="card" style={{ flex: 1, padding: '16px 20px' }}>
+             <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>Cantidad de registros</p>
+-            <p style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{expenses.length}</p>
++            <p style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{filtered.length}</p>
+           </div>
+         </div>
+       )}
+ 
++      {!loading && expenses.length > 0 && (
++        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
++          <input className="field-input" style={{ maxWidth: 220 }} placeholder="Buscar (descripción, categoría, proveedor)…" value={search} onChange={(e) => setSearch(e.target.value)} />
++          <select className="field-input" style={{ maxWidth: 170 }} value={fCategory} onChange={(e) => setFCategory(e.target.value)}>
++            <option value="">Toda categoría</option>
++            {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
++          </select>
++          <select className="field-input" style={{ maxWidth: 190 }} value={fSupplier} onChange={(e) => setFSupplier(e.target.value)}>
++            <option value="">Todo proveedor</option>
++            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
++          </select>
++          <select className="field-input" style={{ maxWidth: 150 }} value={fMethod} onChange={(e) => setFMethod(e.target.value)}>
++            <option value="">Todo método</option>
++            {METODOS_PAGO.map((m) => <option key={m} value={m}>{m}</option>)}
++          </select>
++          <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Desde</label>
++          <input type="date" className="field-input" style={{ maxWidth: 150 }} value={fFrom} onChange={(e) => setFFrom(e.target.value)} />
++          <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Hasta</label>
++          <input type="date" className="field-input" style={{ maxWidth: 150 }} value={fTo} onChange={(e) => setFTo(e.target.value)} />
++          {hasFilters && <button className="btn btn-secondary btn-sm" onClick={() => { setSearch(''); setFCategory(''); setFSupplier(''); setFMethod(''); setFFrom(''); setFTo(''); }}>Limpiar</button>}
++        </div>
++      )}
++
+       {loading ? (
+         <div className="page-spinner"><div className="spinner spinner-lg"></div><span>Cargando...</span></div>
+       ) : expenses.length === 0 ? (
+@@ -91,6 +135,8 @@ export default function Expenses() {
+             </button>
+           </div>
+         </div>
++      ) : filtered.length === 0 ? (
++        <div className="card"><div className="empty-state"><p>No hay gastos que coincidan con los filtros.</p></div></div>
+       ) : (
+         <div className="card">
+           <div className="table-wrap"><table className="table cards-mobile">
+@@ -106,7 +152,7 @@ export default function Expenses() {
+               </tr>
+             </thead>
+             <tbody>
+-              {expenses.map((e) => (
++              {filtered.map((e) => (
+                 <tr key={e.id}>
+                   <td data-label="Fecha">{new Date(e.date).toLocaleDateString('es-AR')}</td>
+                   <td data-label="Categoría">
+diff --git a/frontend/src/pages/Payroll.jsx b/frontend/src/pages/Payroll.jsx
+index 1572f7b..90156f9 100644
+--- a/frontend/src/pages/Payroll.jsx
++++ b/frontend/src/pages/Payroll.jsx
+@@ -147,6 +147,8 @@ export default function Payroll() {
+   const [employees, setEmployees] = useState([]);
+   const [records, setRecords] = useState([]);
+   const [filterEmp, setFilterEmp] = useState('');
++  const [dateFrom, setDateFrom] = useState('');
++  const [dateTo, setDateTo] = useState('');
+   const [showForm, setShowForm] = useState(false);
+   const [preview, setPreview] = useState(null);
+   const [form, setForm] = useState({ employeeId: '', from: '', to: '' });
+@@ -217,7 +219,12 @@ export default function Payroll() {
+     if (newRecord?.id === id) setNewRecord(null);
+   }
+ 
+-  const filtered = records.filter(r => !filterEmp || r.employeeId === filterEmp);
++  const filtered = records.filter(r => {
++    if (filterEmp && r.employeeId !== filterEmp) return false;
++    if (dateFrom && r.periodEnd && r.periodEnd.slice(0, 10) < dateFrom) return false;
++    if (dateTo && r.periodStart && r.periodStart.slice(0, 10) > dateTo) return false;
++    return true;
++  });
+   const pending = filtered.filter(r => r.status === 'pending');
+   const paid = filtered.filter(r => r.status === 'paid');
+ 
+@@ -247,11 +254,16 @@ export default function Payroll() {
+       )}
+ 
+       {/* Filter */}
+-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
++      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+         <select value={filterEmp} onChange={e => setFilterEmp(e.target.value)} className="input" style={{ maxWidth: 220 }}>
+           <option value="">Todos los empleados</option>
+           {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+         </select>
++        <label style={{ fontSize: 13, color: 'var(--muted)' }}>Desde</label>
++        <input type="date" className="input" style={{ maxWidth: 160 }} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
++        <label style={{ fontSize: 13, color: 'var(--muted)' }}>Hasta</label>
++        <input type="date" className="input" style={{ maxWidth: 160 }} value={dateTo} onChange={e => setDateTo(e.target.value)} />
++        {(dateFrom || dateTo || filterEmp) && <button className="btn btn-secondary btn-sm" onClick={() => { setDateFrom(''); setDateTo(''); setFilterEmp(''); }}>Limpiar</button>}
+       </div>
+ 
+       {/* Pending */}
