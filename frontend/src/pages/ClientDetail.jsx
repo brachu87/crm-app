@@ -440,8 +440,8 @@ function AccountStatement({ client, account, onClose }) {
         {/* Contenido imprimible */}
         <div style={{ fontFamily: 'sans-serif', color: '#111' }}>
           {/* Encabezado del documento */}
-          <div style={{ borderBottom: '2px solid #3D5A4C', paddingBottom: 16, marginBottom: 20 }}>
-            <h2 style={{ margin: 0, fontSize: 22, color: '#3D5A4C' }}>Estado de Cuenta</h2>
+          <div style={{ borderBottom: '2px solid #1BA84C', paddingBottom: 16, marginBottom: 20 }}>
+            <h2 style={{ margin: 0, fontSize: 22, color: '#1BA84C' }}>Estado de Cuenta</h2>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>Generado el {today}</p>
           </div>
 

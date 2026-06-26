@@ -32,7 +32,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
 
         <!-- Header -->
         <tr>
-          <td style="background:#3D5A4C;padding:36px 40px;text-align:center;">
+          <td style="background:#1BA84C;padding:36px 40px;text-align:center;">
             <div style="display:inline-block;background:rgba(255,255,255,0.12);border-radius:12px;width:56px;height:56px;line-height:56px;font-size:32px;font-weight:900;color:#E8674A;text-align:center;">z</div>
             <div style="margin-top:12px;font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">gestumio</div>
             <div style="margin-top:4px;font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:0.08em;text-transform:uppercase;">Gestión inteligente para tu negocio</div>
@@ -44,7 +44,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
           <td style="padding:40px 40px 32px;">
             <p style="margin:0 0 6px;font-size:23px;font-weight:700;color:#111;">¡Hola, ${toName}! 👋</p>
             <p style="margin:0 0 24px;font-size:15px;color:#4B5563;line-height:1.7;">
-              Gracias por confiar en <strong style="color:#3D5A4C;">Gestumio</strong> para gestionar <strong>${businessName}</strong>.<br/>
+              Gracias por confiar en <strong style="color:#1BA84C;">Gestumio</strong> para gestionar <strong>${businessName}</strong>.<br/>
               Tu cuenta fue creada exitosamente.
             </p>
 
@@ -66,7 +66,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
               <tr>
                 <td width="38" valign="top">
-                  <div style="width:30px;height:30px;background:#3D5A4C;border-radius:50%;text-align:center;line-height:30px;font-size:13px;font-weight:700;color:#fff;">1</div>
+                  <div style="width:30px;height:30px;background:#1BA84C;border-radius:50%;text-align:center;line-height:30px;font-size:13px;font-weight:700;color:#fff;">1</div>
                 </td>
                 <td style="font-size:14px;color:#374151;line-height:1.65;padding-top:4px;">
                   <strong>Si ya realizaste el pago</strong> — no hace falta que hagas nada más. Tu cuenta será aprobada en breve y recibirás acceso completo.
@@ -107,7 +107,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
             </p>
             <p style="margin:0;font-size:12px;color:#9CA3AF;">
               © 2026 Gestumio &nbsp;·&nbsp;
-              <a href="https://wa.me/5491176353062" style="color:#3D5A4C;text-decoration:none;">Soporte</a>
+              <a href="https://wa.me/5491176353062" style="color:#1BA84C;text-decoration:none;">Soporte</a>
             </p>
           </td>
         </tr>

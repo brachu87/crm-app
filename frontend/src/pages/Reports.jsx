@@ -186,7 +186,7 @@ function exportXLSX(filename, sheets) {
 
 function exportPDF(title, subtitle, sheets) {
   const tableHTML = sheets.map(({ name, headers, rows }) => `
-    <h2 style="margin:24px 0 8px;font-size:14px;color:#3D5A4C;border-bottom:2px solid #3D5A4C;padding-bottom:4px">${name}</h2>
+    <h2 style="margin:24px 0 8px;font-size:14px;color:#1BA84C;border-bottom:2px solid #1BA84C;padding-bottom:4px">${name}</h2>
     <table>
       <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
       <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
@@ -194,10 +194,10 @@ function exportPDF(title, subtitle, sheets) {
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
     <style>
       body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:24px;max-width:960px;margin:0 auto}
-      h1{font-size:20px;color:#3D5A4C;margin:0 0 4px}
+      h1{font-size:20px;color:#1BA84C;margin:0 0 4px}
       .sub{font-size:12px;color:#6b7280;margin:0 0 20px}
       table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px}
-      th{background:#3D5A4C;color:#fff;padding:6px 8px;text-align:left;font-weight:600}
+      th{background:#1BA84C;color:#fff;padding:6px 8px;text-align:left;font-weight:600}
       td{padding:5px 8px;border-bottom:1px solid #e5e7eb}
       tr:nth-child(even) td{background:#f9fafb}
       .footer{margin-top:24px;font-size:10px;color:#9ca3af;text-align:right}

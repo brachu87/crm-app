@@ -1,0 +1,268 @@
+diff --git a/backend/src/admin-panel.html b/backend/src/admin-panel.html
+index 4c249c2..0234445 100644
+--- a/backend/src/admin-panel.html
++++ b/backend/src/admin-panel.html
+@@ -4,7 +4,7 @@
+   <meta charset="UTF-8"/>
+   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+   <title>Gestumio Admin</title>
+-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cline x1='11' y1='14' x2='37' y2='14' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='37' y1='14' x2='11' y2='34' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='11' y1='34' x2='37' y2='34' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E"/>
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='url(%23g)' stroke-width='12' stroke-linecap='round'/%3E%3Crect x='45' y='38' width='36' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Crect x='45' y='53' width='30' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Ccircle cx='50' cy='72' r='6' fill='url(%23g)'/%3E%3C/svg%3E"/>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+   <style>
+     *{box-sizing:border-box;margin:0;padding:0}
+@@ -16,9 +16,9 @@
+     .field{margin-bottom:16px}
+     .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151}
+     .field input{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;font-family:inherit}
+-    .field input:focus{border-color:#3D5A4C;box-shadow:0 0 0 3px rgba(61,90,76,.1)}
++    .field input:focus{border-color:#1BA84C;box-shadow:0 0 0 3px rgba(61,90,76,.1)}
+     .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+-    .btn-primary{background:#3D5A4C;color:#fff;width:100%}
++    .btn-primary{background:#1BA84C;color:#fff;width:100%}
+     .btn-primary:hover{background:#2e4438}
+     .btn-sm{padding:4px 11px;font-size:12px;border-radius:6px;cursor:pointer;border:none;font-family:inherit;font-weight:600;transition:all .15s}
+     .btn-approve{background:#d1fae5;color:#065f46}.btn-approve:hover{background:#a7f3d0}
+@@ -29,20 +29,20 @@
+     .btn-extend{background:#fef3c7;color:#92400e}.btn-extend:hover{background:#fde68a}
+     .error{background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:16px}
+     .panel{display:none;min-height:100vh}
+-    nav{background:#3D5A4C;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
++    nav{background:#1BA84C;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
+     nav .logo{display:flex;align-items:center;gap:10px;color:#fff;font-size:18px;font-weight:800}
+     nav .logout{color:#a8c5b5;font-size:13px;cursor:pointer;background:none;border:none;font-family:inherit}
+     nav .logout:hover{color:#fff}
+     .main{max-width:1300px;margin:0 auto;padding:32px 24px}
+     .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px}
+     .stat{background:#fff;border-radius:12px;padding:18px 20px;border:1px solid #e2e8f0}
+-    .stat-num{font-size:26px;font-weight:800;color:#3D5A4C}
++    .stat-num{font-size:26px;font-weight:800;color:#1BA84C}
+     .stat-label{font-size:12px;color:#64748b;margin-top:4px}
+     .card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden}
+     .card-header{padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+     .card-header h2{font-size:16px;font-weight:700}
+     .search{padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;font-family:inherit;width:240px}
+-    .search:focus{border-color:#3D5A4C}
++    .search:focus{border-color:#1BA84C}
+     table{width:100%;border-collapse:collapse;font-size:13px}
+     th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e2e8f0;background:#f8fafc;white-space:nowrap}
+     td{padding:10px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+@@ -70,8 +70,8 @@
+ <div class="login-wrap" id="loginWrap">
+   <div class="login-card">
+     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+-      <svg width="32" height="32" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="#3D5A4C"/><line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/><line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/><line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/></svg>
+-      <span style="font-size:20px;font-weight:800"><span style="color:#3D5A4C">z</span>entric</span>
++      <svg width="32" height="32" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="#1BA84C"/><line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/><line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/><line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/></svg>
++      <span style="font-size:20px;font-weight:800"><span style="color:#1BA84C">z</span>entric</span>
+     </div>
+     <h1>Panel de administración</h1>
+     <p>Ingresá con tu clave de administrador</p>
+diff --git a/backend/src/lib/mailer.js b/backend/src/lib/mailer.js
+index 9b708c2..37a98d9 100644
+--- a/backend/src/lib/mailer.js
++++ b/backend/src/lib/mailer.js
+@@ -32,7 +32,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+ 
+         <!-- Header -->
+         <tr>
+-          <td style="background:#3D5A4C;padding:36px 40px;text-align:center;">
++          <td style="background:#1BA84C;padding:36px 40px;text-align:center;">
+             <div style="display:inline-block;background:rgba(255,255,255,0.12);border-radius:12px;width:56px;height:56px;line-height:56px;font-size:32px;font-weight:900;color:#E8674A;text-align:center;">z</div>
+             <div style="margin-top:12px;font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">gestumio</div>
+             <div style="margin-top:4px;font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:0.08em;text-transform:uppercase;">Gestión inteligente para tu negocio</div>
+@@ -44,7 +44,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+           <td style="padding:40px 40px 32px;">
+             <p style="margin:0 0 6px;font-size:23px;font-weight:700;color:#111;">¡Hola, ${toName}! 👋</p>
+             <p style="margin:0 0 24px;font-size:15px;color:#4B5563;line-height:1.7;">
+-              Gracias por confiar en <strong style="color:#3D5A4C;">Gestumio</strong> para gestionar <strong>${businessName}</strong>.<br/>
++              Gracias por confiar en <strong style="color:#1BA84C;">Gestumio</strong> para gestionar <strong>${businessName}</strong>.<br/>
+               Tu cuenta fue creada exitosamente.
+             </p>
+ 
+@@ -66,7 +66,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+               <tr>
+                 <td width="38" valign="top">
+-                  <div style="width:30px;height:30px;background:#3D5A4C;border-radius:50%;text-align:center;line-height:30px;font-size:13px;font-weight:700;color:#fff;">1</div>
++                  <div style="width:30px;height:30px;background:#1BA84C;border-radius:50%;text-align:center;line-height:30px;font-size:13px;font-weight:700;color:#fff;">1</div>
+                 </td>
+                 <td style="font-size:14px;color:#374151;line-height:1.65;padding-top:4px;">
+                   <strong>Si ya realizaste el pago</strong> — no hace falta que hagas nada más. Tu cuenta será aprobada en breve y recibirás acceso completo.
+@@ -107,7 +107,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+             </p>
+             <p style="margin:0;font-size:12px;color:#9CA3AF;">
+               © 2026 Gestumio &nbsp;·&nbsp;
+-              <a href="https://wa.me/5491176353062" style="color:#3D5A4C;text-decoration:none;">Soporte</a>
++              <a href="https://wa.me/5491176353062" style="color:#1BA84C;text-decoration:none;">Soporte</a>
+             </p>
+           </td>
+         </tr>
+diff --git a/backend/src/lib/receiptPdf.js b/backend/src/lib/receiptPdf.js
+index abe7a64..9d0725b 100644
+--- a/backend/src/lib/receiptPdf.js
++++ b/backend/src/lib/receiptPdf.js
+@@ -19,7 +19,7 @@ function generateReceiptPdf(data = {}) {
+       doc.on('end', () => resolve(Buffer.concat(chunks)));
+       doc.on('error', reject);
+ 
+-      const PRIMARY = '#3D5A4C';
++      const PRIMARY = '#1BA84C';
+       const GREY = '#6b7280';
+       const LIGHT = '#9ca3af';
+       const left = doc.page.margins.left;
+diff --git a/frontend/index.html b/frontend/index.html
+index 0d7daa8..b6c79da 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -5,7 +5,7 @@
+     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <meta name="description" content="Gestumio — Gestioná tu negocio de servicios: clientes, cobros, empleados y más." />
+-    <meta name="theme-color" content="#3D5A4C" />
++    <meta name="theme-color" content="#1BA84C" />
+     <title>Gestumio</title>
+   </head>
+   <body>
+diff --git a/frontend/public/favicon.svg b/frontend/public/favicon.svg
+index 66161f8..e214204 100644
+--- a/frontend/public/favicon.svg
++++ b/frontend/public/favicon.svg
+@@ -1,5 +1,12 @@
+-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+-  <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-  <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-  <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+-</svg>
+\ No newline at end of file
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
++  <defs>
++    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
++      <stop offset="0" stop-color="#46C658"/>
++      <stop offset="1" stop-color="#0F8A3A"/>
++    </linearGradient>
++  </defs>
++  <circle cx="50" cy="50" r="33" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round"/>
++  <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
++  <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
++  <circle cx="50" cy="72" r="6" fill="url(#g)"/>
++</svg>
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index 46bbceb..f8611a0 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -3,10 +3,10 @@
+ :root {
+   --bg: #FAF7F2;
+   --surface: #FFFFFF;
+-  --ink: #1C1B1A;
++  --ink: #1E2A38;
+   --ink-soft: #6B6862;
+-  --primary: #3D5A4C;
+-  --primary-soft: #E4ECE7;
++  --primary: #1BA84C;
++  --primary-soft: #E4F6E9;
+   --accent: #E8674A;
+   --accent-soft: #FBE4DC;
+   --warn: #D4A656;
+diff --git a/frontend/src/pages/ClientDetail.jsx b/frontend/src/pages/ClientDetail.jsx
+index dd5063f..5a45065 100644
+--- a/frontend/src/pages/ClientDetail.jsx
++++ b/frontend/src/pages/ClientDetail.jsx
+@@ -440,8 +440,8 @@ function AccountStatement({ client, account, onClose }) {
+         {/* Contenido imprimible */}
+         <div style={{ fontFamily: 'sans-serif', color: '#111' }}>
+           {/* Encabezado del documento */}
+-          <div style={{ borderBottom: '2px solid #3D5A4C', paddingBottom: 16, marginBottom: 20 }}>
+-            <h2 style={{ margin: 0, fontSize: 22, color: '#3D5A4C' }}>Estado de Cuenta</h2>
++          <div style={{ borderBottom: '2px solid #1BA84C', paddingBottom: 16, marginBottom: 20 }}>
++            <h2 style={{ margin: 0, fontSize: 22, color: '#1BA84C' }}>Estado de Cuenta</h2>
+             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>Generado el {today}</p>
+           </div>
+ 
+diff --git a/frontend/src/pages/Login.jsx b/frontend/src/pages/Login.jsx
+index cb63eec..88f09b6 100644
+--- a/frontend/src/pages/Login.jsx
++++ b/frontend/src/pages/Login.jsx
+@@ -6,13 +6,20 @@ import { useAuth } from '../context/AuthContext';
+ function GestumioLogo({ size = 52 }) {
+   return (
+     <div style={{ textAlign: 'center', marginBottom: 20 }}>
+-      <svg width={size} height={size} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+-        <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" strokeWidth="5" strokeLinecap="round"/>
+-        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" strokeWidth="5" strokeLinecap="round"/>
++      <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
++        <defs>
++          <linearGradient id="gGrad" x1="0" y1="0" x2="1" y2="1">
++            <stop offset="0" stopColor="#46C658"/>
++            <stop offset="1" stopColor="#0F8A3A"/>
++          </linearGradient>
++        </defs>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gGrad)" strokeWidth="12" strokeLinecap="round"/>
++        <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <circle cx="50" cy="72" r="6" fill="url(#gGrad)"/>
+       </svg>
+       <div style={{ marginTop: 10, fontSize: 30, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>
+-        <span style={{ color: '#3D5A4C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
++        <span style={{ color: '#1BA84C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
+       </div>
+     </div>
+   );
+diff --git a/frontend/src/pages/Register.jsx b/frontend/src/pages/Register.jsx
+index f88e1b5..f4a9525 100644
+--- a/frontend/src/pages/Register.jsx
++++ b/frontend/src/pages/Register.jsx
+@@ -6,13 +6,20 @@ import { useAuth } from '../context/AuthContext';
+ function GestumioLogo({ size = 52 }) {
+   return (
+     <div style={{ textAlign: 'center', marginBottom: 20 }}>
+-      <svg width={size} height={size} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+-        <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" strokeWidth="5" strokeLinecap="round"/>
+-        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" strokeWidth="5" strokeLinecap="round"/>
++      <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
++        <defs>
++          <linearGradient id="gGrad" x1="0" y1="0" x2="1" y2="1">
++            <stop offset="0" stopColor="#46C658"/>
++            <stop offset="1" stopColor="#0F8A3A"/>
++          </linearGradient>
++        </defs>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gGrad)" strokeWidth="12" strokeLinecap="round"/>
++        <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <circle cx="50" cy="72" r="6" fill="url(#gGrad)"/>
+       </svg>
+       <div style={{ marginTop: 10, fontSize: 30, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>
+-        <span style={{ color: '#3D5A4C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
++        <span style={{ color: '#1BA84C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
+       </div>
+     </div>
+   );
+diff --git a/frontend/src/pages/Reports.jsx b/frontend/src/pages/Reports.jsx
+index cb6cd03..51a6306 100644
+--- a/frontend/src/pages/Reports.jsx
++++ b/frontend/src/pages/Reports.jsx
+@@ -186,7 +186,7 @@ function exportXLSX(filename, sheets) {
+ 
+ function exportPDF(title, subtitle, sheets) {
+   const tableHTML = sheets.map(({ name, headers, rows }) => `
+-    <h2 style="margin:24px 0 8px;font-size:14px;color:#3D5A4C;border-bottom:2px solid #3D5A4C;padding-bottom:4px">${name}</h2>
++    <h2 style="margin:24px 0 8px;font-size:14px;color:#1BA84C;border-bottom:2px solid #1BA84C;padding-bottom:4px">${name}</h2>
+     <table>
+       <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+       <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
+@@ -194,10 +194,10 @@ function exportPDF(title, subtitle, sheets) {
+   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+     <style>
+       body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:24px;max-width:960px;margin:0 auto}
+-      h1{font-size:20px;color:#3D5A4C;margin:0 0 4px}
++      h1{font-size:20px;color:#1BA84C;margin:0 0 4px}
+       .sub{font-size:12px;color:#6b7280;margin:0 0 20px}
+       table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:11px}
+-      th{background:#3D5A4C;color:#fff;padding:6px 8px;text-align:left;font-weight:600}
++      th{background:#1BA84C;color:#fff;padding:6px 8px;text-align:left;font-weight:600}
+       td{padding:5px 8px;border-bottom:1px solid #e5e7eb}
+       tr:nth-child(even) td{background:#f9fafb}
+       .footer{margin-top:24px;font-size:10px;color:#9ca3af;text-align:right}

@@ -1,0 +1,168 @@
+diff --git a/index.html b/index.html
+index f3d7267..d93919e 100755
+--- a/index.html
++++ b/index.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cpath d='M31.8 16.2 A11 11 0 1 0 34.5 27.4' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M34.5 27.4 H27' fill='none' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='url(%23g)' stroke-width='12' stroke-linecap='round'/%3E%3Crect x='45' y='38' width='36' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Crect x='45' y='53' width='30' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Ccircle cx='50' cy='72' r='6' fill='url(%23g)'/%3E%3C/svg%3E" />
+   <title>Gestumio — Gestioná tu negocio sin complicaciones</title>
+   <meta name="description" content="Gestumio es el CRM para pequeños negocios y profesionales. Clientes, turnos, cobros y más, en un solo lugar." />
+   <link rel="preconnect" href="https://fonts.googleapis.com" />
+@@ -12,8 +12,8 @@
+     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+     :root {
+-      --primary: #3D5A4C;
+-      --primary-dark: #2e4438;
++      --primary: #1BA84C;
++      --primary-dark: #0F8A3A;
+       --accent: #E8674A;
+       --accent-dark: #d45a3e;
+       --bg: #FAF7F2;
+@@ -255,10 +255,12 @@
+ <nav>
+   <div class="nav-inner">
+     <a href="#" class="logo">
+-      <svg width="32" height="32" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+-        <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
++      <svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
++        <defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46C658"/><stop offset="1" stop-color="#0F8A3A"/></linearGradient></defs>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/>
++        <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <circle cx="50" cy="72" r="6" fill="url(#gl)"/>
+       </svg>
+       <div class="logo-text"><span>G</span><span>estumio</span></div>
+     </a>
+@@ -457,10 +459,10 @@
+   <section id="manual" style="background:#EAF1ED;padding:60px 0;">
+     <div class="container" style="max-width:700px;margin:0 auto;padding:0 24px;text-align:center;">
+       <div style="font-size:48px;margin-bottom:12px;">📖</div>
+-      <h2 style="font-size:28px;font-weight:700;color:#3D5A4C;margin-bottom:8px;">Manual de usuario</h2>
++      <h2 style="font-size:28px;font-weight:700;color:#1BA84C;margin-bottom:8px;">Manual de usuario</h2>
+       <p style="color:#6B7280;font-size:16px;margin-bottom:28px;">Descargá la guía completa de Gestumio en PDF. Incluye todas las secciones, consejos y preguntas frecuentes.</p>
+       <a href="manual-zentric.pdf" download="Manual-Gestumio.pdf"
+-         style="display:inline-flex;align-items:center;gap:10px;background:#3D5A4C;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:10px;text-decoration:none;">
++         style="display:inline-flex;align-items:center;gap:10px;background:#1BA84C;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:10px;text-decoration:none;">
+         ⬇ Descargar Manual PDF
+       </a>
+     </div>
+@@ -469,10 +471,12 @@
+ <footer>
+   <div class="footer-inner">
+     <a href="#" class="logo">
+-      <svg width="24" height="24" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+-        <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
++      <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
++        <defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46C658"/><stop offset="1" stop-color="#0F8A3A"/></linearGradient></defs>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/>
++        <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <circle cx="50" cy="72" r="6" fill="url(#gl)"/>
+       </svg>
+       <div class="logo-text" style="font-size:17px"><span>G</span><span>estumio</span></div>
+     </a>
+diff --git a/privacidad.html b/privacidad.html
+index 6630979..295decf 100755
+--- a/privacidad.html
++++ b/privacidad.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>Política de Privacidad — Gestumio</title>
+   <style>
+-    :root { --primary: #3D5A4C; --accent: #E8674A; --bg: #FAF7F2; --ink: #1a1a1a; --ink-soft: #666; --border: #e5e0d8; }
++    :root { --primary: #1BA84C; --accent: #E8674A; --bg: #FAF7F2; --ink: #1a1a1a; --ink-soft: #666; --border: #e5e0d8; }
+     * { box-sizing: border-box; margin: 0; padding: 0; }
+     body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.7; }
+     nav { background: var(--primary); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+diff --git a/terminos.html b/terminos.html
+index 0aca98c..c7669a3 100755
+--- a/terminos.html
++++ b/terminos.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>Términos y Condiciones — Gestumio</title>
+   <style>
+-    :root { --primary: #3D5A4C; --accent: #E8674A; --bg: #FAF7F2; --ink: #1a1a1a; --ink-soft: #666; --border: #e5e0d8; }
++    :root { --primary: #1BA84C; --accent: #E8674A; --bg: #FAF7F2; --ink: #1a1a1a; --ink-soft: #666; --border: #e5e0d8; }
+     * { box-sizing: border-box; margin: 0; padding: 0; }
+     body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.7; }
+     nav { background: var(--primary); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+diff --git a/zentric-landing.html b/zentric-landing.html
+index 882d0c5..5473181 100755
+--- a/zentric-landing.html
++++ b/zentric-landing.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cpath d='M31.8 16.2 A11 11 0 1 0 34.5 27.4' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M34.5 27.4 H27' fill='none' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='url(%23g)' stroke-width='12' stroke-linecap='round'/%3E%3Crect x='45' y='38' width='36' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Crect x='45' y='53' width='30' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Ccircle cx='50' cy='72' r='6' fill='url(%23g)'/%3E%3C/svg%3E" />
+   <title>Gestumio — Gestioná tu negocio sin complicaciones</title>
+   <meta name="description" content="Gestumio es el CRM para pequeños negocios y profesionales. Clientes, turnos, cobros y más, en un solo lugar." />
+   <link rel="preconnect" href="https://fonts.googleapis.com" />
+@@ -12,8 +12,8 @@
+     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+     :root {
+-      --primary: #3D5A4C;
+-      --primary-dark: #2e4438;
++      --primary: #1BA84C;
++      --primary-dark: #0F8A3A;
+       --accent: #E8674A;
+       --accent-dark: #d45a3e;
+       --bg: #FAF7F2;
+@@ -255,10 +255,12 @@
+ <nav>
+   <div class="nav-inner">
+     <a href="#" class="logo">
+-      <svg width="32" height="32" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+-        <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
++      <svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
++        <defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46C658"/><stop offset="1" stop-color="#0F8A3A"/></linearGradient></defs>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/>
++        <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <circle cx="50" cy="72" r="6" fill="url(#gl)"/>
+       </svg>
+       <div class="logo-text"><span>G</span><span>estumio</span></div>
+     </a>
+@@ -449,10 +451,10 @@
+   <section id="manual" style="background:#EAF1ED;padding:60px 0;">
+     <div class="container" style="max-width:700px;margin:0 auto;padding:0 24px;text-align:center;">
+       <div style="font-size:48px;margin-bottom:12px;">📖</div>
+-      <h2 style="font-size:28px;font-weight:700;color:#3D5A4C;margin-bottom:8px;">Manual de usuario <span style="font-size:13px;background:#3D5A4C;color:#A8D5B5;border-radius:8px;padding:2px 10px;margin-left:8px;vertical-align:middle;">v2.0</span></h2>
++      <h2 style="font-size:28px;font-weight:700;color:#1BA84C;margin-bottom:8px;">Manual de usuario <span style="font-size:13px;background:#1BA84C;color:#A8D5B5;border-radius:8px;padding:2px 10px;margin-left:8px;vertical-align:middle;">v2.0</span></h2>
+       <p style="color:#6B7280;font-size:16px;margin-bottom:28px;">Guía completa actualizada: WhatsApp automático, permisos granulares por acción, módulos configurables, agenda de turnos y más.</p>
+       <a href="manual-zentric.pdf" download="Manual-Gestumio.pdf"
+-         style="display:inline-flex;align-items:center;gap:10px;background:#3D5A4C;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:10px;text-decoration:none;">
++         style="display:inline-flex;align-items:center;gap:10px;background:#1BA84C;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:10px;text-decoration:none;">
+         ⬇ Descargar Manual PDF
+       </a>
+     </div>
+@@ -461,10 +463,12 @@
+ <footer>
+   <div class="footer-inner">
+     <a href="#" class="logo">
+-      <svg width="24" height="24" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+-        <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
++      <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
++        <defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46C658"/><stop offset="1" stop-color="#0F8A3A"/></linearGradient></defs>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/>
++        <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
++        <circle cx="50" cy="72" r="6" fill="url(#gl)"/>
+       </svg>
+       <div class="logo-text" style="font-size:17px"><span>G</span><span>estumio</span></div>
+     </a>

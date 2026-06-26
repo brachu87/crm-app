@@ -6,13 +6,20 @@ import { useAuth } from '../context/AuthContext';
 function GestumioLogo({ size = 52 }) {
   return (
     <div style={{ textAlign: 'center', marginBottom: 20 }}>
-      <svg width={size} height={size} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-        <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
-        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" strokeWidth="5" strokeLinecap="round"/>
-        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" strokeWidth="5" strokeLinecap="round"/>
+      <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="gGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#46C658"/>
+            <stop offset="1" stopColor="#0F8A3A"/>
+          </linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gGrad)" strokeWidth="12" strokeLinecap="round"/>
+        <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
+        <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
+        <circle cx="50" cy="72" r="6" fill="url(#gGrad)"/>
       </svg>
       <div style={{ marginTop: 10, fontSize: 30, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>
-        <span style={{ color: '#3D5A4C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
+        <span style={{ color: '#1BA84C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ function generateReceiptPdf(data = {}) {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      const PRIMARY = '#3D5A4C';
+      const PRIMARY = '#1BA84C';
       const GREY = '#6b7280';
       const LIGHT = '#9ca3af';
       const left = doc.page.margins.left;
