@@ -1,0 +1,34 @@
+diff --git a/backend/src/prisma.js b/backend/src/prisma.js
+index 0dbc802..13d257f 100644
+--- a/backend/src/prisma.js
++++ b/backend/src/prisma.js
+@@ -1,5 +1,13 @@
+ const { PrismaClient } = require('@prisma/client');
+ 
++// En Railway el volumen persistente está montado en /data. Si por algún motivo no
++// está definida la variable DATABASE_URL en el entorno, usamos la ruta del volumen
++// por defecto para que la app NO se caiga (las funciones de arranque y los crons
++// necesitan la base de datos; sin esto, fallan y el server queda inestable -> 503).
++if (!process.env.DATABASE_URL) {
++  process.env.DATABASE_URL = 'file:/data/prod.db';
++}
++
+ const prisma = new PrismaClient();
+ 
+ module.exports = prisma;
+diff --git a/start.js b/start.js
+index 3af2b97..6925cb0 100644
+--- a/start.js
++++ b/start.js
+@@ -3,6 +3,11 @@ const fs = require('fs');
+ const path = require('path');
+ 
+ const backendDir = path.join(__dirname, 'backend');
++
++// Asegurar DATABASE_URL aunque no esté como variable en Railway (volumen en /data).
++if (!process.env.DATABASE_URL) {
++  process.env.DATABASE_URL = 'file:/data/prod.db';
++}
+ const migrationsDir = path.join(backendDir, 'prisma', 'migrations');
+ 
+ function deploy() {

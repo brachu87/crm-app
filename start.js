@@ -3,6 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 const backendDir = path.join(__dirname, 'backend');
+
+// Asegurar DATABASE_URL aunque no esté como variable en Railway (volumen en /data).
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'file:/data/prod.db';
+}
 const migrationsDir = path.join(backendDir, 'prisma', 'migrations');
 
 function deploy() {
