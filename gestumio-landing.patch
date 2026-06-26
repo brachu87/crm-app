@@ -1,0 +1,415 @@
+diff --git a/index.html b/index.html
+index e0bb7be..f3d7267 100755
+--- a/index.html
++++ b/index.html
+@@ -3,9 +3,9 @@
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cline x1='11' y1='14' x2='37' y2='14' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='37' y1='14' x2='11' y2='34' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='11' y1='34' x2='37' y2='34' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
+-  <title>Zentric — Gestioná tu negocio sin complicaciones</title>
+-  <meta name="description" content="Zentric es el CRM para pequeños negocios y profesionales. Clientes, turnos, cobros y más, en un solo lugar." />
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cpath d='M31.8 16.2 A11 11 0 1 0 34.5 27.4' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M34.5 27.4 H27' fill='none' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
++  <title>Gestumio — Gestioná tu negocio sin complicaciones</title>
++  <meta name="description" content="Gestumio es el CRM para pequeños negocios y profesionales. Clientes, turnos, cobros y más, en un solo lugar." />
+   <link rel="preconnect" href="https://fonts.googleapis.com" />
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+   <style>
+@@ -257,11 +257,10 @@
+     <a href="#" class="logo">
+       <svg width="32" height="32" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+         <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-        <line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+-        <line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/>
++        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
++        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+       </svg>
+-      <div class="logo-text"><span>z</span><span>entric</span></div>
++      <div class="logo-text"><span>G</span><span>estumio</span></div>
+     </a>
+     <div class="nav-links">
+       <a href="#funciones" class="btn btn-ghost">Funciones</a>
+@@ -295,7 +294,7 @@
+         <div class="mock-dot" style="background:#ef4444"></div>
+         <div class="mock-dot" style="background:#f59e0b"></div>
+         <div class="mock-dot" style="background:#10b981"></div>
+-        <span style="font-size:12px;color:#9ca3af;margin-left:8px">zentric.app</span>
++        <span style="font-size:12px;color:#9ca3af;margin-left:8px">gestumio.app</span>
+       </div>
+       <div class="mock-stat-grid">
+         <div class="mock-stat">
+@@ -347,7 +346,7 @@
+ <section class="features" id="funciones">
+   <div class="section-label">Funciones</div>
+   <div class="section-title">Todo lo que necesitás,<br>nada de lo que no</div>
+-  <div class="section-sub">Zentric reemplaza las planillas, las agendas en papel y los grupos de WhatsApp para cobrar.</div>
++  <div class="section-sub">Gestumio reemplaza las planillas, las agendas en papel y los grupos de WhatsApp para cobrar.</div>
+ 
+   <div class="features-grid">
+     <div class="feature-card">
+@@ -378,7 +377,7 @@
+     <div class="feature-card">
+       <div class="feature-icon" style="background:#ecfdf5">⚙️</div>
+       <h3>Multi-rubro</h3>
+-      <p>Peluquería, veterinaria, gimnasio, estudio contable, plomero — Zentric se adapta a cualquier tipo de negocio.</p>
++      <p>Peluquería, veterinaria, gimnasio, estudio contable, plomero — Gestumio se adapta a cualquier tipo de negocio.</p>
+     </div>
+   </div>
+ </section>
+@@ -392,7 +391,7 @@
+ 
+   <div class="pricing-card">
+     <div class="pricing-badge">⭐ Plan Completo</div>
+-    <div class="pricing-name">Acceso total a Zentric</div>
++    <div class="pricing-name">Acceso total a Gestumio</div>
+     <div class="pricing-price"><sup>$</sup>75.000</div>
+     <div class="pricing-period">pesos argentinos / mes · IVA incluido</div>
+     <ul class="pricing-features">
+@@ -459,8 +458,8 @@
+     <div class="container" style="max-width:700px;margin:0 auto;padding:0 24px;text-align:center;">
+       <div style="font-size:48px;margin-bottom:12px;">📖</div>
+       <h2 style="font-size:28px;font-weight:700;color:#3D5A4C;margin-bottom:8px;">Manual de usuario</h2>
+-      <p style="color:#6B7280;font-size:16px;margin-bottom:28px;">Descargá la guía completa de Zentric en PDF. Incluye todas las secciones, consejos y preguntas frecuentes.</p>
+-      <a href="manual-zentric.pdf" download="Manual-Zentric.pdf"
++      <p style="color:#6B7280;font-size:16px;margin-bottom:28px;">Descargá la guía completa de Gestumio en PDF. Incluye todas las secciones, consejos y preguntas frecuentes.</p>
++      <a href="manual-zentric.pdf" download="Manual-Gestumio.pdf"
+          style="display:inline-flex;align-items:center;gap:10px;background:#3D5A4C;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:10px;text-decoration:none;">
+         ⬇ Descargar Manual PDF
+       </a>
+@@ -472,17 +471,16 @@
+     <a href="#" class="logo">
+       <svg width="24" height="24" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+         <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-        <line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+-        <line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/>
++        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
++        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+       </svg>
+-      <div class="logo-text" style="font-size:17px"><span>z</span><span>entric</span></div>
++      <div class="logo-text" style="font-size:17px"><span>G</span><span>estumio</span></div>
+     </a>
+-    <p>© 2026 Zentric. Todos los derechos reservados.</p>
++    <p>© 2026 Gestumio. Todos los derechos reservados.</p>
+     <div class="footer-links">
+       <a href="https://crm-app-production-0669.up.railway.app/login">Iniciar sesión</a>
+       <a href="https://crm-app-production-0669.up.railway.app/registro">Registrarse (15 días gratis)</a>
+-      <a href="mailto:contacto@zentric.app">Contacto</a>
++      <a href="mailto:contacto@gestumio.app">Contacto</a>
+     </div>
+   </div>
+ </footer>
+diff --git a/privacidad.html b/privacidad.html
+index 7aeaf4f..6630979 100755
+--- a/privacidad.html
++++ b/privacidad.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-  <title>Política de Privacidad — Zentric</title>
++  <title>Política de Privacidad — Gestumio</title>
+   <style>
+     :root { --primary: #3D5A4C; --accent: #E8674A; --bg: #FAF7F2; --ink: #1a1a1a; --ink-soft: #666; --border: #e5e0d8; }
+     * { box-sizing: border-box; margin: 0; padding: 0; }
+@@ -25,7 +25,7 @@
+ </head>
+ <body>
+   <nav>
+-    <a href="zentric-landing.html">🌿 Zentric</a>
++    <a href="zentric-landing.html">🌿 Gestumio</a>
+     <span>/ Política de Privacidad</span>
+   </nav>
+ 
+@@ -34,12 +34,12 @@
+     <p class="meta">Última actualización: junio de 2026</p>
+ 
+     <div class="highlight">
+-      En Zentric tratamos tu privacidad y la de tus clientes con seriedad. Esta política explica qué datos recopilamos, para qué los usamos y cómo los protegemos, en cumplimiento de la <strong>Ley 25.326 de Protección de Datos Personales de la República Argentina</strong>.
++      En Gestumio tratamos tu privacidad y la de tus clientes con seriedad. Esta política explica qué datos recopilamos, para qué los usamos y cómo los protegemos, en cumplimiento de la <strong>Ley 25.326 de Protección de Datos Personales de la República Argentina</strong>.
+     </div>
+ 
+     <h2>1. Responsable del tratamiento</h2>
+-    <p><strong>Braian Ferrari</strong>, monotributista, con domicilio en la República Argentina, es el responsable del tratamiento de los datos personales recopilados a través de la plataforma Zentric.</p>
+-    <p>Contacto: <a href="mailto:contacto@zentric.app">contacto@zentric.app</a></p>
++    <p><strong>Braian Ferrari</strong>, monotributista, con domicilio en la República Argentina, es el responsable del tratamiento de los datos personales recopilados a través de la plataforma Gestumio.</p>
++    <p>Contacto: <a href="mailto:contacto@gestumio.app">contacto@gestumio.app</a></p>
+ 
+     <h2>2. Datos que recopilamos</h2>
+     <p><strong>Datos del Usuario (titular de la cuenta):</strong></p>
+@@ -70,11 +70,11 @@
+       <li>Enviar comunicaciones relacionadas con el servicio (actualizaciones, vencimientos, soporte)</li>
+       <li>Mejorar la plataforma mediante análisis de uso agregado y anónimo</li>
+     </ul>
+-    <p>Zentric <strong>no utiliza</strong> los datos para publicidad de terceros, ni los vende o cede a otras empresas con fines comerciales.</p>
++    <p>Gestumio <strong>no utiliza</strong> los datos para publicidad de terceros, ni los vende o cede a otras empresas con fines comerciales.</p>
+ 
+     <h2>4. Base legal</h2>
+     <p>El tratamiento de datos se basa en la relación contractual con el Usuario (Art. 5 de la Ley 25.326) y, en el caso de los datos de los clientes del Usuario, en la responsabilidad de este último como titular de los datos ante sus propios clientes.</p>
+-    <p>El Usuario, al registrar datos de sus clientes en Zentric, declara haber obtenido el consentimiento correspondiente conforme a la legislación vigente.</p>
++    <p>El Usuario, al registrar datos de sus clientes en Gestumio, declara haber obtenido el consentimiento correspondiente conforme a la legislación vigente.</p>
+ 
+     <h2>5. Almacenamiento y seguridad</h2>
+     <p>Los datos se almacenan en servidores en la nube provistos por <strong>Railway</strong> (infraestructura en EE.UU.), con bases de datos cifradas y acceso restringido. Las comunicaciones entre el navegador y el servidor utilizan protocolo HTTPS.</p>
+@@ -82,11 +82,11 @@
+     <p>Ningún sistema es 100% seguro. En caso de una brecha de seguridad que afecte datos personales, notificaremos a los Usuarios afectados dentro de las 72 horas de haber tomado conocimiento.</p>
+ 
+     <h2>6. Compartir datos con terceros</h2>
+-    <p>Zentric puede compartir datos con los siguientes proveedores de servicios, únicamente en la medida necesaria para operar la plataforma:</p>
++    <p>Gestumio puede compartir datos con los siguientes proveedores de servicios, únicamente en la medida necesaria para operar la plataforma:</p>
+     <ul>
+       <li><strong>Railway</strong> — infraestructura de servidores y base de datos</li>
+       <li><strong>MercadoPago</strong> — procesamiento de pagos</li>
+-      <li><strong>WhatsApp / Meta</strong> — el Usuario inicia comunicaciones con sus clientes a través de enlaces wa.me; Zentric no tiene acceso a esas conversaciones</li>
++      <li><strong>WhatsApp / Meta</strong> — el Usuario inicia comunicaciones con sus clientes a través de enlaces wa.me; Gestumio no tiene acceso a esas conversaciones</li>
+     </ul>
+     <p>Ningún tercero recibe datos de clientes con fines propios.</p>
+ 
+@@ -101,21 +101,21 @@
+       <li><strong>Supresión:</strong> solicitar la eliminación de sus datos ("derecho al olvido")</li>
+       <li><strong>Oposición:</strong> oponerse al tratamiento de sus datos en determinadas circunstancias</li>
+     </ul>
+-    <p>Para ejercer estos derechos, escribir a <a href="mailto:contacto@zentric.app">contacto@zentric.app</a>. Responderemos dentro de los 5 días hábiles.</p>
++    <p>Para ejercer estos derechos, escribir a <a href="mailto:contacto@gestumio.app">contacto@gestumio.app</a>. Responderemos dentro de los 5 días hábiles.</p>
+     <p>El Usuario también puede presentar una reclamación ante la <strong>Dirección Nacional de Protección de Datos Personales (DNPDP)</strong>: <a href="https://www.argentina.gob.ar/aaip/datospersonales" target="_blank">www.argentina.gob.ar/aaip/datospersonales</a></p>
+ 
+     <h2>9. Cookies</h2>
+-    <p>Zentric utiliza únicamente cookies técnicas estrictamente necesarias para mantener la sesión del Usuario. No utiliza cookies de rastreo, publicidad ni análisis de terceros.</p>
++    <p>Gestumio utiliza únicamente cookies técnicas estrictamente necesarias para mantener la sesión del Usuario. No utiliza cookies de rastreo, publicidad ni análisis de terceros.</p>
+ 
+     <h2>10. Cambios en esta política</h2>
+     <p>Podemos actualizar esta política ocasionalmente. Notificaremos los cambios importantes por correo electrónico con al menos 15 días de anticipación. La versión vigente siempre estará disponible en esta página.</p>
+ 
+     <h2>11. Contacto</h2>
+-    <p>Para cualquier consulta sobre privacidad: <a href="mailto:contacto@zentric.app">contacto@zentric.app</a></p>
++    <p>Para cualquier consulta sobre privacidad: <a href="mailto:contacto@gestumio.app">contacto@gestumio.app</a></p>
+   </div>
+ 
+   <footer>
+-    © 2026 Zentric · Braian Ferrari · <a href="terminos.html">Términos y Condiciones</a>
++    © 2026 Gestumio · Braian Ferrari · <a href="terminos.html">Términos y Condiciones</a>
+   </footer>
+ </body>
+ </html>
+diff --git a/terminos.html b/terminos.html
+index 4b5b8a5..0aca98c 100755
+--- a/terminos.html
++++ b/terminos.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-  <title>Términos y Condiciones — Zentric</title>
++  <title>Términos y Condiciones — Gestumio</title>
+   <style>
+     :root { --primary: #3D5A4C; --accent: #E8674A; --bg: #FAF7F2; --ink: #1a1a1a; --ink-soft: #666; --border: #e5e0d8; }
+     * { box-sizing: border-box; margin: 0; padding: 0; }
+@@ -24,7 +24,7 @@
+ </head>
+ <body>
+   <nav>
+-    <a href="zentric-landing.html">🌿 Zentric</a>
++    <a href="zentric-landing.html">🌿 Gestumio</a>
+     <span>/ Términos y Condiciones</span>
+   </nav>
+ 
+@@ -33,27 +33,27 @@
+     <p class="meta">Última actualización: junio de 2026</p>
+ 
+     <h2>1. Partes del acuerdo</h2>
+-    <p>El presente contrato se celebra entre <strong>Braian Ferrari</strong>, monotributista, en adelante "Zentric" o "el Proveedor", y la persona o empresa que se registra en la plataforma, en adelante "el Cliente" o "el Usuario".</p>
++    <p>El presente contrato se celebra entre <strong>Braian Ferrari</strong>, monotributista, en adelante "Gestumio" o "el Proveedor", y la persona o empresa que se registra en la plataforma, en adelante "el Cliente" o "el Usuario".</p>
+     <p>Al registrarse o usar el servicio, el Usuario acepta íntegramente estos Términos y Condiciones.</p>
+ 
+     <h2>2. Descripción del servicio</h2>
+-    <p>Zentric es una plataforma de gestión empresarial en la nube (Software como Servicio, SaaS) orientada a gimnasios, estudios y centros deportivos. Incluye funciones de gestión de clientes, cobranza, agenda de turnos, nómina, reportes y comunicación vía WhatsApp.</p>
++    <p>Gestumio es una plataforma de gestión empresarial en la nube (Software como Servicio, SaaS) orientada a gimnasios, estudios y centros deportivos. Incluye funciones de gestión de clientes, cobranza, agenda de turnos, nómina, reportes y comunicación vía WhatsApp.</p>
+     <p>El servicio se presta de forma remota a través de internet. El Usuario accede mediante navegador web sin necesidad de instalar software adicional.</p>
+ 
+     <h2>3. Registro y cuenta</h2>
+-    <p>Para usar Zentric, el Usuario debe registrarse con datos reales y actualizados. Es responsable de mantener la confidencialidad de sus credenciales de acceso. Zentric no se responsabiliza por accesos no autorizados derivados del uso negligente de las credenciales.</p>
++    <p>Para usar Gestumio, el Usuario debe registrarse con datos reales y actualizados. Es responsable de mantener la confidencialidad de sus credenciales de acceso. Gestumio no se responsabiliza por accesos no autorizados derivados del uso negligente de las credenciales.</p>
+     <p>Cada cuenta de negocio puede tener múltiples usuarios con distintos roles. El administrador de la cuenta es responsable del uso que sus usuarios hagan de la plataforma.</p>
+ 
+     <h2>4. Período de prueba</h2>
+-    <p>Zentric ofrece un período de prueba gratuito de <strong>15 días</strong> desde el registro, sin necesidad de ingresar datos de pago. Al vencimiento del período de prueba, el acceso queda suspendido hasta que el Usuario active una suscripción paga.</p>
++    <p>Gestumio ofrece un período de prueba gratuito de <strong>15 días</strong> desde el registro, sin necesidad de ingresar datos de pago. Al vencimiento del período de prueba, el acceso queda suspendido hasta que el Usuario active una suscripción paga.</p>
+ 
+     <h2>5. Planes y precios</h2>
+     <p>El precio del servicio es el publicado en la página oficial al momento de la contratación. Los pagos se procesan a través de <strong>MercadoPago</strong>, plataforma de pagos habilitada en Argentina.</p>
+     <p>La suscripción es mensual y se renueva automáticamente. El Usuario puede cancelarla en cualquier momento desde la sección "Ajustes" de la plataforma.</p>
+-    <p>Zentric se reserva el derecho de modificar los precios con un preaviso mínimo de 30 días comunicado por correo electrónico.</p>
++    <p>Gestumio se reserva el derecho de modificar los precios con un preaviso mínimo de 30 días comunicado por correo electrónico.</p>
+ 
+     <h2>6. Cancelación y reembolsos</h2>
+-    <p>El Usuario puede cancelar su suscripción en cualquier momento. El servicio permanece activo hasta el fin del período abonado. No se realizan reembolsos proporcionales por días no utilizados, salvo que medie un error imputable a Zentric que haya impedido el uso del servicio.</p>
++    <p>El Usuario puede cancelar su suscripción en cualquier momento. El servicio permanece activo hasta el fin del período abonado. No se realizan reembolsos proporcionales por días no utilizados, salvo que medie un error imputable a Gestumio que haya impedido el uso del servicio.</p>
+ 
+     <h2>7. Obligaciones del Usuario</h2>
+     <ul>
+@@ -65,28 +65,28 @@
+     </ul>
+ 
+     <h2>8. Disponibilidad y mantenimiento</h2>
+-    <p>Zentric procura una disponibilidad del servicio del 99% mensual. Se exceptúan las interrupciones por mantenimiento programado (notificado con anticipación) y causas de fuerza mayor. No se garantiza disponibilidad ininterrumpida.</p>
++    <p>Gestumio procura una disponibilidad del servicio del 99% mensual. Se exceptúan las interrupciones por mantenimiento programado (notificado con anticipación) y causas de fuerza mayor. No se garantiza disponibilidad ininterrumpida.</p>
+ 
+     <h2>9. Limitación de responsabilidad</h2>
+-    <p>Zentric no será responsable por pérdidas de datos derivadas de errores del Usuario, por lucro cesante, ni por daños indirectos. La responsabilidad máxima del Proveedor frente al Cliente estará limitada al monto abonado por el último mes de suscripción.</p>
++    <p>Gestumio no será responsable por pérdidas de datos derivadas de errores del Usuario, por lucro cesante, ni por daños indirectos. La responsabilidad máxima del Proveedor frente al Cliente estará limitada al monto abonado por el último mes de suscripción.</p>
+     <p>El Usuario es responsable de realizar copias de seguridad de la información crítica de su negocio.</p>
+ 
+     <h2>10. Propiedad intelectual</h2>
+-    <p>El software, diseño, marca y contenidos de Zentric son propiedad exclusiva de Braian Ferrari. El Usuario recibe una licencia de uso no exclusiva, intransferible y revocable, limitada al uso normal de la plataforma.</p>
+-    <p>Los datos ingresados por el Usuario (clientes, pagos, turnos, etc.) son de su exclusiva propiedad. Zentric no los utiliza con fines distintos a la prestación del servicio.</p>
++    <p>El software, diseño, marca y contenidos de Gestumio son propiedad exclusiva de Braian Ferrari. El Usuario recibe una licencia de uso no exclusiva, intransferible y revocable, limitada al uso normal de la plataforma.</p>
++    <p>Los datos ingresados por el Usuario (clientes, pagos, turnos, etc.) son de su exclusiva propiedad. Gestumio no los utiliza con fines distintos a la prestación del servicio.</p>
+ 
+     <h2>11. Modificaciones</h2>
+-    <p>Zentric puede modificar estos Términos notificando al Usuario con al menos 15 días de anticipación por correo electrónico. El uso continuado del servicio tras la modificación implica la aceptación de los nuevos términos.</p>
++    <p>Gestumio puede modificar estos Términos notificando al Usuario con al menos 15 días de anticipación por correo electrónico. El uso continuado del servicio tras la modificación implica la aceptación de los nuevos términos.</p>
+ 
+     <h2>12. Ley aplicable y jurisdicción</h2>
+     <p>Este contrato se rige por las leyes de la <strong>República Argentina</strong>, en particular la Ley 24.240 de Defensa del Consumidor y la Ley 25.326 de Protección de Datos Personales. Ante cualquier controversia, las partes se someten a la jurisdicción de los tribunales ordinarios de la Ciudad Autónoma de Buenos Aires, renunciando a cualquier otro fuero.</p>
+ 
+     <h2>13. Contacto</h2>
+-    <p>Para consultas sobre estos términos: <a href="mailto:contacto@zentric.app">contacto@zentric.app</a></p>
++    <p>Para consultas sobre estos términos: <a href="mailto:contacto@gestumio.app">contacto@gestumio.app</a></p>
+   </div>
+ 
+   <footer>
+-    © 2026 Zentric · Braian Ferrari · <a href="privacidad.html">Política de Privacidad</a>
++    © 2026 Gestumio · Braian Ferrari · <a href="privacidad.html">Política de Privacidad</a>
+   </footer>
+ </body>
+ </html>
+diff --git a/zentric-landing.html b/zentric-landing.html
+index 6363c1f..882d0c5 100755
+--- a/zentric-landing.html
++++ b/zentric-landing.html
+@@ -3,9 +3,9 @@
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cline x1='11' y1='14' x2='37' y2='14' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='37' y1='14' x2='11' y2='34' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3Cline x1='11' y1='34' x2='37' y2='34' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
+-  <title>Zentric — Gestioná tu negocio sin complicaciones</title>
+-  <meta name="description" content="Zentric es el CRM para pequeños negocios y profesionales. Clientes, turnos, cobros y más, en un solo lugar." />
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='11' fill='%233D5A4C'/%3E%3Cpath d='M31.8 16.2 A11 11 0 1 0 34.5 27.4' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M34.5 27.4 H27' fill='none' stroke='%23E8674A' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
++  <title>Gestumio — Gestioná tu negocio sin complicaciones</title>
++  <meta name="description" content="Gestumio es el CRM para pequeños negocios y profesionales. Clientes, turnos, cobros y más, en un solo lugar." />
+   <link rel="preconnect" href="https://fonts.googleapis.com" />
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+   <style>
+@@ -257,11 +257,10 @@
+     <a href="#" class="logo">
+       <svg width="32" height="32" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+         <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-        <line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+-        <line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/>
++        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
++        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+       </svg>
+-      <div class="logo-text"><span>z</span><span>entric</span></div>
++      <div class="logo-text"><span>G</span><span>estumio</span></div>
+     </a>
+     <div class="nav-links">
+       <a href="#funciones" class="btn btn-ghost">Funciones</a>
+@@ -280,7 +279,7 @@
+       <h1>Gestioná tu negocio <em>sin complicaciones</em></h1>
+       <p>Clientes, turnos, cobros, empleados y reportes en un solo lugar. Sin planillas, sin papeles, sin dolores de cabeza.</p>
+       <div class="hero-ctas">
+-        <a href="https://wa.me/5491176353062?text=Hola%2C%20quiero%20suscribirme%20a%20Zentric" target="_blank" class="btn btn-accent btn-lg">Empezar ahora →</a>
++        <a href="https://wa.me/5491176353062?text=Hola%2C%20quiero%20suscribirme%20a%20Gestumio" target="_blank" class="btn btn-accent btn-lg">Empezar ahora →</a>
+         <a href="https://crm-app-production-0669.up.railway.app/login" class="btn btn-outline btn-lg">Iniciar sesión</a>
+       </div>
+     </div>
+@@ -291,7 +290,7 @@
+         <div class="mock-dot" style="background:#ef4444"></div>
+         <div class="mock-dot" style="background:#f59e0b"></div>
+         <div class="mock-dot" style="background:#10b981"></div>
+-        <span style="font-size:12px;color:#9ca3af;margin-left:8px">zentric.app</span>
++        <span style="font-size:12px;color:#9ca3af;margin-left:8px">gestumio.app</span>
+       </div>
+       <div class="mock-stat-grid">
+         <div class="mock-stat">
+@@ -343,7 +342,7 @@
+ <section class="features" id="funciones">
+   <div class="section-label">Funciones</div>
+   <div class="section-title">Todo lo que necesitás,<br>nada de lo que no</div>
+-  <div class="section-sub">Zentric reemplaza las planillas, las agendas en papel y los grupos de WhatsApp para cobrar.</div>
++  <div class="section-sub">Gestumio reemplaza las planillas, las agendas en papel y los grupos de WhatsApp para cobrar.</div>
+ 
+   <div class="features-grid">
+     <div class="feature-card">
+@@ -374,7 +373,7 @@
+     <div class="feature-card">
+       <div class="feature-icon" style="background:#ecfdf5">⚙️</div>
+       <h3>Multi-rubro</h3>
+-      <p>Peluquería, veterinaria, gimnasio, estudio contable, plomero — Zentric se adapta a cualquier tipo de negocio.</p>
++      <p>Peluquería, veterinaria, gimnasio, estudio contable, plomero — Gestumio se adapta a cualquier tipo de negocio.</p>
+     </div>
+   </div>
+ </section>
+@@ -388,7 +387,7 @@
+ 
+   <div class="pricing-card">
+     <div class="pricing-badge">⭐ Plan Completo</div>
+-    <div class="pricing-name">Acceso total a Zentric</div>
++    <div class="pricing-name">Acceso total a Gestumio</div>
+     <div class="pricing-price"><sup>$</sup>75.000</div>
+     <div class="pricing-period">pesos argentinos / mes · IVA incluido</div>
+     <ul class="pricing-features">
+@@ -401,7 +400,7 @@
+       <li>Acceso desde celular y computadora</li>
+       <li>Soporte por WhatsApp</li>
+     </ul>
+-    <a href="https://wa.me/5491176353062?text=Hola%2C%20quiero%20suscribirme%20a%20Zentric" target="_blank" class="btn btn-accent btn-lg" style="width:100%;justify-content:center">Empezar ahora →</a>
++    <a href="https://wa.me/5491176353062?text=Hola%2C%20quiero%20suscribirme%20a%20Gestumio" target="_blank" class="btn btn-accent btn-lg" style="width:100%;justify-content:center">Empezar ahora →</a>
+     <p class="pricing-note">Probalo sin compromiso. Cancelás cuando quieras.</p>
+   </div>
+ </section>
+@@ -439,8 +438,8 @@
+   <h2>¿Listo para ordenar tu negocio?</h2>
+   <p>Probalo sin compromiso. Si tenés dudas, escribinos y te ayudamos a configurarlo.</p>
+   <div class="cta-btns">
+-    <a href="https://wa.me/5491176353062?text=Hola%2C%20quiero%20suscribirme%20a%20Zentric" target="_blank" class="btn btn-accent btn-lg">Contactanos →</a>
+-    <a href="mailto:contacto@zentric.app" class="btn btn-outline btn-lg">Contactar</a>
++    <a href="https://wa.me/5491176353062?text=Hola%2C%20quiero%20suscribirme%20a%20Gestumio" target="_blank" class="btn btn-accent btn-lg">Contactanos →</a>
++    <a href="mailto:contacto@gestumio.app" class="btn btn-outline btn-lg">Contactar</a>
+   </div>
+ </section>
+ 
+@@ -452,7 +451,7 @@
+       <div style="font-size:48px;margin-bottom:12px;">📖</div>
+       <h2 style="font-size:28px;font-weight:700;color:#3D5A4C;margin-bottom:8px;">Manual de usuario <span style="font-size:13px;background:#3D5A4C;color:#A8D5B5;border-radius:8px;padding:2px 10px;margin-left:8px;vertical-align:middle;">v2.0</span></h2>
+       <p style="color:#6B7280;font-size:16px;margin-bottom:28px;">Guía completa actualizada: WhatsApp automático, permisos granulares por acción, módulos configurables, agenda de turnos y más.</p>
+-      <a href="manual-zentric.pdf" download="Manual-Zentric.pdf"
++      <a href="manual-zentric.pdf" download="Manual-Gestumio.pdf"
+          style="display:inline-flex;align-items:center;gap:10px;background:#3D5A4C;color:#fff;font-weight:600;font-size:16px;padding:14px 32px;border-radius:10px;text-decoration:none;">
+         ⬇ Descargar Manual PDF
+       </a>
+@@ -464,17 +463,16 @@
+     <a href="#" class="logo">
+       <svg width="24" height="24" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+         <rect width="48" height="48" rx="11" fill="#3D5A4C"/>
+-        <line x1="11" y1="14" x2="37" y2="14" stroke="white" stroke-width="5" stroke-linecap="round"/>
+-        <line x1="37" y1="14" x2="11" y2="34" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+-        <line x1="11" y1="34" x2="37" y2="34" stroke="white" stroke-width="5" stroke-linecap="round"/>
++        <path d="M31.8 16.2 A11 11 0 1 0 34.5 27.4" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
++        <path d="M34.5 27.4 H27" fill="none" stroke="#E8674A" stroke-width="5" stroke-linecap="round"/>
+       </svg>
+-      <div class="logo-text" style="font-size:17px"><span>z</span><span>entric</span></div>
++      <div class="logo-text" style="font-size:17px"><span>G</span><span>estumio</span></div>
+     </a>
+-    <p>© 2026 Zentric. Todos los derechos reservados.</p>
++    <p>© 2026 Gestumio. Todos los derechos reservados.</p>
+     <div class="footer-links">
+       <a href="https://crm-app-production-0669.up.railway.app/login">Iniciar sesión</a>
+       <a href="https://crm-app-production-0669.up.railway.app/registro">Registrarse</a>
+-      <a href="mailto:contacto@zentric.app">Contacto</a>
++      <a href="mailto:contacto@gestumio.app">Contacto</a>
+       <a href="terminos.html">Términos y condiciones</a>
+       <a href="privacidad.html">Política de privacidad</a>
+     </div>
