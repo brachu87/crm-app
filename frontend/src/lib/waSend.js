@@ -1,6 +1,6 @@
 import api from '../api/client';
 
-function flash(msg, ok = true) {
+export function flash(msg, ok = true) {
   try {
     const el = document.createElement('div');
     el.textContent = msg;

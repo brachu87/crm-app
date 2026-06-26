@@ -10,7 +10,14 @@ router.get('/', auth, async (req, res) => {
     const where = { businessId: req.user.businessId, active: true };
     if (branchId) where.branchId = branchId;
     if (activityId) where.activityId = activityId;
-    if (employeeId) where.employeeId = employeeId;
+    if (employeeId) {
+      // Horarios del empleado: asignados directamente al horario, o de actividades
+      // donde el empleado está asignado (checkbox) y el horario quedó sin asignar.
+      where.OR = [
+        { employeeId },
+        { employeeId: null, activity: { activityEmployees: { some: { employeeId } } } },
+      ];
+    }
     const schedules = await prisma.classSchedule.findMany({
       where,
       include: {

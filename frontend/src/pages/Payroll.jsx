@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/client';
-import { sendWA } from '../lib/waSend';
+import { sendWA, flash } from '../lib/waSend';
 import { useAuth } from '../context/AuthContext';
 import { useSectionPerms } from '../config/permissions';
 
@@ -95,26 +95,49 @@ function printReceipt(r, businessName) {
   setTimeout(() => w.print(), 500);
 }
 
-function sendWhatsApp(r, businessName) {
+async function sendWhatsApp(r, businessName) {
   const emp = r.employee;
   const from = new Date(r.periodStart).toLocaleDateString('es-AR');
   const to = new Date(r.periodEnd).toLocaleDateString('es-AR');
-  const lines = [
-    `🏢 *${businessName || 'Mi Negocio'}*`,
-    `📋 *Recibo de Haberes*`,
-    ``,
-    `👤 Empleado: *${emp?.name || ''}*`,
-    `📅 Período: ${from} al ${to}`,
-    `⏱ Tipo de pago: ${r.payType === 'hourly' ? 'Por hora' : 'Sueldo fijo'}`,
-    r.payType === 'hourly' ? `🕐 Horas: ${r.totalHours.toFixed(1)} h × ${fmtMoney(r.payRate)}/h` : `💰 Sueldo fijo: ${fmtMoney(r.payRate)}`,
-    ``,
-    `💵 *TOTAL: ${fmtMoney(r.totalAmount)}*`,
-    `✅ Estado: ${r.status === 'paid' ? 'Pagado' : 'Pendiente'}`,
-    r.notes ? `\n📝 ${r.notes}` : '',
-  ].filter(l => l !== null && l !== undefined).join('\n');
-
   const phone = (emp?.phone || '').replace(/\D/g, '');
-  sendWA(phone, lines);
+  const rows = [
+    { label: 'Período', value: `${from} al ${to}` },
+    { label: 'Tipo de pago', value: r.payType === 'hourly' ? 'Por hora' : 'Sueldo fijo' },
+    { label: 'Tarifa', value: r.payType === 'hourly' ? `${fmtMoney(r.payRate)}/h` : fmtMoney(r.payRate) },
+  ];
+  if (r.payType === 'hourly') rows.push({ label: 'Horas trabajadas', value: `${r.totalHours.toFixed(1)} h` });
+  if (r.paidAt) rows.push({ label: 'Fecha de pago', value: new Date(r.paidAt).toLocaleDateString('es-AR') });
+  const payroll = {
+    businessName: businessName || 'Mi negocio',
+    fecha: new Date().toLocaleDateString('es-AR'),
+    employeeName: emp?.name || '',
+    employeeRole: emp?.role || '',
+    estado: r.status === 'paid' ? 'Pagado' : 'Pendiente',
+    rows,
+    total: fmtMoney(r.totalAmount),
+    notes: r.notes || '',
+  };
+  const caption = `Recibo de haberes de ${emp?.name || ''} — ${businessName || ''}`;
+  try {
+    await api.post('/whatsapp/send-payroll', { phone, payroll, caption });
+    flash('✅ Recibo de haberes enviado por WhatsApp (PDF)');
+  } catch (err) {
+    // Fallback: texto + wa.me si WhatsApp no está conectado
+    const lines = [
+      `🏢 *${businessName || 'Mi Negocio'}*`,
+      `📋 *Recibo de Haberes*`,
+      ``,
+      `👤 Empleado: *${emp?.name || ''}*`,
+      `📅 Período: ${from} al ${to}`,
+      `⏱ Tipo de pago: ${r.payType === 'hourly' ? 'Por hora' : 'Sueldo fijo'}`,
+      r.payType === 'hourly' ? `🕐 Horas: ${r.totalHours.toFixed(1)} h × ${fmtMoney(r.payRate)}/h` : `💰 Sueldo fijo: ${fmtMoney(r.payRate)}`,
+      ``,
+      `💵 *TOTAL: ${fmtMoney(r.totalAmount)}*`,
+      `✅ Estado: ${r.status === 'paid' ? 'Pagado' : 'Pendiente'}`,
+      r.notes ? `\n📝 ${r.notes}` : '',
+    ].filter(l => l !== null && l !== undefined).join('\n');
+    sendWA(phone, lines);
+  }
 }
 
 export default function Payroll() {

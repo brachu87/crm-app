@@ -4,7 +4,7 @@ const authMiddleware = require('../middleware/auth');
 const path = require('path');
 const fs = require('fs');
 const { getState, getQR, sendMessage, sendDocument, logout, initWhatsApp } = require('../lib/whatsappBaileys');
-const { generateReceiptPdf } = require('../lib/receiptPdf');
+const { generateReceiptPdf, generatePayrollPdf } = require('../lib/receiptPdf');
 const PHOTOS_DIR = process.env.PHOTOS_DIR
   || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
 const prisma = require('../prisma');
@@ -86,6 +86,24 @@ router.post('/send-receipt', async (req, res) => {
     res.json({ ok: true, to: result.to });
   } catch (err) {
     console.error('[send-receipt]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/whatsapp/send-payroll — genera el PDF del recibo de haberes y lo envía
+router.post('/send-payroll', async (req, res) => {
+  const { phone, payroll, caption } = req.body;
+  if (!phone || !payroll) return res.status(400).json({ error: 'phone y payroll son requeridos' });
+  const { state } = getState(req.user.businessId);
+  if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
+  try {
+    const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+    const pdf = await generatePayrollPdf({ ...payroll, logoPath });
+    const safe = String(payroll.employeeName || 'empleado').replace(/[^\w-]/g, '').slice(0, 30) || 'haberes';
+    const result = await sendDocument(req.user.businessId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`);
+    res.json({ ok: true, to: result.to });
+  } catch (err) {
+    console.error('[send-payroll]', err.message);
     res.status(500).json({ error: err.message });
   }
 });

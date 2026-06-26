@@ -132,9 +132,7 @@ function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
       if (isEdit) { saved = await api.put(`/activities/${activity.id}`, payload); }
       else { saved = await api.post('/activities', payload); }
       const actId = saved.data.id;
-      for (const empId of selectedEmployees) {
-        try { await api.post(`/activities/${actId}/employees`, { employeeId: empId }); } catch {}
-      }
+      try { await api.put(`/activities/${actId}/employees`, { employeeIds: selectedEmployees }); } catch {}
       const existingIds = isEdit ? (await api.get(`/schedules?activityId=${actId}`)).data.map(s => s.id) : [];
       await saveSchedules(actId, form.branchId, slots, existingIds);
       onSaved();

@@ -1,0 +1,245 @@
+diff --git a/backend/src/lib/receiptPdf.js b/backend/src/lib/receiptPdf.js
+index 9d0725b..9bb2bdc 100644
+--- a/backend/src/lib/receiptPdf.js
++++ b/backend/src/lib/receiptPdf.js
+@@ -94,4 +94,76 @@ function generateReceiptPdf(data = {}) {
+   });
+ }
+ 
+-module.exports = { generateReceiptPdf };
++/**
++ * Genera el PDF del recibo de haberes (liquidación) y devuelve un Buffer.
++ * data: { businessName, logoPath, fecha, employeeName, employeeRole, estado,
++ *         rows: [{label,value}], total, notes }
++ */
++function generatePayrollPdf(data = {}) {
++  return new Promise((resolve, reject) => {
++    try {
++      const doc = new PDFDocument({ size: 'A4', margin: 48 });
++      const chunks = [];
++      doc.on('data', (c) => chunks.push(c));
++      doc.on('end', () => resolve(Buffer.concat(chunks)));
++      doc.on('error', reject);
++
++      const PRIMARY = '#1BA84C', GREY = '#6b7280', LIGHT = '#9ca3af', INK = '#1E2A38';
++      const left = doc.page.margins.left;
++      const right = doc.page.width - doc.page.margins.right;
++      const contentW = right - left;
++
++      const headerTop = doc.y;
++      let textX = left;
++      if (data.logoPath && fs.existsSync(data.logoPath)) {
++        try { doc.image(data.logoPath, left, headerTop, { fit: [56, 56] }); textX = left + 68; } catch (_) {}
++      }
++      doc.font('Helvetica-Bold').fontSize(18).fillColor('#111111').text(data.businessName || 'Mi negocio', textX, headerTop + 4, { width: 300 });
++      doc.font('Helvetica').fontSize(12).fillColor(GREY).text('Recibo de Haberes', textX, doc.y + 2, { width: 300 });
++      doc.font('Helvetica').fontSize(11).fillColor(GREY).text('Emitido: ' + (data.fecha || ''), left, headerTop + 2, { width: contentW, align: 'right' });
++
++      let y = Math.max(doc.y, headerTop + 78) + 6;
++      doc.moveTo(left, y).lineTo(right, y).lineWidth(2).strokeColor('#e5e7eb').stroke();
++      doc.y = y + 14;
++
++      const empY = doc.y;
++      doc.font('Helvetica-Bold').fontSize(15).fillColor(INK).text(data.employeeName || '', left, empY, { width: 320 });
++      if (data.employeeRole) doc.font('Helvetica').fontSize(12).fillColor(GREY).text(data.employeeRole, left, doc.y + 1, { width: 320 });
++      doc.font('Helvetica-Bold').fontSize(11).fillColor(data.estado === 'Pagado' ? '#065f46' : '#92400e')
++        .text(String(data.estado || '').toUpperCase(), left, empY, { width: contentW, align: 'right' });
++      doc.moveDown(0.8);
++
++      function row(label, value) {
++        const yy = doc.y;
++        doc.font('Helvetica').fontSize(12).fillColor(GREY).text(label, left, yy, { width: 220 });
++        doc.font('Helvetica').fontSize(12).fillColor('#111111').text(value == null || value === '' ? '-' : String(value), left + 220, yy, { width: contentW - 220, align: 'right' });
++        doc.y = Math.max(doc.y, yy) + 6;
++        doc.moveTo(left, doc.y).lineTo(right, doc.y).lineWidth(0.5).strokeColor('#f3f4f6').stroke();
++        doc.y += 6;
++      }
++      (data.rows || []).forEach((r) => row(r.label, r.value));
++
++      const ty = doc.y + 6;
++      doc.font('Helvetica-Bold').fontSize(16).fillColor('#111111').text('TOTAL A PAGAR', left, ty, { width: 260 });
++      doc.font('Helvetica-Bold').fontSize(16).fillColor(PRIMARY).text(data.total || '', left + 260, ty, { width: contentW - 260, align: 'right' });
++      doc.y = ty + 26;
++
++      if (data.notes) doc.font('Helvetica').fontSize(11).fillColor(GREY).text('Notas: ' + data.notes, left, doc.y + 4, { width: contentW });
++
++      const sy = doc.y + 46;
++      const colW = (contentW - 40) / 2;
++      doc.moveTo(left, sy).lineTo(left + colW, sy).lineWidth(0.5).strokeColor('#9ca3af').stroke();
++      doc.moveTo(left + colW + 40, sy).lineTo(right, sy).lineWidth(0.5).strokeColor('#9ca3af').stroke();
++      doc.font('Helvetica').fontSize(10).fillColor(GREY)
++        .text('Empleador', left, sy + 6, { width: colW, align: 'center' })
++        .text('Empleado / Recibí conforme', left + colW + 40, sy + 6, { width: colW, align: 'center' });
++
++      doc.font('Helvetica').fontSize(10).fillColor(LIGHT)
++        .text('Recibo generado digitalmente · ' + (data.businessName || ''), left, doc.page.height - 70, { width: contentW, align: 'center' });
++
++      doc.end();
++    } catch (e) { reject(e); }
++  });
++}
++
++module.exports = { generateReceiptPdf, generatePayrollPdf };
+diff --git a/backend/src/routes/schedules.js b/backend/src/routes/schedules.js
+index 21d60a2..471b40a 100644
+--- a/backend/src/routes/schedules.js
++++ b/backend/src/routes/schedules.js
+@@ -10,7 +10,14 @@ router.get('/', auth, async (req, res) => {
+     const where = { businessId: req.user.businessId, active: true };
+     if (branchId) where.branchId = branchId;
+     if (activityId) where.activityId = activityId;
+-    if (employeeId) where.employeeId = employeeId;
++    if (employeeId) {
++      // Horarios del empleado: asignados directamente al horario, o de actividades
++      // donde el empleado está asignado (checkbox) y el horario quedó sin asignar.
++      where.OR = [
++        { employeeId },
++        { employeeId: null, activity: { activityEmployees: { some: { employeeId } } } },
++      ];
++    }
+     const schedules = await prisma.classSchedule.findMany({
+       where,
+       include: {
+diff --git a/backend/src/routes/whatsapp.js b/backend/src/routes/whatsapp.js
+index 6c3ee5a..b28910d 100644
+--- a/backend/src/routes/whatsapp.js
++++ b/backend/src/routes/whatsapp.js
+@@ -4,7 +4,7 @@ const authMiddleware = require('../middleware/auth');
+ const path = require('path');
+ const fs = require('fs');
+ const { getState, getQR, sendMessage, sendDocument, logout, initWhatsApp } = require('../lib/whatsappBaileys');
+-const { generateReceiptPdf } = require('../lib/receiptPdf');
++const { generateReceiptPdf, generatePayrollPdf } = require('../lib/receiptPdf');
+ const PHOTOS_DIR = process.env.PHOTOS_DIR
+   || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
+ const prisma = require('../prisma');
+@@ -90,6 +90,24 @@ router.post('/send-receipt', async (req, res) => {
+   }
+ });
+ 
++// POST /api/whatsapp/send-payroll — genera el PDF del recibo de haberes y lo envía
++router.post('/send-payroll', async (req, res) => {
++  const { phone, payroll, caption } = req.body;
++  if (!phone || !payroll) return res.status(400).json({ error: 'phone y payroll son requeridos' });
++  const { state } = getState(req.user.businessId);
++  if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
++  try {
++    const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
++    const pdf = await generatePayrollPdf({ ...payroll, logoPath });
++    const safe = String(payroll.employeeName || 'empleado').replace(/[^\w-]/g, '').slice(0, 30) || 'haberes';
++    const result = await sendDocument(req.user.businessId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`);
++    res.json({ ok: true, to: result.to });
++  } catch (err) {
++    console.error('[send-payroll]', err.message);
++    res.status(500).json({ error: err.message });
++  }
++});
++
+ // POST /api/whatsapp/run-reminders  — disparar cron manualmente
+ router.post('/run-reminders', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+diff --git a/frontend/src/lib/waSend.js b/frontend/src/lib/waSend.js
+index 06470c2..b763da7 100644
+--- a/frontend/src/lib/waSend.js
++++ b/frontend/src/lib/waSend.js
+@@ -1,6 +1,6 @@
+ import api from '../api/client';
+ 
+-function flash(msg, ok = true) {
++export function flash(msg, ok = true) {
+   try {
+     const el = document.createElement('div');
+     el.textContent = msg;
+diff --git a/frontend/src/pages/Activities.jsx b/frontend/src/pages/Activities.jsx
+index 7139a0c..ee70f95 100644
+--- a/frontend/src/pages/Activities.jsx
++++ b/frontend/src/pages/Activities.jsx
+@@ -132,9 +132,7 @@ function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
+       if (isEdit) { saved = await api.put(`/activities/${activity.id}`, payload); }
+       else { saved = await api.post('/activities', payload); }
+       const actId = saved.data.id;
+-      for (const empId of selectedEmployees) {
+-        try { await api.post(`/activities/${actId}/employees`, { employeeId: empId }); } catch {}
+-      }
++      try { await api.put(`/activities/${actId}/employees`, { employeeIds: selectedEmployees }); } catch {}
+       const existingIds = isEdit ? (await api.get(`/schedules?activityId=${actId}`)).data.map(s => s.id) : [];
+       await saveSchedules(actId, form.branchId, slots, existingIds);
+       onSaved();
+diff --git a/frontend/src/pages/Payroll.jsx b/frontend/src/pages/Payroll.jsx
+index 7997d1c..1572f7b 100644
+--- a/frontend/src/pages/Payroll.jsx
++++ b/frontend/src/pages/Payroll.jsx
+@@ -1,6 +1,6 @@
+ import { useState, useEffect } from 'react';
+ import api from '../api/client';
+-import { sendWA } from '../lib/waSend';
++import { sendWA, flash } from '../lib/waSend';
+ import { useAuth } from '../context/AuthContext';
+ import { useSectionPerms } from '../config/permissions';
+ 
+@@ -95,26 +95,49 @@ function printReceipt(r, businessName) {
+   setTimeout(() => w.print(), 500);
+ }
+ 
+-function sendWhatsApp(r, businessName) {
++async function sendWhatsApp(r, businessName) {
+   const emp = r.employee;
+   const from = new Date(r.periodStart).toLocaleDateString('es-AR');
+   const to = new Date(r.periodEnd).toLocaleDateString('es-AR');
+-  const lines = [
+-    `🏢 *${businessName || 'Mi Negocio'}*`,
+-    `📋 *Recibo de Haberes*`,
+-    ``,
+-    `👤 Empleado: *${emp?.name || ''}*`,
+-    `📅 Período: ${from} al ${to}`,
+-    `⏱ Tipo de pago: ${r.payType === 'hourly' ? 'Por hora' : 'Sueldo fijo'}`,
+-    r.payType === 'hourly' ? `🕐 Horas: ${r.totalHours.toFixed(1)} h × ${fmtMoney(r.payRate)}/h` : `💰 Sueldo fijo: ${fmtMoney(r.payRate)}`,
+-    ``,
+-    `💵 *TOTAL: ${fmtMoney(r.totalAmount)}*`,
+-    `✅ Estado: ${r.status === 'paid' ? 'Pagado' : 'Pendiente'}`,
+-    r.notes ? `\n📝 ${r.notes}` : '',
+-  ].filter(l => l !== null && l !== undefined).join('\n');
+-
+   const phone = (emp?.phone || '').replace(/\D/g, '');
+-  sendWA(phone, lines);
++  const rows = [
++    { label: 'Período', value: `${from} al ${to}` },
++    { label: 'Tipo de pago', value: r.payType === 'hourly' ? 'Por hora' : 'Sueldo fijo' },
++    { label: 'Tarifa', value: r.payType === 'hourly' ? `${fmtMoney(r.payRate)}/h` : fmtMoney(r.payRate) },
++  ];
++  if (r.payType === 'hourly') rows.push({ label: 'Horas trabajadas', value: `${r.totalHours.toFixed(1)} h` });
++  if (r.paidAt) rows.push({ label: 'Fecha de pago', value: new Date(r.paidAt).toLocaleDateString('es-AR') });
++  const payroll = {
++    businessName: businessName || 'Mi negocio',
++    fecha: new Date().toLocaleDateString('es-AR'),
++    employeeName: emp?.name || '',
++    employeeRole: emp?.role || '',
++    estado: r.status === 'paid' ? 'Pagado' : 'Pendiente',
++    rows,
++    total: fmtMoney(r.totalAmount),
++    notes: r.notes || '',
++  };
++  const caption = `Recibo de haberes de ${emp?.name || ''} — ${businessName || ''}`;
++  try {
++    await api.post('/whatsapp/send-payroll', { phone, payroll, caption });
++    flash('✅ Recibo de haberes enviado por WhatsApp (PDF)');
++  } catch (err) {
++    // Fallback: texto + wa.me si WhatsApp no está conectado
++    const lines = [
++      `🏢 *${businessName || 'Mi Negocio'}*`,
++      `📋 *Recibo de Haberes*`,
++      ``,
++      `👤 Empleado: *${emp?.name || ''}*`,
++      `📅 Período: ${from} al ${to}`,
++      `⏱ Tipo de pago: ${r.payType === 'hourly' ? 'Por hora' : 'Sueldo fijo'}`,
++      r.payType === 'hourly' ? `🕐 Horas: ${r.totalHours.toFixed(1)} h × ${fmtMoney(r.payRate)}/h` : `💰 Sueldo fijo: ${fmtMoney(r.payRate)}`,
++      ``,
++      `💵 *TOTAL: ${fmtMoney(r.totalAmount)}*`,
++      `✅ Estado: ${r.status === 'paid' ? 'Pagado' : 'Pendiente'}`,
++      r.notes ? `\n📝 ${r.notes}` : '',
++    ].filter(l => l !== null && l !== undefined).join('\n');
++    sendWA(phone, lines);
++  }
+ }
+ 
+ export default function Payroll() {
