@@ -1,5 +1,4 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import OnboardingWizard from './OnboardingWizard';
 import ChatBot from './ChatBot';
 import AuthImage from './AuthImage';
 import { useAuth } from '../context/AuthContext';
@@ -83,10 +82,6 @@ export default function Layout() {
     .map(g => ({ ...g, links: g.links.filter(l => isModuleOn(l.module)) }))
     .filter(g => g.links.length > 0);
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    if (!business?.id) return false;
-    return !localStorage.getItem(`zentric_onboarding_done_${business.id}`);
-  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoTs] = useState(Date.now());
   const [logoOk, setLogoOk] = useState(true);
@@ -357,12 +352,6 @@ export default function Layout() {
       </aside>
 
       <main className="main">
-        {showOnboarding && (
-        <OnboardingWizard onComplete={() => {
-          localStorage.setItem(`zentric_onboarding_done_${business?.id}`, '1');
-          setShowOnboarding(false);
-        }} />
-      )}
       <Outlet />
       <ChatBot />
       </main>

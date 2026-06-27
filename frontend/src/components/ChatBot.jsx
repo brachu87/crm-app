@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import api from '../api/client';
 
 // ── FAQ completo ─────────────────────────────────────────────────────────────
 const FAQ = [
@@ -414,14 +415,25 @@ export default function ChatBot() {
     }
   }, [open, messages]);
 
-  function sendMessage(text) {
+  async function sendMessage(text) {
     const userMsg = (text || input).trim();
     if (!userMsg) return;
     setInput('');
-    setMessages(m => [...m, { from: 'user', text: userMsg }]);
+    const updated = [...messages, { from: 'user', text: userMsg }];
+    setMessages(updated);
     setTyping(true);
 
-    setTimeout(() => {
+    try {
+      const history = updated
+        .filter(m => m.text)
+        .slice(-10)
+        .map(m => ({ role: m.from === 'user' ? 'user' : 'assistant', content: m.text }));
+      const r = await api.post('/support/chat', { messages: history });
+      setTyping(false);
+      setMessages(m => [...m, { from: 'bot', text: r.data.reply, showMenu: true }]);
+      if (!open) setUnread(u => u + 1);
+    } catch (err) {
+      // Respaldo: FAQ por palabras clave (si la IA no está configurada o falla)
       const match = findAnswer(userMsg);
       const response = match
         ? match.a
@@ -429,7 +441,7 @@ export default function ChatBot() {
       setTyping(false);
       setMessages(m => [...m, { from: 'bot', text: response, showMenu: true }]);
       if (!open) setUnread(u => u + 1);
-    }, 600);
+    }
   }
 
   function handleKey(e) {

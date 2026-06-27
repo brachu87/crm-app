@@ -37,6 +37,7 @@ const billingRoutes = require('./routes/billing');
 const pricesRoutes = require('./routes/prices');
 const whatsappRoutes = require('./routes/whatsapp');
 const googleCalendarRoutes = require('./routes/google-calendar');
+const supportRoutes = require('./routes/support');
 const { startReminderCron } = require('./lib/reminderCron');
 const { restoreSessions } = require('./lib/whatsappBaileys');
 
@@ -175,6 +176,7 @@ app.use('/api/billing', billingRoutes);
 app.use('/api/prices', pricesRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/google-calendar', googleCalendarRoutes);
+app.use('/api/support', supportRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
