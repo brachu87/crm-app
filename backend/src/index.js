@@ -36,6 +36,7 @@ const appointmentsRoutes = require('./routes/appointments');
 const billingRoutes = require('./routes/billing');
 const pricesRoutes = require('./routes/prices');
 const whatsappRoutes = require('./routes/whatsapp');
+const googleCalendarRoutes = require('./routes/google-calendar');
 const { startReminderCron } = require('./lib/reminderCron');
 const { restoreSessions } = require('./lib/whatsappBaileys');
 
@@ -93,6 +94,7 @@ const PUBLIC_API_PATHS = [
   '/api/auth/',
   '/api/admin/',
   '/api/billing/webhook',
+  '/api/google-calendar/callback',
 ];
 app.use('/api/', (req, res, next) => {
   const fullPath = '/api' + req.path;
@@ -106,6 +108,7 @@ const SUBSCRIPTION_EXEMPT = [
   '/api/auth/',
   '/api/admin/',
   '/api/billing/',
+  '/api/google-calendar/',
 ];
 app.use('/api/', (req, res, next) => {
   const fullPath = '/api' + req.path;
@@ -153,6 +156,7 @@ app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/prices', pricesRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/google-calendar', googleCalendarRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {
@@ -308,6 +312,27 @@ async function ensureLastAccessAndBonificado() {
 }
 
 
+async function ensureGcalColumns() {
+  try {
+    const biz = await prisma.$queryRawUnsafe('PRAGMA table_info("Business")');
+    const bcols = biz.map((c) => c.name);
+    const addBiz = async (col, ddl) => { if (!bcols.includes(col)) await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN ${ddl}`); };
+    await addBiz('googleCalendarToken', '"googleCalendarToken" TEXT');
+    await addBiz('googleCalendarId', '"googleCalendarId" TEXT');
+    await addBiz('gcalSyncTurnos', '"gcalSyncTurnos" INTEGER NOT NULL DEFAULT 0');
+    await addBiz('gcalSyncAgenda', '"gcalSyncAgenda" INTEGER NOT NULL DEFAULT 0');
+    await addBiz('gcalSyncClases', '"gcalSyncClases" INTEGER NOT NULL DEFAULT 0');
+    for (const t of ['Appointment', 'Note', 'ClassSchedule']) {
+      const info = await prisma.$queryRawUnsafe(`PRAGMA table_info("${t}")`);
+      if (!info.map((c) => c.name).includes('gcalEventId')) {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "${t}" ADD COLUMN "gcalEventId" TEXT`);
+      }
+    }
+  } catch (err) {
+    console.error('[startup] ensureGcalColumns error:', err.message);
+  }
+}
+
 async function ensureWATemplateColumns() {
   try {
     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
@@ -369,6 +394,7 @@ ensureLastAccessAndBonificado();
 ensureSupplierIdOnExpense();
 sweepExpiredTrials();
 ensureWATemplateColumns();
+ensureGcalColumns();
 
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora

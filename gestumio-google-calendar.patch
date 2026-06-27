@@ -1,0 +1,640 @@
+diff --git a/backend/package.json b/backend/package.json
+index 7f5ddba..b2271c0 100644
+--- a/backend/package.json
++++ b/backend/package.json
+@@ -21,6 +21,7 @@
+     "express": "^5.2.1",
+     "express-rate-limit": "^8.5.2",
+     "google-auth-library": "^10.7.0",
++    "googleapis": "^173.0.0",
+     "helmet": "^8.2.0",
+     "jsonwebtoken": "^9.0.3",
+     "mercadopago": "^3.1.0",
+diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index 24509eb..783f649 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -18,6 +18,12 @@ model Business {
+   subscriptionExpires  DateTime?
+   bonificado           Boolean  @default(false)
+ 
++  googleCalendarToken  String?
++  googleCalendarId     String?
++  gcalSyncTurnos       Boolean  @default(false)
++  gcalSyncAgenda       Boolean  @default(false)
++  gcalSyncClases       Boolean  @default(false)
++
+   users      User[]
+   clients    Client[]
+   activities Activity[]
+@@ -188,6 +194,7 @@ model Note {
+   endAt      DateTime?
+   allDay     Boolean   @default(true)
+   color      String    @default("blue")
++  gcalEventId String?
+   businessId String
+   business   Business  @relation(fields: [businessId], references: [id])
+   createdAt  DateTime  @default(now())
+@@ -312,6 +319,7 @@ model ClassSchedule {
+   endTime     String
+   maxCapacity Int?
+   active      Boolean   @default(true)
++  gcalEventId String?
+   createdAt   DateTime  @default(now())
+ 
+   @@index([businessId])
+@@ -398,6 +406,7 @@ model Appointment {
+   paidAt        DateTime?
+   notes         String?
+   isQuickWork   Boolean   @default(false)
++  gcalEventId   String?
+   createdAt     DateTime  @default(now())
+   updatedAt     DateTime  @updatedAt
+ 
+diff --git a/backend/src/index.js b/backend/src/index.js
+index febe992..5ba50cc 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -36,6 +36,7 @@ const appointmentsRoutes = require('./routes/appointments');
+ const billingRoutes = require('./routes/billing');
+ const pricesRoutes = require('./routes/prices');
+ const whatsappRoutes = require('./routes/whatsapp');
++const googleCalendarRoutes = require('./routes/google-calendar');
+ const { startReminderCron } = require('./lib/reminderCron');
+ const { restoreSessions } = require('./lib/whatsappBaileys');
+ 
+@@ -93,6 +94,7 @@ const PUBLIC_API_PATHS = [
+   '/api/auth/',
+   '/api/admin/',
+   '/api/billing/webhook',
++  '/api/google-calendar/callback',
+ ];
+ app.use('/api/', (req, res, next) => {
+   const fullPath = '/api' + req.path;
+@@ -106,6 +108,7 @@ const SUBSCRIPTION_EXEMPT = [
+   '/api/auth/',
+   '/api/admin/',
+   '/api/billing/',
++  '/api/google-calendar/',
+ ];
+ app.use('/api/', (req, res, next) => {
+   const fullPath = '/api' + req.path;
+@@ -153,6 +156,7 @@ app.use('/api/appointments', appointmentsRoutes);
+ app.use('/api/billing', billingRoutes);
+ app.use('/api/prices', pricesRoutes);
+ app.use('/api/whatsapp', whatsappRoutes);
++app.use('/api/google-calendar', googleCalendarRoutes);
+ app.use('/api/clients/:id/account', accountMovementsRoutes);
+ 
+ app.get('/api/health', (req, res) => {
+@@ -308,6 +312,27 @@ async function ensureLastAccessAndBonificado() {
+ }
+ 
+ 
++async function ensureGcalColumns() {
++  try {
++    const biz = await prisma.$queryRawUnsafe('PRAGMA table_info("Business")');
++    const bcols = biz.map((c) => c.name);
++    const addBiz = async (col, ddl) => { if (!bcols.includes(col)) await prisma.$executeRawUnsafe(`ALTER TABLE "Business" ADD COLUMN ${ddl}`); };
++    await addBiz('googleCalendarToken', '"googleCalendarToken" TEXT');
++    await addBiz('googleCalendarId', '"googleCalendarId" TEXT');
++    await addBiz('gcalSyncTurnos', '"gcalSyncTurnos" INTEGER NOT NULL DEFAULT 0');
++    await addBiz('gcalSyncAgenda', '"gcalSyncAgenda" INTEGER NOT NULL DEFAULT 0');
++    await addBiz('gcalSyncClases', '"gcalSyncClases" INTEGER NOT NULL DEFAULT 0');
++    for (const t of ['Appointment', 'Note', 'ClassSchedule']) {
++      const info = await prisma.$queryRawUnsafe(`PRAGMA table_info("${t}")`);
++      if (!info.map((c) => c.name).includes('gcalEventId')) {
++        await prisma.$executeRawUnsafe(`ALTER TABLE "${t}" ADD COLUMN "gcalEventId" TEXT`);
++      }
++    }
++  } catch (err) {
++    console.error('[startup] ensureGcalColumns error:', err.message);
++  }
++}
++
+ async function ensureWATemplateColumns() {
+   try {
+     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
+@@ -369,6 +394,7 @@ ensureLastAccessAndBonificado();
+ ensureSupplierIdOnExpense();
+ sweepExpiredTrials();
+ ensureWATemplateColumns();
++ensureGcalColumns();
+ 
+ runOverdueSweep();
+ setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
+diff --git a/backend/src/lib/googleCalendar.js b/backend/src/lib/googleCalendar.js
+new file mode 100644
+index 0000000..a919990
+--- /dev/null
++++ b/backend/src/lib/googleCalendar.js
+@@ -0,0 +1,189 @@
++const { google } = require('googleapis');
++const prisma = require('../prisma');
++
++// Scope NO sensible: la app crea/gestiona un calendario propio ("Gestumio").
++const SCOPES = ['https://www.googleapis.com/auth/calendar.app.created'];
++const TZ = 'America/Argentina/Buenos_Aires';
++const DAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']; // dayOfWeek 0=Domingo
++
++function isConfigured() {
++  return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
++}
++
++function redirectUri() {
++  return process.env.GOOGLE_CALENDAR_REDIRECT_URI
++    || ((process.env.APP_URL || '').replace(/\/$/, '') + '/api/google-calendar/callback');
++}
++
++function oauthClient() {
++  return new google.auth.OAuth2(
++    process.env.GOOGLE_CLIENT_ID,
++    process.env.GOOGLE_CLIENT_SECRET,
++    redirectUri()
++  );
++}
++
++function authUrl(state) {
++  return oauthClient().generateAuthUrl({
++    access_type: 'offline',
++    prompt: 'consent',
++    scope: SCOPES,
++    state,
++  });
++}
++
++async function exchangeCode(code) {
++  const { tokens } = await oauthClient().getToken(code);
++  return tokens;
++}
++
++// Devuelve { cal, calendarId, biz } o null si el negocio no está conectado.
++async function getContext(businessId) {
++  if (!isConfigured()) return null;
++  const biz = await prisma.business.findUnique({ where: { id: businessId } });
++  if (!biz || !biz.googleCalendarToken) return null;
++  const oauth = oauthClient();
++  oauth.setCredentials(JSON.parse(biz.googleCalendarToken));
++  // Persistir tokens refrescados (nuevo access_token / refresh_token)
++  oauth.on('tokens', async (t) => {
++    try {
++      const prev = JSON.parse(biz.googleCalendarToken || '{}');
++      const merged = { ...prev, ...t };
++      await prisma.business.update({ where: { id: businessId }, data: { googleCalendarToken: JSON.stringify(merged) } });
++    } catch (_) {}
++  });
++  const cal = google.calendar({ version: 'v3', auth: oauth });
++  let calendarId = biz.googleCalendarId;
++  if (!calendarId) {
++    const created = await cal.calendars.insert({ requestBody: { summary: 'Gestumio', timeZone: TZ } });
++    calendarId = created.data.id;
++    await prisma.business.update({ where: { id: businessId }, data: { googleCalendarId: calendarId } });
++  }
++  return { cal, calendarId, biz };
++}
++
++async function ensureCalendar(businessId) {
++  const ctx = await getContext(businessId);
++  return ctx ? ctx.calendarId : null;
++}
++
++// requestBody: objeto de evento de Google. eventId opcional (update).
++async function upsert(ctx, eventId, requestBody) {
++  const { cal, calendarId } = ctx;
++  if (eventId) {
++    try {
++      const r = await cal.events.update({ calendarId, eventId, requestBody });
++      return r.data.id;
++    } catch (e) {
++      if (e.code === 404 || e.code === 410) {
++        const r = await cal.events.insert({ calendarId, requestBody });
++        return r.data.id;
++      }
++      throw e;
++    }
++  }
++  const r = await cal.events.insert({ calendarId, requestBody });
++  return r.data.id;
++}
++
++async function removeEvent(businessId, eventId) {
++  if (!eventId) return;
++  try {
++    const ctx = await getContext(businessId);
++    if (!ctx) return;
++    await ctx.cal.events.delete({ calendarId: ctx.calendarId, eventId });
++  } catch (e) {
++    if (e && (e.code === 404 || e.code === 410)) return;
++    console.error('[gcal] removeEvent:', e.message);
++  }
++}
++
++function dt(dateStr, timeStr) {
++  // dateStr 'YYYY-MM-DD', timeStr 'HH:MM' -> 'YYYY-MM-DDTHH:MM:00'
++  const t = (timeStr && /^\d{1,2}:\d{2}$/.test(timeStr)) ? timeStr.padStart(5, '0') : '09:00';
++  return `${dateStr}T${t}:00`;
++}
++function addHour(timeStr) {
++  const [h, m] = (timeStr || '09:00').split(':').map(Number);
++  const nh = ((h + 1) % 24).toString().padStart(2, '0');
++  return `${nh}:${(m || 0).toString().padStart(2, '0')}`;
++}
++
++// ── Sincronización por entidad (Gestumio -> Google) ───────────────
++async function syncAppointment(businessId, appt) {
++  try {
++    if (!appt || !appt.date) return;
++    const ctx = await getContext(businessId);
++    if (!ctx || !ctx.biz.gcalSyncTurnos) return;
++    const clientName = appt.client?.name || '';
++    const svc = appt.service?.name || appt.description || 'Turno';
++    const summary = clientName ? `${svc} — ${clientName}` : svc;
++    const body = { summary, description: appt.notes || undefined };
++    if (appt.startTime) {
++      body.start = { dateTime: dt(appt.date, appt.startTime), timeZone: TZ };
++      body.end = { dateTime: dt(appt.date, appt.endTime || addHour(appt.startTime)), timeZone: TZ };
++    } else {
++      body.start = { date: appt.date };
++      body.end = { date: appt.date };
++    }
++    const id = await upsert(ctx, appt.gcalEventId, body);
++    if (id && id !== appt.gcalEventId) await prisma.appointment.update({ where: { id: appt.id }, data: { gcalEventId: id } });
++  } catch (e) { console.error('[gcal] syncAppointment:', e.message); }
++}
++
++async function syncNote(businessId, note) {
++  try {
++    if (!note) return;
++    const ctx = await getContext(businessId);
++    if (!ctx || !ctx.biz.gcalSyncAgenda) return;
++    const start = note.startAt || note.dueDate;
++    if (!start) return; // sin fecha no se puede agendar
++    const body = { summary: note.title || 'Nota', description: note.content || undefined };
++    const startD = new Date(start);
++    if (note.allDay) {
++      const d = startD.toISOString().slice(0, 10);
++      const endD = note.endAt ? new Date(note.endAt).toISOString().slice(0, 10) : d;
++      body.start = { date: d };
++      body.end = { date: endD };
++    } else {
++      const end = note.endAt ? new Date(note.endAt) : new Date(startD.getTime() + 60 * 60 * 1000);
++      body.start = { dateTime: startD.toISOString(), timeZone: TZ };
++      body.end = { dateTime: end.toISOString(), timeZone: TZ };
++    }
++    const id = await upsert(ctx, note.gcalEventId, body);
++    if (id && id !== note.gcalEventId) await prisma.note.update({ where: { id: note.id }, data: { gcalEventId: id } });
++  } catch (e) { console.error('[gcal] syncNote:', e.message); }
++}
++
++function nextDateForDow(dow) {
++  const now = new Date();
++  const diff = (dow - now.getDay() + 7) % 7;
++  const d = new Date(now);
++  d.setDate(now.getDate() + diff);
++  return d.toISOString().slice(0, 10);
++}
++
++async function syncSchedule(businessId, sched) {
++  try {
++    if (!sched || sched.dayOfWeek == null) return;
++    const ctx = await getContext(businessId);
++    if (!ctx || !ctx.biz.gcalSyncClases) return;
++    if (sched.active === false) { if (sched.gcalEventId) await removeEvent(businessId, sched.gcalEventId); return; }
++    const actName = sched.activity?.name || 'Clase';
++    const date = nextDateForDow(Number(sched.dayOfWeek));
++    const body = {
++      summary: actName,
++      start: { dateTime: dt(date, sched.startTime), timeZone: TZ },
++      end: { dateTime: dt(date, sched.endTime || addHour(sched.startTime)), timeZone: TZ },
++      recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${DAY[Number(sched.dayOfWeek)] || 'MO'}`],
++    };
++    const id = await upsert(ctx, sched.gcalEventId, body);
++    if (id && id !== sched.gcalEventId) await prisma.classSchedule.update({ where: { id: sched.id }, data: { gcalEventId: id } });
++  } catch (e) { console.error('[gcal] syncSchedule:', e.message); }
++}
++
++module.exports = {
++  isConfigured, redirectUri, oauthClient, authUrl, exchangeCode,
++  getContext, ensureCalendar, removeEvent,
++  syncAppointment, syncNote, syncSchedule,
++};
+diff --git a/backend/src/routes/appointments.js b/backend/src/routes/appointments.js
+index 3af6790..39f4f92 100644
+--- a/backend/src/routes/appointments.js
++++ b/backend/src/routes/appointments.js
+@@ -2,6 +2,7 @@ const express = require('express');
+ const router = express.Router();
+ const auth = require('../middleware/auth');
+ const prisma = require('../prisma');
++const gcal = require('../lib/googleCalendar');
+ 
+ router.use(auth);
+ 
+@@ -65,6 +66,7 @@ router.post('/', async (req, res) => {
+         },
+         include: INCLUDE,
+       });
++      gcal.syncAppointment(req.user.businessId, a);
+       return res.status(201).json(a);
+     }
+ 
+@@ -84,6 +86,7 @@ router.post('/', async (req, res) => {
+       },
+       include: INCLUDE,
+     });
++    gcal.syncAppointment(req.user.businessId, a);
+     res.status(201).json(a);
+   } catch (e) { console.error(e); res.status(500).json({ error: 'Error' }); }
+ });
+@@ -109,6 +112,7 @@ router.put('/:id', async (req, res) => {
+     const a = await prisma.appointment.update({
+       where: { id: req.params.id }, data, include: INCLUDE,
+     });
++    gcal.syncAppointment(req.user.businessId, a);
+     res.json(a);
+   } catch (e) { console.error(e); res.status(500).json({ error: 'Error' }); }
+ });
+@@ -116,7 +120,9 @@ router.put('/:id', async (req, res) => {
+ // DELETE /api/appointments/:id
+ router.delete('/:id', async (req, res) => {
+   try {
++    const existing = await prisma.appointment.findUnique({ where: { id: req.params.id } });
+     await prisma.appointment.delete({ where: { id: req.params.id } });
++    if (existing && existing.gcalEventId) gcal.removeEvent(req.user.businessId, existing.gcalEventId);
+     res.json({ ok: true });
+   } catch (e) { console.error(e); res.status(500).json({ error: 'Error' }); }
+ });
+diff --git a/backend/src/routes/google-calendar.js b/backend/src/routes/google-calendar.js
+new file mode 100644
+index 0000000..3cd81c0
+--- /dev/null
++++ b/backend/src/routes/google-calendar.js
+@@ -0,0 +1,83 @@
++const express = require('express');
++const jwt = require('jsonwebtoken');
++const router = express.Router();
++const auth = require('../middleware/auth');
++const prisma = require('../prisma');
++const gcal = require('../lib/googleCalendar');
++
++// GET /status — estado de conexión + toggles (requiere auth)
++router.get('/status', auth, async (req, res) => {
++  try {
++    const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
++    res.json({
++      configured: gcal.isConfigured(),
++      connected: !!(biz && biz.googleCalendarToken),
++      syncTurnos: !!(biz && biz.gcalSyncTurnos),
++      syncAgenda: !!(biz && biz.gcalSyncAgenda),
++      syncClases: !!(biz && biz.gcalSyncClases),
++    });
++  } catch (e) { res.status(500).json({ error: e.message }); }
++});
++
++// GET /connect — devuelve la URL de consentimiento de Google
++router.get('/connect', auth, (req, res) => {
++  if (!gcal.isConfigured()) {
++    return res.status(400).json({ error: 'Falta configurar GOOGLE_CLIENT_SECRET en el servidor' });
++  }
++  const state = jwt.sign({ businessId: req.user.businessId, k: 'gcal' }, process.env.JWT_SECRET, { expiresIn: '15m' });
++  res.json({ url: gcal.authUrl(state) });
++});
++
++// GET /callback — redirección del navegador desde Google (PÚBLICA)
++router.get('/callback', async (req, res) => {
++  const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
++  const back = (q) => res.redirect(`${appUrl}/ajustes?gcal=${q}`);
++  try {
++    const { code, state } = req.query;
++    if (!code || !state) return back('error');
++    const payload = jwt.verify(state, process.env.JWT_SECRET);
++    if (payload.k !== 'gcal') return back('error');
++    const tokens = await gcal.exchangeCode(code);
++    const biz = await prisma.business.findUnique({ where: { id: payload.businessId } });
++    let merged = tokens;
++    if (!tokens.refresh_token && biz && biz.googleCalendarToken) {
++      const old = JSON.parse(biz.googleCalendarToken);
++      merged = { ...tokens, refresh_token: old.refresh_token };
++    }
++    await prisma.business.update({
++      where: { id: payload.businessId },
++      data: { googleCalendarToken: JSON.stringify(merged), gcalSyncTurnos: true, gcalSyncAgenda: true, gcalSyncClases: true },
++    });
++    await gcal.ensureCalendar(payload.businessId); // crea el calendario "Gestumio"
++    back('ok');
++  } catch (e) {
++    console.error('[gcal callback]', e.message);
++    back('error');
++  }
++});
++
++// POST /settings — actualizar toggles
++router.post('/settings', auth, async (req, res) => {
++  try {
++    const { syncTurnos, syncAgenda, syncClases } = req.body;
++    const data = {};
++    if (syncTurnos !== undefined) data.gcalSyncTurnos = !!syncTurnos;
++    if (syncAgenda !== undefined) data.gcalSyncAgenda = !!syncAgenda;
++    if (syncClases !== undefined) data.gcalSyncClases = !!syncClases;
++    await prisma.business.update({ where: { id: req.user.businessId }, data });
++    res.json({ ok: true });
++  } catch (e) { res.status(500).json({ error: e.message }); }
++});
++
++// POST /disconnect
++router.post('/disconnect', auth, async (req, res) => {
++  try {
++    await prisma.business.update({
++      where: { id: req.user.businessId },
++      data: { googleCalendarToken: null, googleCalendarId: null, gcalSyncTurnos: false, gcalSyncAgenda: false, gcalSyncClases: false },
++    });
++    res.json({ ok: true });
++  } catch (e) { res.status(500).json({ error: e.message }); }
++});
++
++module.exports = router;
+diff --git a/backend/src/routes/notes.js b/backend/src/routes/notes.js
+index d4394eb..241c92b 100644
+--- a/backend/src/routes/notes.js
++++ b/backend/src/routes/notes.js
+@@ -1,6 +1,7 @@
+ const express = require('express');
+ const router = express.Router();
+ const prisma = require('../prisma');
++const gcal = require('../lib/googleCalendar');
+ const requireAuth = require('../middleware/auth');
+ 
+ router.use(requireAuth);
+@@ -41,6 +42,7 @@ router.post('/', async (req, res) => {
+         businessId: req.user.businessId,
+       },
+     });
++    gcal.syncNote(req.user.businessId, note);
+     res.status(201).json(note);
+   } catch (e) {
+     res.status(500).json({ error: e.message });
+@@ -65,6 +67,7 @@ router.put('/:id', async (req, res) => {
+       where: { id: req.params.id },
+       data,
+     });
++    gcal.syncNote(req.user.businessId, note);
+     res.json(note);
+   } catch (e) {
+     res.status(500).json({ error: e.message });
+@@ -74,7 +77,9 @@ router.put('/:id', async (req, res) => {
+ // DELETE /notes/:id
+ router.delete('/:id', async (req, res) => {
+   try {
++    const existing = await prisma.note.findUnique({ where: { id: req.params.id } });
+     await prisma.note.delete({ where: { id: req.params.id } });
++    if (existing && existing.gcalEventId) gcal.removeEvent(req.user.businessId, existing.gcalEventId);
+     res.json({ ok: true });
+   } catch (e) {
+     res.status(500).json({ error: e.message });
+diff --git a/backend/src/routes/schedules.js b/backend/src/routes/schedules.js
+index 471b40a..536e222 100644
+--- a/backend/src/routes/schedules.js
++++ b/backend/src/routes/schedules.js
+@@ -2,6 +2,7 @@ const express = require('express');
+ const router = express.Router();
+ const auth = require('../middleware/auth');
+ const prisma = require('../prisma');
++const gcal = require('../lib/googleCalendar');
+ 
+ // GET all schedules
+ router.get('/', auth, async (req, res) => {
+@@ -57,6 +58,7 @@ router.post('/', auth, async (req, res) => {
+         branch: { select: { id: true, name: true } }
+       }
+     });
++    gcal.syncSchedule(req.user.businessId, schedule);
+     res.status(201).json(schedule);
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+@@ -87,6 +89,7 @@ router.put('/:id', auth, async (req, res) => {
+         branch: { select: { id: true, name: true } }
+       }
+     });
++    gcal.syncSchedule(req.user.businessId, schedule);
+     res.json(schedule);
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+@@ -99,6 +102,7 @@ router.delete('/:id', auth, async (req, res) => {
+     const existing = await prisma.classSchedule.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+     if (!existing) return res.status(404).json({ error: 'Horario no encontrado' });
+     await prisma.classSchedule.delete({ where: { id: req.params.id } });
++    if (existing.gcalEventId) gcal.removeEvent(req.user.businessId, existing.gcalEventId);
+     res.json({ ok: true });
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index ee87e3d..fe10b7f 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -188,6 +188,7 @@ export default function Settings() {
+     { id: 'negocio',     label: '🏢 Negocio' },
+     { id: 'usuarios',    label: '👥 Usuarios' },
+     { id: 'whatsapp',    label: '💬 WhatsApp' },
++    { id: 'calendar',    label: '📅 Calendar' },
+     { id: 'facturacion', label: '💳 Facturación' },
+   ];
+ 
+@@ -447,6 +448,8 @@ export default function Settings() {
+         </>
+       )}
+ 
++      {activeTab === 'calendar' && <GoogleCalendarCard />}
++
+       {/* ── FACTURACIÓN ── */}
+       {activeTab === 'facturacion' && (
+         <>
+@@ -1230,3 +1233,89 @@ function BillingCard({ billing, onRefresh }) {
+     </div>
+   );
+ }
++
++
++// ── Google Calendar ──────────────────────────────────────────────
++function GcalToggle({ label, checked, onChange }) {
++  return (
++    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
++      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
++      {label}
++    </label>
++  );
++}
++
++function GoogleCalendarCard() {
++  const [st, setSt] = useState(null);
++  const [loading, setLoading] = useState(true);
++  const [msg, setMsg] = useState('');
++
++  function load() {
++    api.get('/google-calendar/status')
++      .then((r) => setSt(r.data))
++      .catch(() => setSt({ configured: false, connected: false }))
++      .finally(() => setLoading(false));
++  }
++  useEffect(() => {
++    load();
++    const p = new URLSearchParams(window.location.search);
++    const g = p.get('gcal');
++    if (g === 'ok') setMsg('✅ Google Calendar conectado. Se creó el calendario "Gestumio".');
++    else if (g === 'error') setMsg('❌ No se pudo conectar. Revisá las credenciales y volvé a intentar.');
++    if (g) window.history.replaceState({}, '', '/ajustes');
++  }, []);
++
++  async function connect() {
++    try {
++      const r = await api.get('/google-calendar/connect');
++      window.location.href = r.data.url;
++    } catch (e) {
++      setMsg(e.response?.data?.error || 'No se pudo iniciar la conexión con Google.');
++    }
++  }
++  async function disconnect() {
++    if (!confirm('¿Desconectar Google Calendar? Los eventos ya creados quedan en Google.')) return;
++    try { await api.post('/google-calendar/disconnect'); } finally { load(); }
++  }
++  async function toggle(key, val) {
++    setSt((s) => ({ ...s, [key]: val }));
++    try { await api.post('/google-calendar/settings', { [key]: val }); } catch { load(); }
++  }
++
++  if (loading) return <div className="card" style={{ marginTop: 24 }}>Cargando…</div>;
++
++  return (
++    <div className="card" style={{ marginTop: 24 }}>
++      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
++        <span style={{ fontSize: 26 }}>📅</span>
++        <h2 style={{ fontSize: 16, margin: 0 }}>Google Calendar</h2>
++        {st && st.connected && (
++          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#1BA84C', background: 'var(--primary-soft, #E4F6E9)', padding: '2px 10px', borderRadius: 12 }}>Conectado</span>
++        )}
++      </div>
++      <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14 }}>
++        Sincronizá tus turnos, agenda y clases con un calendario dedicado <strong>"Gestumio"</strong> en tu cuenta de Google.
++      </p>
++      {msg && (
++        <div style={{ fontSize: 13, marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: 'var(--primary-soft, #eef6ee)' }}>{msg}</div>
++      )}
++
++      {!st || !st.configured ? (
++        <div style={{ fontSize: 13, color: '#92400e', background: '#fef3c7', padding: '10px 12px', borderRadius: 8 }}>
++          Falta configurar las credenciales de Google en el servidor (variables <strong>GOOGLE_CLIENT_SECRET</strong> y <strong>GOOGLE_CALENDAR_REDIRECT_URI</strong> en Railway).
++        </div>
++      ) : !st.connected ? (
++        <button className="btn btn-primary" onClick={connect}>Conectar Google Calendar</button>
++      ) : (
++        <>
++          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
++            <GcalToggle label="Sincronizar Turnos / citas" checked={!!st.syncTurnos} onChange={(v) => toggle('syncTurnos', v)} />
++            <GcalToggle label="Sincronizar Agenda (notas / eventos)" checked={!!st.syncAgenda} onChange={(v) => toggle('syncAgenda', v)} />
++            <GcalToggle label="Sincronizar Clases / actividades" checked={!!st.syncClases} onChange={(v) => toggle('syncClases', v)} />
++          </div>
++          <button className="btn btn-secondary" onClick={disconnect}>Desconectar</button>
++        </>
++      )}
++    </div>
++  );
++}

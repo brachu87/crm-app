@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const prisma = require('../prisma');
+const gcal = require('../lib/googleCalendar');
 
 router.use(auth);
 
@@ -65,6 +66,7 @@ router.post('/', async (req, res) => {
         },
         include: INCLUDE,
       });
+      gcal.syncAppointment(req.user.businessId, a);
       return res.status(201).json(a);
     }
 
@@ -84,6 +86,7 @@ router.post('/', async (req, res) => {
       },
       include: INCLUDE,
     });
+    gcal.syncAppointment(req.user.businessId, a);
     res.status(201).json(a);
   } catch (e) { console.error(e); res.status(500).json({ error: 'Error' }); }
 });
@@ -109,6 +112,7 @@ router.put('/:id', async (req, res) => {
     const a = await prisma.appointment.update({
       where: { id: req.params.id }, data, include: INCLUDE,
     });
+    gcal.syncAppointment(req.user.businessId, a);
     res.json(a);
   } catch (e) { console.error(e); res.status(500).json({ error: 'Error' }); }
 });
@@ -116,7 +120,9 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/appointments/:id
 router.delete('/:id', async (req, res) => {
   try {
+    const existing = await prisma.appointment.findUnique({ where: { id: req.params.id } });
     await prisma.appointment.delete({ where: { id: req.params.id } });
+    if (existing && existing.gcalEventId) gcal.removeEvent(req.user.businessId, existing.gcalEventId);
     res.json({ ok: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Error' }); }
 });

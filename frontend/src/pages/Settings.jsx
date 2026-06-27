@@ -188,6 +188,7 @@ export default function Settings() {
     { id: 'negocio',     label: '🏢 Negocio' },
     { id: 'usuarios',    label: '👥 Usuarios' },
     { id: 'whatsapp',    label: '💬 WhatsApp' },
+    { id: 'calendar',    label: '📅 Calendar' },
     { id: 'facturacion', label: '💳 Facturación' },
   ];
 
@@ -446,6 +447,8 @@ export default function Settings() {
           <WhatsAppTemplates />
         </>
       )}
+
+      {activeTab === 'calendar' && <GoogleCalendarCard />}
 
       {/* ── FACTURACIÓN ── */}
       {activeTab === 'facturacion' && (
@@ -1227,6 +1230,92 @@ function BillingCard({ billing, onRefresh }) {
           Serás redirigido a Mercado Pago para completar el pago de forma segura.
         </span>
       </div>
+    </div>
+  );
+}
+
+
+// ── Google Calendar ──────────────────────────────────────────────
+function GcalToggle({ label, checked, onChange }) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+
+function GoogleCalendarCard() {
+  const [st, setSt] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState('');
+
+  function load() {
+    api.get('/google-calendar/status')
+      .then((r) => setSt(r.data))
+      .catch(() => setSt({ configured: false, connected: false }))
+      .finally(() => setLoading(false));
+  }
+  useEffect(() => {
+    load();
+    const p = new URLSearchParams(window.location.search);
+    const g = p.get('gcal');
+    if (g === 'ok') setMsg('✅ Google Calendar conectado. Se creó el calendario "Gestumio".');
+    else if (g === 'error') setMsg('❌ No se pudo conectar. Revisá las credenciales y volvé a intentar.');
+    if (g) window.history.replaceState({}, '', '/ajustes');
+  }, []);
+
+  async function connect() {
+    try {
+      const r = await api.get('/google-calendar/connect');
+      window.location.href = r.data.url;
+    } catch (e) {
+      setMsg(e.response?.data?.error || 'No se pudo iniciar la conexión con Google.');
+    }
+  }
+  async function disconnect() {
+    if (!confirm('¿Desconectar Google Calendar? Los eventos ya creados quedan en Google.')) return;
+    try { await api.post('/google-calendar/disconnect'); } finally { load(); }
+  }
+  async function toggle(key, val) {
+    setSt((s) => ({ ...s, [key]: val }));
+    try { await api.post('/google-calendar/settings', { [key]: val }); } catch { load(); }
+  }
+
+  if (loading) return <div className="card" style={{ marginTop: 24 }}>Cargando…</div>;
+
+  return (
+    <div className="card" style={{ marginTop: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <span style={{ fontSize: 26 }}>📅</span>
+        <h2 style={{ fontSize: 16, margin: 0 }}>Google Calendar</h2>
+        {st && st.connected && (
+          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#1BA84C', background: 'var(--primary-soft, #E4F6E9)', padding: '2px 10px', borderRadius: 12 }}>Conectado</span>
+        )}
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14 }}>
+        Sincronizá tus turnos, agenda y clases con un calendario dedicado <strong>"Gestumio"</strong> en tu cuenta de Google.
+      </p>
+      {msg && (
+        <div style={{ fontSize: 13, marginBottom: 12, padding: '8px 12px', borderRadius: 8, background: 'var(--primary-soft, #eef6ee)' }}>{msg}</div>
+      )}
+
+      {!st || !st.configured ? (
+        <div style={{ fontSize: 13, color: '#92400e', background: '#fef3c7', padding: '10px 12px', borderRadius: 8 }}>
+          Falta configurar las credenciales de Google en el servidor (variables <strong>GOOGLE_CLIENT_SECRET</strong> y <strong>GOOGLE_CALENDAR_REDIRECT_URI</strong> en Railway).
+        </div>
+      ) : !st.connected ? (
+        <button className="btn btn-primary" onClick={connect}>Conectar Google Calendar</button>
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            <GcalToggle label="Sincronizar Turnos / citas" checked={!!st.syncTurnos} onChange={(v) => toggle('syncTurnos', v)} />
+            <GcalToggle label="Sincronizar Agenda (notas / eventos)" checked={!!st.syncAgenda} onChange={(v) => toggle('syncAgenda', v)} />
+            <GcalToggle label="Sincronizar Clases / actividades" checked={!!st.syncClases} onChange={(v) => toggle('syncClases', v)} />
+          </div>
+          <button className="btn btn-secondary" onClick={disconnect}>Desconectar</button>
+        </>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const prisma = require('../prisma');
+const gcal = require('../lib/googleCalendar');
 
 // GET all schedules
 router.get('/', auth, async (req, res) => {
@@ -57,6 +58,7 @@ router.post('/', auth, async (req, res) => {
         branch: { select: { id: true, name: true } }
       }
     });
+    gcal.syncSchedule(req.user.businessId, schedule);
     res.status(201).json(schedule);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -87,6 +89,7 @@ router.put('/:id', auth, async (req, res) => {
         branch: { select: { id: true, name: true } }
       }
     });
+    gcal.syncSchedule(req.user.businessId, schedule);
     res.json(schedule);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -99,6 +102,7 @@ router.delete('/:id', auth, async (req, res) => {
     const existing = await prisma.classSchedule.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
     if (!existing) return res.status(404).json({ error: 'Horario no encontrado' });
     await prisma.classSchedule.delete({ where: { id: req.params.id } });
+    if (existing.gcalEventId) gcal.removeEvent(req.user.businessId, existing.gcalEventId);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

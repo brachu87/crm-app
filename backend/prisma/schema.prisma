@@ -18,6 +18,12 @@ model Business {
   subscriptionExpires  DateTime?
   bonificado           Boolean  @default(false)
 
+  googleCalendarToken  String?
+  googleCalendarId     String?
+  gcalSyncTurnos       Boolean  @default(false)
+  gcalSyncAgenda       Boolean  @default(false)
+  gcalSyncClases       Boolean  @default(false)
+
   users      User[]
   clients    Client[]
   activities Activity[]
@@ -188,6 +194,7 @@ model Note {
   endAt      DateTime?
   allDay     Boolean   @default(true)
   color      String    @default("blue")
+  gcalEventId String?
   businessId String
   business   Business  @relation(fields: [businessId], references: [id])
   createdAt  DateTime  @default(now())
@@ -312,6 +319,7 @@ model ClassSchedule {
   endTime     String
   maxCapacity Int?
   active      Boolean   @default(true)
+  gcalEventId String?
   createdAt   DateTime  @default(now())
 
   @@index([businessId])
@@ -398,6 +406,7 @@ model Appointment {
   paidAt        DateTime?
   notes         String?
   isQuickWork   Boolean   @default(false)
+  gcalEventId   String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
