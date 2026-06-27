@@ -1,0 +1,48 @@
+diff --git a/backend/src/index.js b/backend/src/index.js
+index 5ba50cc..f1ee03b 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -42,6 +42,9 @@ const { restoreSessions } = require('./lib/whatsappBaileys');
+ 
+ const app = express();
+ 
++// Detrás del proxy de Railway: necesario para X-Forwarded-For (rate-limit) y https.
++app.set('trust proxy', 1);
++
+ // ── Security headers ───────────────────────────────────────────
+ app.use(helmet({
+   contentSecurityPolicy: false,              // app uses inline scripts/styles
+@@ -53,17 +56,27 @@ app.disable('x-powered-by');
+ // ── CORS ───────────────────────────────────────────────────────
+ const ALLOWED_ORIGINS = [
+   process.env.APP_URL,
++  ...(process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
++  'https://gestumio.com',
++  'https://www.gestumio.com',
+   'http://localhost:5173',
+   'http://localhost:3000',
+ ].filter(Boolean);
+ 
++function corsAllowed(origin) {
++  if (!origin) return true; // curl, apps móviles, same-origin
++  if (ALLOWED_ORIGINS.includes(origin)) return true;
++  try {
++    const h = new URL(origin).hostname;
++    // Permitir el propio dominio de la app en Railway y gestumio.com (robusto a cambios de URL)
++    if (h.endsWith('.up.railway.app')) return true;
++    if (h === 'gestumio.com' || h.endsWith('.gestumio.com')) return true;
++  } catch (_) {}
++  return false;
++}
++
+ app.use(cors({
+-  origin: (origin, cb) => {
+-    // Allow requests with no origin (curl, mobile apps, same-origin)
+-    if (!origin) return cb(null, true);
+-    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+-    cb(new Error('Not allowed by CORS'));
+-  },
++  origin: (origin, cb) => (corsAllowed(origin) ? cb(null, true) : cb(new Error('Not allowed by CORS'))),
+   credentials: true,
+ }));
+ 
