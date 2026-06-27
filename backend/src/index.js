@@ -197,6 +197,7 @@ const prisma = require('./prisma');
 
 
 async function ensureBusinessExtraFields() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   const cols = [
     ['cuit',      'TEXT'],
     ['address',   'TEXT'],
@@ -212,6 +213,7 @@ async function ensureBusinessExtraFields() {
 }
 
 async function ensureManualIncomeTable() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const tables = await prisma.$queryRawUnsafe(
       `SELECT name FROM sqlite_master WHERE type='table' AND name='ManualIncome'`
@@ -243,6 +245,7 @@ async function ensureManualIncomeTable() {
 
 
 async function ensurePermissionsColumn() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const info = await prisma.$queryRawUnsafe(`PRAGMA table_info("User")`);
     const exists = info.some(col => col.name === 'permissions');
@@ -260,6 +263,7 @@ const PORT = process.env.PORT || 4000;
 
 // Barrido independiente de cuotas vencidas: al arrancar y cada hora
 async function ensureSubscriptionFields() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
     const names = cols.map(r => r.name);
@@ -277,6 +281,7 @@ async function ensureSubscriptionFields() {
 }
 
 async function ensureClientCuit() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Client")`);
     if (!cols.some(r => r.name === 'cuit')) {
@@ -289,6 +294,7 @@ async function ensureClientCuit() {
 }
 
 async function ensureSupplierDni() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Supplier")`);
     if (!cols.some(r => r.name === 'dni')) {
@@ -301,6 +307,7 @@ async function ensureSupplierDni() {
 }
 
 async function ensureSupplierIdOnExpense() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Expense")`);
     if (!cols.some(r => r.name === 'supplierId')) {
@@ -313,6 +320,7 @@ async function ensureSupplierIdOnExpense() {
 }
 
 async function ensureLastAccessAndBonificado() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const userCols = await prisma.$queryRawUnsafe(`PRAGMA table_info("User")`);
     const userNames = userCols.map(r => r.name);
@@ -356,6 +364,7 @@ async function ensureBecaPrices() {
 }
 
 async function ensureGcalColumns() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const biz = await prisma.$queryRawUnsafe('PRAGMA table_info("Business")');
     const bcols = biz.map((c) => c.name);
@@ -377,6 +386,7 @@ async function ensureGcalColumns() {
 }
 
 async function ensureWATemplateColumns() {
+  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
   try {
     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
     const names = cols.map(r => r.name);
