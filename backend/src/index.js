@@ -444,7 +444,7 @@ setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada
 
 // Iniciar WhatsApp Baileys y cron de recordatorios
 restoreSessions();
-startReminderCron();
+// startReminderCron(); // Envío masivo automático desactivado: los recordatorios se mandan manualmente
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);

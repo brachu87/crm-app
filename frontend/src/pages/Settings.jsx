@@ -602,9 +602,9 @@ function WhatsAppAuto() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <span style={{ fontSize: 28 }}>🤖</span>
         <div>
-          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Recordatorios automáticos por WhatsApp</h2>
+          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Conexión de WhatsApp</h2>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
-            Vinculá tu WhatsApp — no requiere cuenta de empresa
+            Vinculá tu WhatsApp para enviar recordatorios y comprobantes (envío manual)
           </p>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -620,7 +620,7 @@ function WhatsAppAuto() {
       {state === 'disconnected' && (
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
           <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
-            Conectá tu WhatsApp para enviar recordatorios automáticos de cuotas.
+            Conectá tu WhatsApp para enviar recordatorios y comprobantes a tus clientes.
           </p>
           <button className="btn btn-primary" onClick={handleConnect} disabled={connecting}>
             {connecting ? 'Iniciando...' : '📱 Conectar WhatsApp'}
@@ -673,7 +673,7 @@ function WhatsAppAuto() {
           }}>
             <span>
               ✅ WhatsApp conectado{status?.phone ? ` (${status.phone})` : ''}.
-              Recordatorios automáticos todos los días a las <strong>09:00 hs</strong>.
+              Listo para enviar recordatorios y comprobantes manualmente desde Cobranza.
             </span>
             <button
               onClick={handleLogout}
@@ -704,16 +704,6 @@ function WhatsAppAuto() {
             />
             <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
               {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}
-            </button>
-          </div>
-
-          <div>
-            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Ejecutar recordatorios ahora</p>
-            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 8 }}>
-              Dispará el barrido manualmente sin esperar al horario programado.
-            </p>
-            <button className="btn btn-primary" onClick={handleRunNow} disabled={running}>
-              {running ? 'Ejecutando...' : '▶ Ejecutar recordatorios ahora'}
             </button>
           </div>
 
