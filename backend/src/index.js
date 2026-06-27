@@ -330,6 +330,29 @@ async function ensureLastAccessAndBonificado() {
 }
 
 
+async function ensureBecaPrices() {
+  try {
+    // Becas viejas guardaban amountDue=0 (se perdía el precio real). Restaurar desde el
+    // precio de la actividad, así cuando la beca vence vuelve a cobrar el monto correcto.
+    // La nueva lógica mantiene la cuota en $0 mientras la beca esté vigente.
+    const becas = await prisma.enrollment.findMany({
+      where: { bonificada: true, amountDue: 0 },
+      include: { activity: { select: { price: true } } },
+    });
+    let fixed = 0;
+    for (const e of becas) {
+      const price = e.activity && e.activity.price ? e.activity.price : 0;
+      if (price > 0) {
+        await prisma.enrollment.update({ where: { id: e.id }, data: { amountDue: price } });
+        fixed++;
+      }
+    }
+    if (fixed) console.log(`[startup] Becas: precio restaurado en ${fixed} inscripcion(es)`);
+  } catch (err) {
+    console.error('[startup] ensureBecaPrices error:', err.message);
+  }
+}
+
 async function ensureGcalColumns() {
   try {
     const biz = await prisma.$queryRawUnsafe('PRAGMA table_info("Business")');
@@ -413,6 +436,7 @@ ensureSupplierIdOnExpense();
 sweepExpiredTrials();
 ensureWATemplateColumns();
 ensureGcalColumns();
+ensureBecaPrices();
 
 runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora

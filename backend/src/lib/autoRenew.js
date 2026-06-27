@@ -1,5 +1,6 @@
 const prisma = require('../prisma');
 const { periodKey, addMonthToPeriod } = require('./period');
+const { discountForCuota } = require('./bonificacion');
 
 /**
  * Genera automáticamente cuotas pendientes para todas las inscripciones activas
@@ -30,6 +31,20 @@ async function autoRenewCuotas({ businessId }) {
   let created = 0;
 
   for (const e of enrollments) {
+    // Reconciliar becas: aplicar/quitar la bonificación en las cuotas NO pagadas
+    // según la fecha de vencimiento de la beca (bonificadaHasta).
+    if (e.bonificada) {
+      for (const c of e.cuotas) {
+        if (c.paymentStatus === 'paid') continue;
+        const wantDiscount = discountForCuota(e, c.period);
+        if (c.discount !== wantDiscount || c.amountDue !== e.amountDue) {
+          try {
+            await prisma.cuota.update({ where: { id: c.id }, data: { discount: wantDiscount, amountDue: e.amountDue } });
+          } catch (_) {}
+        }
+      }
+    }
+
     if (e.cuotas.length === 0) continue;
 
     // Obtener la cuota más reciente
@@ -61,7 +76,7 @@ async function autoRenewCuotas({ businessId }) {
             enrollmentId: e.id,
             period: nextPeriod,
             amountDue: e.amountDue,
-            discount: e.discount || 0,
+            discount: discountForCuota(e, nextPeriod),
             paymentStatus: 'pending',
             dueDate: nextDue,
           },

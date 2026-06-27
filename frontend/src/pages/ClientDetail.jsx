@@ -631,9 +631,6 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
       ? new Date(enrollment.bonificadaHasta).toISOString().slice(0, 10)
       : ''
   );
-  const [montoGratis, setMontoGratis] = useState(
-    enrollment.bonificada && enrollment.amountDue === 0
-  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -646,7 +643,6 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
         api.patch(`/enrollments/${enrollment.id}`, {
           bonificada,
           bonificadaHasta: bonificada && !sinLimite && hasta ? hasta : null,
-          ...(bonificada && montoGratis ? { amountDue: 0, discount: 0 } : {}),
         })
       );
       onSaved();
@@ -675,21 +671,12 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
             />
             <div>
               <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Actividad bonificada</p>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>El cliente no paga o paga un monto reducido</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>El cliente no paga mientras la beca esté vigente. Al vencer la fecha, vuelve a cobrarse el monto normal.</p>
             </div>
           </label>
 
           {bonificada && (
             <div style={{ paddingLeft: 4 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 14 }}>
-                <input
-                  type="checkbox"
-                  checked={montoGratis}
-                  onChange={(e) => setMontoGratis(e.target.checked)}
-                  style={{ width: 16, height: 16, accentColor: '#10b981' }}
-                />
-                Pone el monto a $0 (beca total)
-              </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, cursor: 'pointer', fontSize: 14 }}>
                 <input
                   type="checkbox"

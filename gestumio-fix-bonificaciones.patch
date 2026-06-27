@@ -1,0 +1,219 @@
+diff --git a/backend/src/index.js b/backend/src/index.js
+index f2fbed3..0a96dc3 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -330,6 +330,29 @@ async function ensureLastAccessAndBonificado() {
+ }
+ 
+ 
++async function ensureBecaPrices() {
++  try {
++    // Becas viejas guardaban amountDue=0 (se perdía el precio real). Restaurar desde el
++    // precio de la actividad, así cuando la beca vence vuelve a cobrar el monto correcto.
++    // La nueva lógica mantiene la cuota en $0 mientras la beca esté vigente.
++    const becas = await prisma.enrollment.findMany({
++      where: { bonificada: true, amountDue: 0 },
++      include: { activity: { select: { price: true } } },
++    });
++    let fixed = 0;
++    for (const e of becas) {
++      const price = e.activity && e.activity.price ? e.activity.price : 0;
++      if (price > 0) {
++        await prisma.enrollment.update({ where: { id: e.id }, data: { amountDue: price } });
++        fixed++;
++      }
++    }
++    if (fixed) console.log(`[startup] Becas: precio restaurado en ${fixed} inscripcion(es)`);
++  } catch (err) {
++    console.error('[startup] ensureBecaPrices error:', err.message);
++  }
++}
++
+ async function ensureGcalColumns() {
+   try {
+     const biz = await prisma.$queryRawUnsafe('PRAGMA table_info("Business")');
+@@ -413,6 +436,7 @@ ensureSupplierIdOnExpense();
+ sweepExpiredTrials();
+ ensureWATemplateColumns();
+ ensureGcalColumns();
++ensureBecaPrices();
+ 
+ runOverdueSweep();
+ setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
+diff --git a/backend/src/lib/autoRenew.js b/backend/src/lib/autoRenew.js
+index 2ec8071..f266176 100644
+--- a/backend/src/lib/autoRenew.js
++++ b/backend/src/lib/autoRenew.js
+@@ -1,5 +1,6 @@
+ const prisma = require('../prisma');
+ const { periodKey, addMonthToPeriod } = require('./period');
++const { discountForCuota } = require('./bonificacion');
+ 
+ /**
+  * Genera automáticamente cuotas pendientes para todas las inscripciones activas
+@@ -30,6 +31,20 @@ async function autoRenewCuotas({ businessId }) {
+   let created = 0;
+ 
+   for (const e of enrollments) {
++    // Reconciliar becas: aplicar/quitar la bonificación en las cuotas NO pagadas
++    // según la fecha de vencimiento de la beca (bonificadaHasta).
++    if (e.bonificada) {
++      for (const c of e.cuotas) {
++        if (c.paymentStatus === 'paid') continue;
++        const wantDiscount = discountForCuota(e, c.period);
++        if (c.discount !== wantDiscount || c.amountDue !== e.amountDue) {
++          try {
++            await prisma.cuota.update({ where: { id: c.id }, data: { discount: wantDiscount, amountDue: e.amountDue } });
++          } catch (_) {}
++        }
++      }
++    }
++
+     if (e.cuotas.length === 0) continue;
+ 
+     // Obtener la cuota más reciente
+@@ -61,7 +76,7 @@ async function autoRenewCuotas({ businessId }) {
+             enrollmentId: e.id,
+             period: nextPeriod,
+             amountDue: e.amountDue,
+-            discount: e.discount || 0,
++            discount: discountForCuota(e, nextPeriod),
+             paymentStatus: 'pending',
+             dueDate: nextDue,
+           },
+diff --git a/backend/src/lib/bonificacion.js b/backend/src/lib/bonificacion.js
+new file mode 100644
+index 0000000..d925c86
+--- /dev/null
++++ b/backend/src/lib/bonificacion.js
+@@ -0,0 +1,25 @@
++const { periodKey } = require('./period');
++
++/**
++ * ¿La beca (bonificación total) cubre el período dado? period: "YYYY-MM".
++ * - bonificada sin fecha límite -> cubre siempre.
++ * - bonificada con bonificadaHasta -> cubre hasta (incluido) el mes de esa fecha.
++ */
++function becaCubrePeriodo(enrollment, period) {
++  if (!enrollment || !enrollment.bonificada) return false;
++  if (!enrollment.bonificadaHasta) return true;
++  return period <= periodKey(new Date(enrollment.bonificadaHasta));
++}
++
++/**
++ * Descuento efectivo de una cuota:
++ * - Si la beca cubre el período -> descuenta TODO el monto (la cuota queda en $0).
++ * - Si la beca venció (o no hay beca) -> el descuento base de la inscripción.
++ * Importante: NO se pisa amountDue, así se conserva el precio para cuando la beca termina.
++ */
++function discountForCuota(enrollment, period) {
++  if (becaCubrePeriodo(enrollment, period)) return enrollment.amountDue || 0;
++  return enrollment.discount || 0;
++}
++
++module.exports = { becaCubrePeriodo, discountForCuota };
+diff --git a/backend/src/routes/enrollments.js b/backend/src/routes/enrollments.js
+index 3651c78..e40e321 100644
+--- a/backend/src/routes/enrollments.js
++++ b/backend/src/routes/enrollments.js
+@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/auth');
+ const { periodKey, addMonthToPeriod } = require('../lib/period');
+ const { markOverdueCuotas } = require('../lib/overdue');
+ const { autoRenewCuotas } = require('../lib/autoRenew');
++const { discountForCuota } = require('../lib/bonificacion');
+ const { shouldRun, markRan } = require('../lib/renewThrottle');
+ 
+ const router = express.Router();
+@@ -117,6 +118,12 @@ router.post('/', async (req, res) => {
+       return new Date(start.getFullYear(), start.getMonth() + 1, start.getDate());
+     })();
+ 
++    const firstPeriod = periodKey(start);
++    const firstDiscount = discountForCuota(
++      { bonificada: bonificada || false, bonificadaHasta: bonificadaHasta ? new Date(bonificadaHasta) : null, amountDue, discount },
++      firstPeriod
++    );
++
+     const enrollment = await prisma.enrollment.create({
+       data: {
+         clientId,
+@@ -129,9 +136,9 @@ router.post('/', async (req, res) => {
+         // Primera cuota del período de alta
+         cuotas: {
+           create: {
+-            period: periodKey(start),
++            period: firstPeriod,
+             amountDue,
+-            discount,
++            discount: firstDiscount,
+             paymentStatus: paymentStatus || 'pending',
+             dueDate: firstDueDate,
+           },
+@@ -209,8 +216,20 @@ router.patch('/:id', async (req, res) => {
+       include: { client: true, activity: true },
+     });
+ 
+-    // Si cambió el monto/descuento base, reflejarlo en la última cuota no pagada (display de cobranza)
+-    if (amountDue !== undefined || discount !== undefined) {
++    if (enrollment.bonificada) {
++      // BECA: reconciliar TODAS las cuotas no pagadas → gratis mientras la beca esté vigente,
++      // y precio normal cuando vence (sin perder el monto, que queda en amountDue).
++      const openCuotas = await prisma.cuota.findMany({
++        where: { enrollmentId: enrollment.id, paymentStatus: { not: 'paid' } },
++      });
++      for (const c of openCuotas) {
++        const wantDiscount = discountForCuota(enrollment, c.period);
++        if (c.discount !== wantDiscount || c.amountDue !== enrollment.amountDue) {
++          await prisma.cuota.update({ where: { id: c.id }, data: { discount: wantDiscount, amountDue: enrollment.amountDue } });
++        }
++      }
++    } else if (amountDue !== undefined || discount !== undefined) {
++      // Inscripción normal: reflejar el cambio en la última cuota no pagada
+       const lastOpen = await prisma.cuota.findFirst({
+         where: { enrollmentId: enrollment.id, paymentStatus: { not: 'paid' } },
+         orderBy: { period: 'desc' },
+diff --git a/frontend/src/pages/ClientDetail.jsx b/frontend/src/pages/ClientDetail.jsx
+index 5a45065..af91875 100644
+--- a/frontend/src/pages/ClientDetail.jsx
++++ b/frontend/src/pages/ClientDetail.jsx
+@@ -631,9 +631,6 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
+       ? new Date(enrollment.bonificadaHasta).toISOString().slice(0, 10)
+       : ''
+   );
+-  const [montoGratis, setMontoGratis] = useState(
+-    enrollment.bonificada && enrollment.amountDue === 0
+-  );
+   const [saving, setSaving] = useState(false);
+   const [error, setError] = useState('');
+ 
+@@ -646,7 +643,6 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
+         api.patch(`/enrollments/${enrollment.id}`, {
+           bonificada,
+           bonificadaHasta: bonificada && !sinLimite && hasta ? hasta : null,
+-          ...(bonificada && montoGratis ? { amountDue: 0, discount: 0 } : {}),
+         })
+       );
+       onSaved();
+@@ -675,21 +671,12 @@ function BonificacionModal({ enrollment, onClose, onSaved }) {
+             />
+             <div>
+               <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Actividad bonificada</p>
+-              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>El cliente no paga o paga un monto reducido</p>
++              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>El cliente no paga mientras la beca esté vigente. Al vencer la fecha, vuelve a cobrarse el monto normal.</p>
+             </div>
+           </label>
+ 
+           {bonificada && (
+             <div style={{ paddingLeft: 4 }}>
+-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 14 }}>
+-                <input
+-                  type="checkbox"
+-                  checked={montoGratis}
+-                  onChange={(e) => setMontoGratis(e.target.checked)}
+-                  style={{ width: 16, height: 16, accentColor: '#10b981' }}
+-                />
+-                Pone el monto a $0 (beca total)
+-              </label>
+               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, cursor: 'pointer', fontSize: 14 }}>
+                 <input
+                   type="checkbox"

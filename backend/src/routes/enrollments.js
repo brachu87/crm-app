@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/auth');
 const { periodKey, addMonthToPeriod } = require('../lib/period');
 const { markOverdueCuotas } = require('../lib/overdue');
 const { autoRenewCuotas } = require('../lib/autoRenew');
+const { discountForCuota } = require('../lib/bonificacion');
 const { shouldRun, markRan } = require('../lib/renewThrottle');
 
 const router = express.Router();
@@ -117,6 +118,12 @@ router.post('/', async (req, res) => {
       return new Date(start.getFullYear(), start.getMonth() + 1, start.getDate());
     })();
 
+    const firstPeriod = periodKey(start);
+    const firstDiscount = discountForCuota(
+      { bonificada: bonificada || false, bonificadaHasta: bonificadaHasta ? new Date(bonificadaHasta) : null, amountDue, discount },
+      firstPeriod
+    );
+
     const enrollment = await prisma.enrollment.create({
       data: {
         clientId,
@@ -129,9 +136,9 @@ router.post('/', async (req, res) => {
         // Primera cuota del período de alta
         cuotas: {
           create: {
-            period: periodKey(start),
+            period: firstPeriod,
             amountDue,
-            discount,
+            discount: firstDiscount,
             paymentStatus: paymentStatus || 'pending',
             dueDate: firstDueDate,
           },
@@ -209,8 +216,20 @@ router.patch('/:id', async (req, res) => {
       include: { client: true, activity: true },
     });
 
-    // Si cambió el monto/descuento base, reflejarlo en la última cuota no pagada (display de cobranza)
-    if (amountDue !== undefined || discount !== undefined) {
+    if (enrollment.bonificada) {
+      // BECA: reconciliar TODAS las cuotas no pagadas → gratis mientras la beca esté vigente,
+      // y precio normal cuando vence (sin perder el monto, que queda en amountDue).
+      const openCuotas = await prisma.cuota.findMany({
+        where: { enrollmentId: enrollment.id, paymentStatus: { not: 'paid' } },
+      });
+      for (const c of openCuotas) {
+        const wantDiscount = discountForCuota(enrollment, c.period);
+        if (c.discount !== wantDiscount || c.amountDue !== enrollment.amountDue) {
+          await prisma.cuota.update({ where: { id: c.id }, data: { discount: wantDiscount, amountDue: enrollment.amountDue } });
+        }
+      }
+    } else if (amountDue !== undefined || discount !== undefined) {
+      // Inscripción normal: reflejar el cambio en la última cuota no pagada
       const lastOpen = await prisma.cuota.findFirst({
         where: { enrollmentId: enrollment.id, paymentStatus: { not: 'paid' } },
         orderBy: { period: 'desc' },
