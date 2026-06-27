@@ -202,6 +202,7 @@ function emptyForm(date) {
 
 // ─── EventModal ───────────────────────────────────────────────────────────────
 function EventModal({ event, defaultDate, onSave, onDelete, onClose }) {
+  const can = useSectionPerms('agenda');
   const isNew = !event?.id;
   const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState(() =>
@@ -992,6 +993,7 @@ export default function Notes() {
 
 /* ── Detalle de turno desde la agenda ─────────────────────────── */
 function ApptDetailModal({ appt, onClose, onUpdated }) {
+  const can = useSectionPerms('agenda');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(appt.status || 'scheduled');
   const [notes, setNotes] = useState(appt.notes || '');
