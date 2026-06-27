@@ -83,10 +83,14 @@ app.use(cors({
 // ── Global rate limiting (DDoS / scraping protection) ──────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300,
+  max: 2000, // la app carga muchas imágenes (fotos de clientes, logo) por página
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiadas solicitudes. Intenta en unos minutos.' },
+  skip: (req) => {
+    const u = req.originalUrl || '';
+    return u.includes('/photo') || u.includes('/logo') || u.includes('/business/info');
+  },
 });
 app.use('/api/', globalLimiter);
 
@@ -132,10 +136,11 @@ app.use('/api/', (req, res, next) => {
 // ── Rate limit on file upload endpoints ────────────────────────
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // max 20 uploads per hour per IP
+  max: 60, // max subidas por hora por IP
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Límite de subida de archivos alcanzado. Intentá en 1 hora.' },
+  skip: (req) => req.method === 'GET', // las lecturas de fotos/logo NO cuentan como subida
 });
 
 app.use('/api/auth', authLimiter, authRoutes);
