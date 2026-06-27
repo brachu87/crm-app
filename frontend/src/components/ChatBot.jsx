@@ -320,7 +320,7 @@ const FAQ = [
     id: 'contact',
     keywords: ['contacto','soporte','ayuda tecnica','problema','error','falla','no funciona'],
     q: '¿Cómo contacto al soporte?',
-    a: 'Escribinos a contacto@gestumio.app 📧\n\nTambién podés comunicarte directamente por WhatsApp desde la página de Gestumio. Respondemos a la brevedad.',
+    a: 'Escribinos por WhatsApp al +54 9 11 7823-6708 📱\n👉 https://wa.me/5491178236708\nRespondemos a la brevedad.',
   },
 ];
 
@@ -381,7 +381,7 @@ function getMenu(pathname) {
   return DEFAULT_MENU;
 }
 
-const WELCOME = '¡Hola! 👋 Soy el asistente de Gestumio.\n¿Sobre qué querés saber?';
+const WELCOME = '¡Hola! 👋 Soy el asistente de Gestumio. Escribime tu consulta y te ayudo. 🌿';
 
 // ── Componente ───────────────────────────────────────────────────────────────
 export default function ChatBot() {
@@ -437,7 +437,7 @@ export default function ChatBot() {
       const match = findAnswer(userMsg);
       const response = match
         ? match.a
-        : 'No encontré una respuesta para eso 🤔\n\nProbá eligiendo una de las opciones del menú, o escribinos a contacto@gestumio.app 📧';
+        : 'No encontré una respuesta para eso 🤔\n\nEscribinos por WhatsApp al +54 9 11 7823-6708 📱 (https://wa.me/5491178236708)';
       setTyping(false);
       setMessages(m => [...m, { from: 'bot', text: response, showMenu: true }]);
       if (!open) setUnread(u => u + 1);
@@ -520,19 +520,6 @@ export default function ChatBot() {
                   {m.text}
                 </div>
 
-                {/* Menú después de respuesta del bot */}
-                {m.from === 'bot' && m.showMenu && (
-                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {menu.map((s, j) => (
-                      <button key={j} onClick={() => sendMessage(s)} style={{
-                        textAlign: 'left', padding: '7px 11px', borderRadius: 10,
-                        border: '1px solid var(--primary)', background: 'transparent',
-                        color: 'var(--primary)', fontSize: 12, cursor: 'pointer', fontWeight: 500,
-                        lineHeight: 1.4,
-                      }}>{s}</button>
-                    ))}
-                  </div>
-                )}
               </div>
             ))}
 
