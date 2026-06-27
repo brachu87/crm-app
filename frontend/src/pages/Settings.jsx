@@ -1261,7 +1261,7 @@ function GoogleCalendarCard() {
     const p = new URLSearchParams(window.location.search);
     const g = p.get('gcal');
     if (g === 'ok') setMsg('✅ Google Calendar conectado. Se creó el calendario "Gestumio".');
-    else if (g === 'error') setMsg('❌ No se pudo conectar. Revisá las credenciales y volvé a intentar.');
+    else if (g === 'error') setMsg('❌ No se pudo conectar: ' + (p.get('msg') || 'revisá las credenciales') + '.');
     if (g) window.history.replaceState({}, '', '/ajustes');
   }, []);
 

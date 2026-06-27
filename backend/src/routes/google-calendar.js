@@ -52,7 +52,7 @@ router.get('/callback', async (req, res) => {
     back('ok');
   } catch (e) {
     console.error('[gcal callback]', e.message);
-    back('error');
+    res.redirect(`${appUrl}/ajustes?gcal=error&msg=${encodeURIComponent((e && e.message) ? e.message.slice(0, 200) : 'error')}`);
   }
 });
 

@@ -1,0 +1,26 @@
+diff --git a/backend/src/routes/google-calendar.js b/backend/src/routes/google-calendar.js
+index 3cd81c0..eb80b4a 100644
+--- a/backend/src/routes/google-calendar.js
++++ b/backend/src/routes/google-calendar.js
+@@ -52,7 +52,7 @@ router.get('/callback', async (req, res) => {
+     back('ok');
+   } catch (e) {
+     console.error('[gcal callback]', e.message);
+-    back('error');
++    res.redirect(`${appUrl}/ajustes?gcal=error&msg=${encodeURIComponent((e && e.message) ? e.message.slice(0, 200) : 'error')}`);
+   }
+ });
+ 
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index fe10b7f..7c25081 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -1261,7 +1261,7 @@ function GoogleCalendarCard() {
+     const p = new URLSearchParams(window.location.search);
+     const g = p.get('gcal');
+     if (g === 'ok') setMsg('✅ Google Calendar conectado. Se creó el calendario "Gestumio".');
+-    else if (g === 'error') setMsg('❌ No se pudo conectar. Revisá las credenciales y volvé a intentar.');
++    else if (g === 'error') setMsg('❌ No se pudo conectar: ' + (p.get('msg') || 'revisá las credenciales') + '.');
+     if (g) window.history.replaceState({}, '', '/ajustes');
+   }, []);
+ 
