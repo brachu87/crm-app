@@ -1,0 +1,60 @@
+diff --git a/backend/src/routes/admin.js b/backend/src/routes/admin.js
+index fc52fc3..10b7003 100644
+--- a/backend/src/routes/admin.js
++++ b/backend/src/routes/admin.js
+@@ -152,4 +152,55 @@ router.delete('/accounts/:id', adminAuth, async (req, res) => {
+   }
+ });
+ 
++// ─── Migración de datos (SQLite -> PostgreSQL) ───────────────────────────────
++// Orden de tablas respetando dependencias (padres antes que hijos).
++const MIGRATION_MODELS = [
++  'business', 'user', 'client', 'supplier', 'activity', 'branch', 'employee', 'service',
++  'clientNote', 'enrollment', 'cuota', 'payment', 'activityEmployee', 'classSchedule',
++  'attendance', 'payrollRecord', 'expense', 'accountMovement', 'appointment',
++  'note', 'dailyCash', 'manualIncome',
++];
++
++function migrationSecretOk(req) {
++  const envSecret = process.env.ADMIN_SECRET;
++  if (!envSecret || envSecret.length < 12) return false;
++  const s = req.headers['x-admin-secret'] || req.query.secret;
++  return s === envSecret;
++}
++
++// GET /api/admin/export-db?secret=...  -> descarga un JSON con TODA la base
++router.get('/export-db', async (req, res) => {
++  if (!migrationSecretOk(req)) return setTimeout(() => res.status(401).json({ error: 'No autorizado' }), 500);
++  try {
++    const data = {};
++    for (const m of MIGRATION_MODELS) {
++      data[m] = await prisma[m].findMany();
++    }
++    res.setHeader('Content-Disposition', 'attachment; filename="gestumio-export.json"');
++    res.json({ exportedAt: new Date().toISOString(), data });
++  } catch (e) {
++    console.error('[export-db]', e.message);
++    res.status(500).json({ error: e.message });
++  }
++});
++
++// POST /api/admin/import-db  { data: {...} }  -> carga el JSON exportado en la base actual
++router.post('/import-db', async (req, res) => {
++  if (!migrationSecretOk(req)) return setTimeout(() => res.status(401).json({ error: 'No autorizado' }), 500);
++  const data = req.body && req.body.data;
++  if (!data || typeof data !== 'object') return res.status(400).json({ error: 'Falta el campo data del export' });
++  const result = {};
++  for (const m of MIGRATION_MODELS) {
++    const rows = Array.isArray(data[m]) ? data[m] : [];
++    if (rows.length === 0) { result[m] = 0; continue; }
++    try {
++      const r = await prisma[m].createMany({ data: rows, skipDuplicates: true });
++      result[m] = r.count;
++    } catch (e) {
++      result[m] = 'ERROR: ' + e.message;
++    }
++  }
++  res.json({ ok: true, result });
++});
++
+ module.exports = router;

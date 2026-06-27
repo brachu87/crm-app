@@ -1,0 +1,165 @@
+diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index 783f649..d7d2f35 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -3,7 +3,7 @@ generator client {
+ }
+ 
+ datasource db {
+-  provider = "sqlite"
++  provider = "postgresql"
+   url      = env("DATABASE_URL")
+ }
+ 
+diff --git a/backend/src/index.js b/backend/src/index.js
+index 409ba55..2ec715e 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -197,6 +197,7 @@ const prisma = require('./prisma');
+ 
+ 
+ async function ensureBusinessExtraFields() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   const cols = [
+     ['cuit',      'TEXT'],
+     ['address',   'TEXT'],
+@@ -212,6 +213,7 @@ async function ensureBusinessExtraFields() {
+ }
+ 
+ async function ensureManualIncomeTable() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const tables = await prisma.$queryRawUnsafe(
+       `SELECT name FROM sqlite_master WHERE type='table' AND name='ManualIncome'`
+@@ -243,6 +245,7 @@ async function ensureManualIncomeTable() {
+ 
+ 
+ async function ensurePermissionsColumn() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const info = await prisma.$queryRawUnsafe(`PRAGMA table_info("User")`);
+     const exists = info.some(col => col.name === 'permissions');
+@@ -260,6 +263,7 @@ const PORT = process.env.PORT || 4000;
+ 
+ // Barrido independiente de cuotas vencidas: al arrancar y cada hora
+ async function ensureSubscriptionFields() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
+     const names = cols.map(r => r.name);
+@@ -277,6 +281,7 @@ async function ensureSubscriptionFields() {
+ }
+ 
+ async function ensureClientCuit() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Client")`);
+     if (!cols.some(r => r.name === 'cuit')) {
+@@ -289,6 +294,7 @@ async function ensureClientCuit() {
+ }
+ 
+ async function ensureSupplierDni() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Supplier")`);
+     if (!cols.some(r => r.name === 'dni')) {
+@@ -301,6 +307,7 @@ async function ensureSupplierDni() {
+ }
+ 
+ async function ensureSupplierIdOnExpense() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Expense")`);
+     if (!cols.some(r => r.name === 'supplierId')) {
+@@ -313,6 +320,7 @@ async function ensureSupplierIdOnExpense() {
+ }
+ 
+ async function ensureLastAccessAndBonificado() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const userCols = await prisma.$queryRawUnsafe(`PRAGMA table_info("User")`);
+     const userNames = userCols.map(r => r.name);
+@@ -356,6 +364,7 @@ async function ensureBecaPrices() {
+ }
+ 
+ async function ensureGcalColumns() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const biz = await prisma.$queryRawUnsafe('PRAGMA table_info("Business")');
+     const bcols = biz.map((c) => c.name);
+@@ -377,6 +386,7 @@ async function ensureGcalColumns() {
+ }
+ 
+ async function ensureWATemplateColumns() {
++  if ((process.env.DATABASE_URL || '').startsWith('postgres')) return; // PG: esquema via db push
+   try {
+     const cols = await prisma.$queryRawUnsafe(`PRAGMA table_info("Business")`);
+     const names = cols.map(r => r.name);
+diff --git a/start.js b/start.js
+index 6925cb0..045760b 100644
+--- a/start.js
++++ b/start.js
+@@ -9,6 +9,7 @@ if (!process.env.DATABASE_URL) {
+   process.env.DATABASE_URL = 'file:/data/prod.db';
+ }
+ const migrationsDir = path.join(backendDir, 'prisma', 'migrations');
++const isPostgres = (process.env.DATABASE_URL || '').startsWith('postgres');
+ 
+ function deploy() {
+   execSync('npx prisma migrate deploy', { cwd: backendDir, stdio: 'inherit' });
+@@ -24,29 +25,35 @@ function listMigrations() {
+   }
+ }
+ 
+-console.log('Aplicando migraciones...');
+-try {
+-  deploy();
+-  console.log('Migraciones OK.');
+-} catch (e) {
+-  // La base de producción ya tiene el esquema completo: lo mantienen las funciones
+-  // ensure*() que corren en cada arranque (agregan columnas/tablas de forma idempotente).
+-  // Si `migrate deploy` falla por migraciones heredadas incompatibles con SQLite
+-  // (ALTER COLUMN de Postgres) o por columnas que ya existen ("duplicate column"),
+-  // marcamos TODO el historial como aplicado (baseline) y reintentamos una vez.
+-  console.warn('migrate deploy falló; normalizando historial de migraciones (baseline)...');
+-  for (const m of listMigrations()) {
+-    try {
+-      execSync(`npx prisma migrate resolve --applied ${m}`, { cwd: backendDir, stdio: 'pipe' });
+-    } catch (_) {
+-      // ya estaba aplicada
+-    }
++if (isPostgres) {
++  // PostgreSQL: el esquema se crea/sincroniza desde schema.prisma (sin historial de migraciones).
++  console.log('PostgreSQL detectado: sincronizando esquema con prisma db push...');
++  try {
++    execSync('npx prisma db push --skip-generate', { cwd: backendDir, stdio: 'inherit' });
++    console.log('Esquema PostgreSQL sincronizado.');
++  } catch (e) {
++    console.error('db push falló:', e.message);
+   }
++} else {
++  console.log('Aplicando migraciones...');
+   try {
+     deploy();
+-    console.log('Migraciones normalizadas.');
+-  } catch (e2) {
+-    console.error('No se pudieron aplicar migraciones (la app sigue con el esquema actual):', e2.message);
++    console.log('Migraciones OK.');
++  } catch (e) {
++    // SQLite: si migrate deploy falla por migraciones heredadas, marcamos el historial
++    // como aplicado (baseline) y reintentamos una vez.
++    console.warn('migrate deploy falló; normalizando historial de migraciones (baseline)...');
++    for (const m of listMigrations()) {
++      try {
++        execSync(`npx prisma migrate resolve --applied ${m}`, { cwd: backendDir, stdio: 'pipe' });
++      } catch (_) {}
++    }
++    try {
++      deploy();
++      console.log('Migraciones normalizadas.');
++    } catch (e2) {
++      console.error('No se pudieron aplicar migraciones:', e2.message);
++    }
+   }
+ }
+ 
