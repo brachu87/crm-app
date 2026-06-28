@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Activities from './pages/Activities';
 import ActivityDetail from './pages/ActivityDetail';
@@ -42,6 +44,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/registro" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/recuperar" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+          <Route path="/restablecer" element={<ResetPassword />} />
 
           <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
             <Route index element={<Dashboard />} />

@@ -100,6 +100,10 @@ export default function Login() {
           </button>
         </form>
 
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <Link to="/recuperar" style={{ fontSize: 13, color: 'var(--primary)' }}>¿Olvidaste tu contraseña?</Link>
+        </div>
+
         <div className="auth-switch">
           ¿No tenés cuenta? <Link to="/registro">Crear cuenta</Link>
         </div>

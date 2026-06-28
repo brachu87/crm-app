@@ -132,4 +132,56 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
   }
 }
 
-module.exports = { sendWelcomeEmail };
+async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.log('[mailer] GMAIL no configurado, mail de reset omitido');
+    return false;
+  }
+  const html = `
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#FAF7F2;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF7F2;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.07);">
+        <tr><td style="background:#1BA84C;padding:32px 40px;text-align:center;">
+          <div style="font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Gestumio</div>
+        </td></tr>
+        <tr><td style="padding:36px 40px 28px;">
+          <p style="margin:0 0 6px;font-size:21px;font-weight:700;color:#111;">Hola${toName ? ', ' + toName : ''} 👋</p>
+          <p style="margin:0 0 22px;font-size:15px;color:#4B5563;line-height:1.7;">
+            Recibimos un pedido para <strong>restablecer la contraseña</strong> de tu cuenta de Gestumio.
+            Tocá el botón para crear una nueva. El enlace vence en <strong>1 hora</strong>.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+            <a href="${resetUrl}" style="display:inline-block;background:#1BA84C;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;">Crear nueva contraseña</a>
+          </td></tr></table>
+          <p style="margin:22px 0 0;font-size:13px;color:#6B7280;line-height:1.6;">
+            Si no fuiste vos, ignorá este mail: tu contraseña no cambia hasta que uses el enlace.<br/>
+            Si el botón no funciona, copiá y pegá este enlace:<br/>
+            <span style="color:#1BA84C;word-break:break-all;">${resetUrl}</span>
+          </p>
+        </td></tr>
+        <tr><td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:18px 40px;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#9CA3AF;">© 2026 Gestumio · <a href="https://wa.me/5491178236708" style="color:#1BA84C;text-decoration:none;">Soporte</a></p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+  try {
+    await transporter.sendMail({
+      from: `"Gestumio" <${process.env.GMAIL_USER}>`,
+      to: toEmail,
+      subject: 'Restablecé tu contraseña de Gestumio',
+      html,
+    });
+    console.log(`[mailer] Mail de reset enviado a ${toEmail}`);
+    return true;
+  } catch (err) {
+    console.error('[mailer] Error al enviar reset:', err.message);
+    return false;
+  }
+}
+
+module.exports = { sendWelcomeEmail, sendPasswordResetEmail };

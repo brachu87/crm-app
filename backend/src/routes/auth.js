@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const prisma = require('../prisma');
+const { sendPasswordResetEmail } = require('../lib/mailer');
 
 const router = express.Router();
 
@@ -229,6 +230,49 @@ router.get('/me', async (req, res) => {
     });
   } catch (e) {
     res.status(401).json({ error: 'Token inválido' });
+  }
+});
+
+// POST /api/auth/forgot-password  — envía email con enlace para restablecer
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const email = sanitize(req.body.email).toLowerCase();
+    if (!validateEmail(email)) return res.status(400).json({ error: 'Email inválido' });
+    const user = await prisma.user.findFirst({ where: { email } });
+    if (user) {
+      const secret = process.env.JWT_SECRET + (user.password || '');
+      const token = jwt.sign({ uid: user.id, k: 'pwreset' }, secret, { expiresIn: '1h' });
+      const base = (process.env.APP_URL || 'https://app.gestumio.com').replace(/\/$/, '');
+      const resetUrl = `${base}/restablecer?token=${encodeURIComponent(token)}`;
+      sendPasswordResetEmail({ toEmail: user.email, toName: user.name || '', resetUrl }).catch(() => {});
+    }
+    // Respuesta uniforme: no revelar si el email existe
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[forgot-password]', e.message);
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
+// POST /api/auth/reset-password  — setea la nueva contraseña con el token del email
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Faltan datos' });
+    if (String(password).length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+    const decoded = jwt.decode(token);
+    if (!decoded || !decoded.uid || decoded.k !== 'pwreset') return res.status(400).json({ error: 'Enlace inválido' });
+    const user = await prisma.user.findUnique({ where: { id: decoded.uid } });
+    if (!user) return res.status(400).json({ error: 'Enlace inválido' });
+    const secret = process.env.JWT_SECRET + (user.password || '');
+    try { jwt.verify(token, secret); }
+    catch { return res.status(400).json({ error: 'El enlace expiró o ya fue usado. Pedí uno nuevo.' }); }
+    const hashed = await bcrypt.hash(password, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[reset-password]', e.message);
+    res.status(500).json({ error: 'Error' });
   }
 });
 
