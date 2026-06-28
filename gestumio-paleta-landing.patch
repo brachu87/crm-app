@@ -1,0 +1,88 @@
+diff --git a/gestumio-landing.html b/gestumio-landing.html
+index 549596c..aed9347 100644
+--- a/gestumio-landing.html
++++ b/gestumio-landing.html
+@@ -14,13 +14,13 @@
+     :root {
+       --primary: #1BA84C;
+       --primary-dark: #0F8A3A;
+-      --accent: #E8674A;
+-      --accent-dark: #d45a3e;
+-      --bg: #FAF7F2;
++      --accent: #1E2A38;
++      --accent-dark: #141e29;
++      --bg: #F7F9F8;
+       --surface: #ffffff;
+       --ink: #1a1a1a;
+       --ink-soft: #6b7280;
+-      --border: #e5e0d8;
++      --border: #E3E8E6;
+     }
+ 
+     html { scroll-behavior: smooth; }
+@@ -329,7 +329,7 @@
+         <div class="mock-pill pill-amber">Pendiente</div>
+       </div>
+       <div class="mock-row" style="border:none">
+-        <div class="mock-avatar" style="background:#E8674A">SP</div>
++        <div class="mock-avatar" style="background:#1E2A38">SP</div>
+         <div>
+           <div style="font-weight:600;font-size:13px">Sofía Pérez</div>
+           <div style="font-size:11px;color:#9ca3af">Vence en 3 días</div>
+diff --git a/index.html b/index.html
+index a81d48d..b3afec7 100755
+--- a/index.html
++++ b/index.html
+@@ -14,13 +14,13 @@
+     :root {
+       --primary: #1BA84C;
+       --primary-dark: #0F8A3A;
+-      --accent: #E8674A;
+-      --accent-dark: #d45a3e;
+-      --bg: #FAF7F2;
++      --accent: #1E2A38;
++      --accent-dark: #141e29;
++      --bg: #F7F9F8;
+       --surface: #ffffff;
+       --ink: #1a1a1a;
+       --ink-soft: #6b7280;
+-      --border: #e5e0d8;
++      --border: #E3E8E6;
+     }
+ 
+     html { scroll-behavior: smooth; }
+@@ -333,7 +333,7 @@
+         <div class="mock-pill pill-amber">Pendiente</div>
+       </div>
+       <div class="mock-row" style="border:none">
+-        <div class="mock-avatar" style="background:#E8674A">SP</div>
++        <div class="mock-avatar" style="background:#1E2A38">SP</div>
+         <div>
+           <div style="font-weight:600;font-size:13px">Sofía Pérez</div>
+           <div style="font-size:11px;color:#9ca3af">Vence en 3 días</div>
+diff --git a/privacidad.html b/privacidad.html
+index 63b915c..9b4cb28 100755
+--- a/privacidad.html
++++ b/privacidad.html
+@@ -7,7 +7,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>Política de Privacidad — Gestumio</title>
+   <style>
+-    :root { --primary: #1BA84C; --accent: #E8674A; --bg: #FAF7F2; --ink: #1a1a1a; --ink-soft: #666; --border: #e5e0d8; }
++    :root { --primary: #1BA84C; --accent: #1E2A38; --bg: #F7F9F8; --ink: #1a1a1a; --ink-soft: #666; --border: #E3E8E6; }
+     * { box-sizing: border-box; margin: 0; padding: 0; }
+     body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.7; }
+     nav { background: var(--primary); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+diff --git a/terminos.html b/terminos.html
+index ce0fa8e..a7172ab 100755
+--- a/terminos.html
++++ b/terminos.html
+@@ -7,7 +7,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>Términos y Condiciones — Gestumio</title>
+   <style>
+-    :root { --primary: #1BA84C; --accent: #E8674A; --bg: #FAF7F2; --ink: #1a1a1a; --ink-soft: #666; --border: #e5e0d8; }
++    :root { --primary: #1BA84C; --accent: #1E2A38; --bg: #F7F9F8; --ink: #1a1a1a; --ink-soft: #666; --border: #E3E8E6; }
+     * { box-sizing: border-box; margin: 0; padding: 0; }
+     body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.7; }
+     nav { background: var(--primary); padding: 16px 24px; display: flex; align-items: center; gap: 12px; }

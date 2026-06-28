@@ -1,0 +1,13 @@
+diff --git a/index.html b/index.html
+index 07df042..a81d48d 100755
+--- a/index.html
++++ b/index.html
+@@ -485,6 +485,8 @@
+       <a href="https://app.gestumio.com/login">Iniciar sesión</a>
+       <a href="https://app.gestumio.com/registro">Registrarse (15 días gratis)</a>
+       <a href="mailto:contacto@gestumio.app">Contacto</a>
++      <a href="terminos.html">Términos y condiciones</a>
++      <a href="privacidad.html">Política de privacidad</a>
+     </div>
+   </div>
+ </footer>

@@ -1,0 +1,42 @@
+diff --git a/frontend/src/index.css b/frontend/src/index.css
+index f8611a0..880c7f7 100644
+--- a/frontend/src/index.css
++++ b/frontend/src/index.css
+@@ -1,17 +1,17 @@
+ @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+ 
+ :root {
+-  --bg: #FAF7F2;
++  --bg: #F7F9F8;
+   --surface: #FFFFFF;
+   --ink: #1E2A38;
+-  --ink-soft: #6B6862;
++  --ink-soft: #5B6B7A;
+   --primary: #1BA84C;
+   --primary-soft: #E4F6E9;
+-  --accent: #E8674A;
+-  --accent-soft: #FBE4DC;
++  --accent: #1E2A38;
++  --accent-soft: #EAEEF2;
+   --warn: #D4A656;
+   --warn-soft: #F6EBD4;
+-  --border: #E7E2D9;
++  --border: #E3E8E6;
+ 
+   --radius: 10px;
+   --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+@@ -27,10 +27,10 @@
+   --surface: #1a1d27;
+   --ink: #e8e6e1;
+   --ink-soft: #9a9890;
+-  --primary: #5a8a6e;
+-  --primary-soft: #1f3028;
+-  --accent: #e8674a;
+-  --accent-soft: #3a1e16;
++  --primary: #2FBF5C;
++  --primary-soft: #14331f;
++  --accent: #6B7E95;
++  --accent-soft: #233040;
+   --warn: #D4A656;
+   --warn-soft: #2e2210;
+   --border: #2c2f3a;

@@ -1,0 +1,88 @@
+diff --git a/gestumio-landing.html b/gestumio-landing.html
+index 645d6f1..549596c 100644
+--- a/gestumio-landing.html
++++ b/gestumio-landing.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='48' height='48' rx='12' fill='url(%23g)'/%3E%3Cpath d='M32 16.5 A10.5 10.5 0 1 0 33 30' fill='none' stroke='white' stroke-width='4.6' stroke-linecap='round'/%3E%3Cpath d='M33 30 H25.5' fill='none' stroke='%231E2A38' stroke-width='4.6' stroke-linecap='round'/%3E%3C/svg%3E" />
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='url(%23g)' stroke-width='12' stroke-linecap='round' stroke-dasharray='158 49' transform='rotate(32 50 50)'/%3E%3Crect x='45' y='38' width='36' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Crect x='45' y='53' width='30' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Ccircle cx='50' cy='72' r='6' fill='url(%23g)'/%3E%3C/svg%3E" />
+   <title>Gestumio — Gestioná tu negocio sin complicaciones</title>
+   <meta name="description" content="Gestumio es el CRM para pequeños negocios y profesionales. Clientes, turnos, cobros y más, en un solo lugar." />
+   <link rel="preconnect" href="https://fonts.googleapis.com" />
+@@ -257,7 +257,7 @@
+     <a href="#" class="logo">
+       <svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+         <defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46C658"/><stop offset="1" stop-color="#0F8A3A"/></linearGradient></defs>
+-        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round" stroke-dasharray="158 49" transform="rotate(32 50 50)"/>
+         <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
+         <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
+         <circle cx="50" cy="72" r="6" fill="url(#gl)"/>
+@@ -465,7 +465,7 @@
+     <a href="#" class="logo">
+       <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+         <defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46C658"/><stop offset="1" stop-color="#0F8A3A"/></linearGradient></defs>
+-        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round" stroke-dasharray="158 49" transform="rotate(32 50 50)"/>
+         <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
+         <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
+         <circle cx="50" cy="72" r="6" fill="url(#gl)"/>
+diff --git a/index.html b/index.html
+index 89b5427..07df042 100755
+--- a/index.html
++++ b/index.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='48' height='48' rx='12' fill='url(%23g)'/%3E%3Cpath d='M32 16.5 A10.5 10.5 0 1 0 33 30' fill='none' stroke='white' stroke-width='4.6' stroke-linecap='round'/%3E%3Cpath d='M33 30 H25.5' fill='none' stroke='%231E2A38' stroke-width='4.6' stroke-linecap='round'/%3E%3C/svg%3E" />
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='url(%23g)' stroke-width='12' stroke-linecap='round' stroke-dasharray='158 49' transform='rotate(32 50 50)'/%3E%3Crect x='45' y='38' width='36' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Crect x='45' y='53' width='30' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Ccircle cx='50' cy='72' r='6' fill='url(%23g)'/%3E%3C/svg%3E" />
+   <title>Gestumio — Gestioná tu negocio sin complicaciones</title>
+   <meta name="description" content="Gestumio es el CRM para pequeños negocios y profesionales. Clientes, turnos, cobros y más, en un solo lugar." />
+   <link rel="preconnect" href="https://fonts.googleapis.com" />
+@@ -257,7 +257,7 @@
+     <a href="#" class="logo">
+       <svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+         <defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46C658"/><stop offset="1" stop-color="#0F8A3A"/></linearGradient></defs>
+-        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round" stroke-dasharray="158 49" transform="rotate(32 50 50)"/>
+         <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
+         <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
+         <circle cx="50" cy="72" r="6" fill="url(#gl)"/>
+@@ -473,7 +473,7 @@
+     <a href="#" class="logo">
+       <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+         <defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#46C658"/><stop offset="1" stop-color="#0F8A3A"/></linearGradient></defs>
+-        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/>
++        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gl)" stroke-width="12" stroke-linecap="round" stroke-dasharray="158 49" transform="rotate(32 50 50)"/>
+         <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
+         <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
+         <circle cx="50" cy="72" r="6" fill="url(#gl)"/>
+diff --git a/privacidad.html b/privacidad.html
+index cecf8b6..63b915c 100755
+--- a/privacidad.html
++++ b/privacidad.html
+@@ -1,6 +1,8 @@
+ <!DOCTYPE html>
+ <html lang="es">
+ <head>
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='url(%23g)' stroke-width='12' stroke-linecap='round' stroke-dasharray='158 49' transform='rotate(32 50 50)'/%3E%3Crect x='45' y='38' width='36' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Crect x='45' y='53' width='30' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Ccircle cx='50' cy='72' r='6' fill='url(%23g)'/%3E%3C/svg%3E" />
++
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>Política de Privacidad — Gestumio</title>
+diff --git a/terminos.html b/terminos.html
+index 5d13eed..ce0fa8e 100755
+--- a/terminos.html
++++ b/terminos.html
+@@ -1,6 +1,8 @@
+ <!DOCTYPE html>
+ <html lang="es">
+ <head>
++  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2346C658'/%3E%3Cstop offset='1' stop-color='%230F8A3A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='33' fill='none' stroke='url(%23g)' stroke-width='12' stroke-linecap='round' stroke-dasharray='158 49' transform='rotate(32 50 50)'/%3E%3Crect x='45' y='38' width='36' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Crect x='45' y='53' width='30' height='11.5' rx='5.75' fill='%231E2A38'/%3E%3Ccircle cx='50' cy='72' r='6' fill='url(%23g)'/%3E%3C/svg%3E" />
++
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>Términos y Condiciones — Gestumio</title>
