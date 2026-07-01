@@ -25,6 +25,7 @@ import DailyCash from './pages/DailyCash';
 import Settings from './pages/Settings';
 import Sedes from './pages/Sedes';
 import Horarios from './pages/Horarios';
+import SocioPortal from './pages/SocioPortal';
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/registro" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="/recuperar" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/restablecer" element={<ResetPassword />} />
+          <Route path="/portal/:token" element={<SocioPortal />} />
 
           <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
             <Route index element={<Dashboard />} />
