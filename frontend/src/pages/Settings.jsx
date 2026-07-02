@@ -490,73 +490,35 @@ export default function Settings() {
 // ── Automatización WhatsApp vía Meta Cloud API ───────────────────────────────
 function WhatsAppAuto() {
   const [status, setStatus] = useState(null);
-  const [qr, setQR] = useState(null);
   const [testPhone, setTestPhone] = useState('');
   const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Gestumio 🌿');
   const [testing, setTesting] = useState(false);
   const [running, setRunning] = useState(false);
-  const [connecting, setConnecting] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [templates, setTemplates] = useState({ expiring: '', overdue: '', appointment: '' });
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [templatesSaved, setTemplatesSaved] = useState(false);
 
-  // Polling cada 2s
   useEffect(() => {
-    let interval;
-    function poll() {
-      api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
-    }
-    poll();
-    interval = setInterval(poll, 2000);
-    return () => clearInterval(interval);
+    api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
   }, []);
 
-  // Cargar plantillas cuando está conectado
+  const connected = status?.connected;
+
   useEffect(() => {
-    if (status?.state === 'connected' && !templatesLoaded) {
+    if (connected && !templatesLoaded) {
       api.get('/whatsapp/templates').then(r => {
         setTemplates(r.data);
         setTemplatesLoaded(true);
       }).catch(() => {});
     }
-  }, [status?.state, templatesLoaded]);
+  }, [connected, templatesLoaded]);
 
   async function handleSaveTemplates() {
     try {
       await api.put('/whatsapp/templates', templates);
       setTemplatesSaved(true);
       setTimeout(() => setTemplatesSaved(false), 2000);
-    } catch (e) {
-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
-    }
-  }
-
-  // Cuando hay QR disponible, pedirlo
-  useEffect(() => {
-    if (status?.state === 'qr_ready') {
-      api.get('/whatsapp/qr').then(r => setQR(r.data.qr)).catch(() => {});
-    } else if (status?.state === 'connected') {
-      setQR(null); // solo limpiar QR cuando conectamos exitosamente
-    }
-    // en 'connecting' o 'disconnected' mantenemos el QR anterior si lo había
-  }, [status?.state]);
-
-  async function handleConnect() {
-    setConnecting(true); setFeedback('');
-    try {
-      await api.post('/whatsapp/connect');
-      setFeedback('');
-    } catch (e) {
-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
-    } finally { setConnecting(false); }
-  }
-
-  async function handleLogout() {
-    if (!confirm('¿Cerrar sesión de WhatsApp? Tendrás que escanear el QR de nuevo.')) return;
-    try {
-      await api.post('/whatsapp/logout');
-      setFeedback('Sesión cerrada.');
     } catch (e) {
       setFeedback('❌ ' + (e.response?.data?.error || e.message));
     }
@@ -583,28 +545,17 @@ function WhatsAppAuto() {
     } finally { setRunning(false); }
   }
 
-  const state = status?.state || 'disconnected';
-  const stateLabel = {
-    disconnected: 'Desconectado',
-    connecting:   qr ? 'Actualizando QR...' : 'Conectando...',
-    qr_ready:     'Esperando QR',
-    connected:    'Conectado',
-  }[state] || state;
-  const stateColor = {
-    disconnected: '#ef4444',
-    connecting:   '#f59e0b',
-    qr_ready:     '#f59e0b',
-    connected:    '#22c55e',
-  }[state] || '#94a3b8';
+  const stateColor = connected ? '#22c55e' : '#ef4444';
+  const stateLabel = connected ? 'Conectado (API oficial)' : 'Sin número asignado';
 
   return (
     <div className="card" style={{ marginTop: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <span style={{ fontSize: 28 }}>🤖</span>
         <div>
-          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Conexión de WhatsApp</h2>
+          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>WhatsApp (API oficial de Meta)</h2>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
-            Vinculá tu WhatsApp para enviar recordatorios y comprobantes (envío manual)
+            Enviá recordatorios y comprobantes a tus clientes desde tu número oficial de WhatsApp Business.
           </p>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -616,75 +567,29 @@ function WhatsAppAuto() {
         </div>
       </div>
 
-      {/* Estado: desconectado — mostrar botón conectar */}
-      {state === 'disconnected' && (
-        <div style={{ textAlign: 'center', padding: '24px 0' }}>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
-            Conectá tu WhatsApp para enviar recordatorios y comprobantes a tus clientes.
-          </p>
-          <button className="btn btn-primary" onClick={handleConnect} disabled={connecting}>
-            {connecting ? 'Iniciando...' : '📱 Conectar WhatsApp'}
-          </button>
+      {!connected && (
+        <div style={{
+          background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10,
+          padding: 14, fontSize: 13, color: '#92400e',
+        }}>
+          Tu número de WhatsApp Business todavía no está habilitado. El equipo de Gestumio activa tu número
+          en la API oficial de Meta y queda listo para enviar recordatorios y comprobantes.
+          Escribinos si querés activarlo.
         </div>
       )}
 
-      {/* Estado: conectando sin QR previo */}
-      {state === 'connecting' && !qr && (
-        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-soft)', fontSize: 14 }}>
-          ⏳ Iniciando conexión...
-        </div>
-      )}
-
-      {/* Estado: QR listo o reconectando con QR previo */}
-      {(state === 'qr_ready' || (state === 'connecting' && qr)) && (
-        <div style={{ textAlign: 'center', padding: '16px 0' }}>
-          <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>
-            📱 Escaneá este código QR con WhatsApp
-          </p>
-          <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
-            Abrí WhatsApp → Dispositivos vinculados → Vincular dispositivo
-          </p>
-          {qr ? (
-            <img
-              src={qr}
-              alt="QR WhatsApp"
-              style={{ width: 240, height: 240, borderRadius: 12, border: '2px solid var(--border)' }}
-            />
-          ) : (
-            <div style={{ width: 240, height: 240, margin: '0 auto', borderRadius: 12,
-              border: '2px dashed var(--border)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', color: 'var(--ink-soft)', fontSize: 13 }}>
-              Cargando QR...
-            </div>
-          )}
-          <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>
-            El QR se renueva automáticamente. Se actualiza en segundos.
-          </p>
-        </div>
-      )}
-
-      {/* Estado: conectado */}
-      {state === 'connected' && (
+      {connected && (
         <>
           <div style={{
             background: '#f0fdf4', border: '1px solid #bbf7d0',
             borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <span>
-              ✅ WhatsApp conectado{status?.phone ? ` (${status.phone})` : ''}.
-              Listo para enviar recordatorios y comprobantes manualmente desde Cobranza.
-            </span>
-            <button
-              onClick={handleLogout}
-              style={{ background: 'none', border: '1px solid #16653444', color: '#166534',
-                borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              Desconectar
-            </button>
+            ✅ WhatsApp habilitado{status?.phone ? ` (${status.phone})` : ''} con la API oficial.
+            Listo para enviar recordatorios y comprobantes.
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Probar envío manual</p>
+            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Probar envío</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <input
                 value={testPhone}
@@ -702,24 +607,33 @@ function WhatsAppAuto() {
                 fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical',
                 boxSizing: 'border-box', marginBottom: 8 }}
             />
-            <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
-              {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
+                {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}
+              </button>
+              <button className="btn btn-secondary" onClick={handleRunNow} disabled={running}>
+                {running ? 'Ejecutando...' : '🔔 Enviar recordatorios ahora'}
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 8 }}>
+              Nota: el texto libre solo llega si el cliente te escribió en las últimas 24hs. Los recordatorios
+              automáticos usan las plantillas aprobadas por Meta.
+            </p>
           </div>
-
         </>
       )}
 
-      {/* Plantillas automáticas — siempre visibles */}
+      {/* Plantillas de texto (para envíos dentro de la ventana de 24hs) */}
       <div className="card" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Plantillas de mensajes automáticos</h2>
+          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Textos de mensajes</h2>
           <button className="btn btn-primary btn-sm" onClick={handleSaveTemplates}>
             {templatesSaved ? '✓ Guardado' : 'Guardar'}
           </button>
         </div>
         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
-          Podés personalizar el texto de cada recordatorio. Dejá el campo vacío para usar el mensaje por defecto.
+          Personalizá el texto de cada recordatorio para los envíos dentro de la ventana de 24hs.
+          Dejá el campo vacío para usar el mensaje por defecto.
         </p>
         {[
           {

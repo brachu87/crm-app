@@ -278,6 +278,7 @@ function renderTable(accounts) {
           ${bonifBtn}
           ${approveBtn}
           ${extendBtn}
+          <button class="btn-sm" style="background:#dcfce7;color:#166534" onclick="setWhatsApp('${a.id}','${(a.waPhoneId||'').replace(/'/g,"\\'")}','${(a.waPhoneNumber||'').replace(/'/g,"\\'")}')" title="Asignar numero de WhatsApp (Meta)">${a.waPhoneId ? '📱 WA ✓' : '📱 WA'}</button>
           <button class="btn-sm btn-delete" onclick="deleteAccount('${a.id}','${a.name.replace(/'/g,"\\'")}')">Eliminar</button>
         </div>
       </td>
@@ -321,6 +322,22 @@ async function extendTrial(id) {
   if (!confirm('¿Resetear el trial a 14 días desde hoy?')) return;
   await fetch(API + `/admin/accounts/${id}/extend-trial`, { method:'PUT', headers:{'X-Admin-Secret':secret} });
   loadAccounts();
+}
+
+async function setWhatsApp(id, currentId, currentNum) {
+  const phoneId = prompt('Phone Number ID de Meta para este negocio (dejá vacío para desvincular):', currentId || '');
+  if (phoneId === null) return;
+  let phoneNumber = '';
+  if (phoneId.trim()) {
+    phoneNumber = prompt('Número visible (ej: +54 9 11 1234-5678):', currentNum || '') || '';
+  }
+  const r = await fetch(API + `/admin/accounts/${id}/whatsapp`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Secret': secret, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phoneId: phoneId.trim(), phoneNumber: (phoneNumber||'').trim() })
+  });
+  if (r.ok) { loadAccounts(); }
+  else { const e = await r.json().catch(()=>({})); alert('Error: ' + (e.error || 'no se pudo guardar')); }
 }
 
 async function setExtra(id, n) {

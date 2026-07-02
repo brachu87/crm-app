@@ -1,0 +1,219 @@
+diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index d026079..3fed528 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -20,6 +20,7 @@ model Business {
+ 
+   approved   Boolean   @default(true)
+   approvedAt DateTime?
++  extraUsers Int       @default(0)
+ 
+   googleCalendarToken  String?
+   googleCalendarId     String?
+diff --git a/backend/src/admin-panel.html b/backend/src/admin-panel.html
+index 9b4b373..d8b9b88 100644
+--- a/backend/src/admin-panel.html
++++ b/backend/src/admin-panel.html
+@@ -117,6 +117,7 @@
+               <th>Propietario</th>
+               <th>Último acceso</th>
+               <th>Usuarios</th>
++              <th>Cuota/mes</th>
+               <th>Registro</th>
+               <th>Estado / Trial</th>
+               <th>Acciones</th>
+@@ -221,7 +222,7 @@ function statusPill(a) {
+ function renderTable(accounts) {
+   const tbody = document.getElementById('accountsBody');
+   if (!accounts.length) {
+-    tbody.innerHTML = '<tr><td colspan="7" class="empty">Sin cuentas registradas</td></tr>';
++    tbody.innerHTML = '<tr><td colspan="8" class="empty">Sin cuentas registradas</td></tr>';
+     return;
+   }
+   tbody.innerHTML = accounts.map(a => {
+@@ -256,8 +257,16 @@ function renderTable(accounts) {
+       </td>
+       <td style="color:#64748b;white-space:nowrap">${lastAccess}</td>
+       <td style="text-align:center">
+-        <span style="font-weight:700;font-size:15px">${a.userCount}</span>
+-        <span style="font-size:11px;color:#94a3b8">/3</span>
++        <div><span style="font-weight:700;font-size:15px">${a.userCount}</span><span style="font-size:11px;color:#94a3b8">/${a.userLimit}</span></div>
++        <div style="margin-top:5px;display:flex;align-items:center;justify-content:center;gap:5px">
++          <button class="btn-sm" style="padding:1px 8px;background:#e2e8f0;color:#334155" onclick="setExtra('${a.id}',${a.extraUsers - 1})" ${a.extraUsers <= 0 ? 'disabled' : ''} title="Quitar usuario extra">−</button>
++          <span style="font-size:11px;color:#64748b" title="Usuarios extra (+$20.000 c/u)">+${a.extraUsers} extra</span>
++          <button class="btn-sm" style="padding:1px 8px;background:#dbeafe;color:#1e40af" onclick="setExtra('${a.id}',${a.extraUsers + 1})" title="Agregar usuario extra (+$20.000/mes)">+</button>
++        </div>
++      </td>
++      <td style="text-align:center;white-space:nowrap">
++        <span style="font-weight:700;font-size:14px">$${a.monthlyPrice.toLocaleString('es-AR')}</span>
++        ${a.extraUsers > 0 ? `<div style="font-size:10px;color:#94a3b8">50.000 + ${a.extraUsers}×20.000</div>` : '<div style="font-size:10px;color:#cbd5e1">plan base</div>'}
+       </td>
+       <td style="color:#64748b;white-space:nowrap">${date}</td>
+       <td>
+@@ -314,6 +323,17 @@ async function extendTrial(id) {
+   loadAccounts();
+ }
+ 
++async function setExtra(id, n) {
++  if (n < 0) return;
++  const r = await fetch(API + `/admin/accounts/${id}/extra-users`, {
++    method: 'PUT',
++    headers: { 'X-Admin-Secret': secret, 'Content-Type': 'application/json' },
++    body: JSON.stringify({ extraUsers: n })
++  });
++  if (r.ok) { loadAccounts(); }
++  else { const e = await r.json().catch(()=>({})); alert('Error: ' + (e.error || 'no se pudo actualizar')); }
++}
++
+ async function deleteAccount(id, name) {
+   if (!confirm(`¿Eliminar la cuenta "${name}" y todos sus datos? Esta acción no se puede deshacer.`)) return;
+   const r = await fetch(API + `/admin/accounts/${id}`, { method:'DELETE', headers:{'X-Admin-Secret':secret} });
+diff --git a/backend/src/routes/admin.js b/backend/src/routes/admin.js
+index eebdb9a..3f18c56 100644
+--- a/backend/src/routes/admin.js
++++ b/backend/src/routes/admin.js
+@@ -3,6 +3,9 @@ const prisma = require('../prisma');
+ const router = express.Router();
+ 
+ const TRIAL_DAYS = 15;
++const BASE_PRICE = 50000;      // precio del plan base (incluye INCLUDED_USERS usuarios)
++const EXTRA_USER_PRICE = 20000; // costo por cada usuario adicional
++const INCLUDED_USERS = 3;      // usuarios incluidos en el plan base
+ 
+ function adminAuth(req, res, next) {
+   const envSecret = process.env.ADMIN_SECRET;
+@@ -30,7 +33,7 @@ router.get('/accounts', adminAuth, async (req, res) => {
+   try {
+     const businesses = await prisma.$queryRawUnsafe(`
+       SELECT
+-        b.id, b.name, b.category, b.phone, b."createdAt", b.approved, b."approvedAt",
++        b.id, b.name, b.category, b.phone, b."createdAt", b.approved, b."approvedAt", b."extraUsers",
+         b."subscriptionStatus", b."subscriptionExpires", b."bonificado",
+         u.name as ownerName, u.email as ownerEmail, u."lastAccessAt" as ownerLastAccess,
+         (SELECT COUNT(*) FROM "User" u2 WHERE u2."businessId" = b.id) as userCount
+@@ -51,6 +54,9 @@ router.get('/accounts', adminAuth, async (req, res) => {
+       subscriptionExpires: b.subscriptionExpires,
+       bonificado: b.bonificado === 1 || b.bonificado === true,
+       userCount: Number(b.userCount) || 0,
++      extraUsers: Number(b.extraUsers) || 0,
++      userLimit: INCLUDED_USERS + (Number(b.extraUsers) || 0),
++      monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * (Number(b.extraUsers) || 0),
+       trialDaysLeft: trialDaysLeft(b.createdAt),
+       owner: b.ownerName ? { name: b.ownerName, email: b.ownerEmail, lastAccessAt: b.ownerLastAccess } : null,
+     }));
+@@ -119,6 +125,22 @@ router.put('/accounts/:id/extend-trial', adminAuth, async (req, res) => {
+   }
+ });
+ 
++// PUT /api/admin/accounts/:id/extra-users — setea usuarios adicionales (cada uno suma $20.000/mes)
++router.put('/accounts/:id/extra-users', adminAuth, async (req, res) => {
++  try {
++    let n = parseInt(req.body.extraUsers, 10);
++    if (isNaN(n) || n < 0) return res.status(400).json({ error: 'Cantidad de usuarios extra inválida' });
++    if (n > 50) return res.status(400).json({ error: 'Máximo 50 usuarios extra' });
++    await prisma.business.update({
++      where: { id: req.params.id },
++      data: { extraUsers: n },
++    });
++    res.json({ ok: true, extraUsers: n, userLimit: INCLUDED_USERS + n, monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * n });
++  } catch (err) {
++    res.status(500).json({ error: err.message });
++  }
++});
++
+ // DELETE /api/admin/accounts/:id
+ router.delete('/accounts/:id', adminAuth, async (req, res) => {
+   try {
+diff --git a/backend/src/routes/billing.js b/backend/src/routes/billing.js
+index 123ddee..af61c9d 100644
+--- a/backend/src/routes/billing.js
++++ b/backend/src/routes/billing.js
+@@ -7,9 +7,17 @@ const prisma = require('../prisma');
+ 
+ const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
+ const APP_URL = process.env.APP_URL || 'https://crm-app-production-0669.up.railway.app';
+-const PRICE = 50000;
++const BASE_PRICE = 50000;       // plan base (incluye 3 usuarios)
++const EXTRA_USER_PRICE = 20000; // por cada usuario adicional
++const INCLUDED_USERS = 3;
++const PRICE = BASE_PRICE;        // compatibilidad
+ const PLAN_DAYS = 30;
+ 
++// Precio mensual del negocio segun sus usuarios extra
++function monthlyPriceFor(biz) {
++  return BASE_PRICE + EXTRA_USER_PRICE * (biz?.extraUsers || 0);
++}
++
+ function getMpClient() {
+   return new MercadoPagoConfig({ accessToken: MP_ACCESS_TOKEN });
+ }
+@@ -31,6 +39,10 @@ router.get('/status', authMiddleware, async (req, res) => {
+       bonificado: biz.bonificado || false,
+       trialEnds: trialEnds.toISOString(),
+       trialDaysLeft,
++      extraUsers: biz.extraUsers || 0,
++      includedUsers: INCLUDED_USERS,
++      userLimit: INCLUDED_USERS + (biz.extraUsers || 0),
++      monthlyPrice: monthlyPriceFor(biz),
+     });
+   } catch (e) {
+     res.status(500).json({ error: e.message });
+@@ -54,10 +66,12 @@ router.post('/preference', authMiddleware, async (req, res) => {
+           {
+             id: `gestumio-plan-${biz.id}`,
+             title: 'Gestumio — Plan Mensual',
+-            description: `Suscripción mensual para ${biz.name}`,
++            description: (biz.extraUsers || 0) > 0
++              ? `Suscripción mensual para ${biz.name} (3 usuarios incluidos + ${biz.extraUsers} extra)`
++              : `Suscripción mensual para ${biz.name}`,
+             quantity: 1,
+             currency_id: 'ARS',
+-            unit_price: PRICE,
++            unit_price: monthlyPriceFor(biz),
+           },
+         ],
+         payer: {
+diff --git a/backend/src/routes/users.js b/backend/src/routes/users.js
+index d4c47c7..9e8efbe 100644
+--- a/backend/src/routes/users.js
++++ b/backend/src/routes/users.js
+@@ -33,8 +33,10 @@ router.post('/', async (req, res) => {
+   try {
+     if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el owner puede crear usuarios' });
+ 
++    const biz = await prisma.business.findUnique({ where: { id: req.user.businessId }, select: { extraUsers: true } });
++    const limit = 3 + (biz?.extraUsers || 0);
+     const count = await prisma.user.count({ where: { businessId: req.user.businessId } });
+-    if (count >= 3) return res.status(400).json({ error: 'Límite alcanzado: máximo 3 usuarios por negocio' });
++    if (count >= limit) return res.status(400).json({ error: `Límite alcanzado: máximo ${limit} usuario(s). Escribinos para habilitar más usuarios (+$20.000/mes c/u).` });
+ 
+     const { name, email, password, role } = req.body;
+     if (!name || !email || !password) return res.status(400).json({ error: 'Nombre, email y contraseña son obligatorios' });
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index 28e34ce..e6bbe9e 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -1102,6 +1102,9 @@ function BillingCard({ billing, onRefresh }) {
+   const trialDaysLeft = billing?.trialDaysLeft ?? null;
+   const trialEnds = billing?.trialEnds ? new Date(billing.trialEnds) : null;
+   const bonificado = billing?.bonificado || false;
++  const extraUsers = billing?.extraUsers || 0;
++  const monthlyPrice = billing?.monthlyPrice || 50000;
++  const userLimit = billing?.userLimit || 3;
+ 
+   const STATUS_INFO = {
+     active:  { label: bonificado ? 'Acceso bonificado' : 'Activa', color: bonificado ? '#7c3aed' : '#10b981', icon: bonificado ? '🎁' : '✅' },
+@@ -1203,7 +1206,12 @@ function BillingCard({ billing, onRefresh }) {
+         <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 20px', flex: 1, minWidth: 160 }}>
+           <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Plan</div>
+           <div style={{ fontWeight: 700, fontSize: 15 }}>Plan Mensual</div>
+-          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>$50.000 / mes</div>
++          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>${monthlyPrice.toLocaleString('es-AR')} / mes</div>
++          <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>
++            {extraUsers > 0
++              ? `Incluye ${userLimit} usuarios (3 base + ${extraUsers} extra)`
++              : 'Incluye 3 usuarios'}
++          </div>
+         </div>
+       </div>
+ 

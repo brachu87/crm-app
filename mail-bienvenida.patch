@@ -1,0 +1,181 @@
+diff --git a/backend/src/lib/mailer.js b/backend/src/lib/mailer.js
+index 2ccf8af..90b189e 100644
+--- a/backend/src/lib/mailer.js
++++ b/backend/src/lib/mailer.js
+@@ -40,80 +40,61 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+   const html = `
+ <!DOCTYPE html>
+ <html lang="es">
+-<head>
+-  <meta charset="UTF-8"/>
+-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+-</head>
+-<body style="margin:0;padding:0;background:#FAF7F2;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF7F2;padding:40px 16px;">
++<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
++<body style="margin:0;padding:0;background:#F1F5F9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
++  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 16px;">
+     <tr><td align="center">
+-      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.07);">
++      <table width="580" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.07);">
+ 
+         <!-- Header -->
+         <tr>
+-          <td style="background:#1BA84C;padding:36px 40px;text-align:center;">
+-            <div style="display:inline-block;background:rgba(255,255,255,0.12);border-radius:12px;width:56px;height:56px;line-height:56px;font-size:32px;font-weight:900;color:#E8674A;text-align:center;">z</div>
+-            <div style="margin-top:12px;font-size:28px;font-weight:800;color:#fff;letter-spacing:-0.5px;">gestumio</div>
+-            <div style="margin-top:4px;font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:0.08em;text-transform:uppercase;">Gestión inteligente para tu negocio</div>
++          <td style="background:#1E2A38;padding:36px 40px;text-align:center;">
++            <div style="font-size:30px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Gestumio</div>
++            <div style="margin-top:6px;font-size:12px;color:#7DD3A0;letter-spacing:0.08em;text-transform:uppercase;">Gestión inteligente para tu negocio</div>
+           </td>
+         </tr>
+ 
+         <!-- Body -->
+         <tr>
+-          <td style="padding:40px 40px 32px;">
+-            <p style="margin:0 0 6px;font-size:23px;font-weight:700;color:#111;">¡Hola, ${toName}! 👋</p>
+-            <p style="margin:0 0 24px;font-size:15px;color:#4B5563;line-height:1.7;">
+-              Gracias por confiar en <strong style="color:#1BA84C;">Gestumio</strong> para gestionar <strong>${businessName}</strong>.<br/>
+-              Tu cuenta fue creada exitosamente.
++          <td style="padding:40px 40px 8px;">
++            <p style="margin:0 0 6px;font-size:23px;font-weight:700;color:#111;">¡Bienvenido, ${toName}! 👋</p>
++            <p style="margin:0 0 22px;font-size:15px;color:#4B5563;line-height:1.7;">
++              Gracias por sumarte a <strong style="color:#1BA84C;">Gestumio</strong> para gestionar <strong>${businessName}</strong>.
++              Tu cuenta ya está activa y tenés <strong>15 días de prueba gratuita</strong> para usar todo el sistema.
+             </p>
+ 
+-            <!-- Estado -->
+-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:10px;margin-bottom:28px;">
+-              <tr>
+-                <td style="padding:18px 22px;">
+-                  <p style="margin:0 0 5px;font-size:14px;font-weight:700;color:#92400E;">⏳ Tu cuenta está pendiente de activación</p>
+-                  <p style="margin:0;font-size:13px;color:#78350F;line-height:1.65;">
+-                    Una vez que confirmemos tu pago, activaremos tu acceso en menos de 24 horas hábiles.
+-                  </p>
+-                </td>
+-              </tr>
+-            </table>
+-
+-            <!-- Pasos -->
+-            <p style="margin:0 0 18px;font-size:15px;font-weight:700;color:#111;">¿Qué hacer ahora?</p>
+-
+-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+-              <tr>
+-                <td width="38" valign="top">
+-                  <div style="width:30px;height:30px;background:#1BA84C;border-radius:50%;text-align:center;line-height:30px;font-size:13px;font-weight:700;color:#fff;">1</div>
+-                </td>
+-                <td style="font-size:14px;color:#374151;line-height:1.65;padding-top:4px;">
+-                  <strong>Si ya realizaste el pago</strong> — no hace falta que hagas nada más. Tu cuenta será aprobada en breve y recibirás acceso completo.
+-                </td>
+-              </tr>
+-            </table>
++            <!-- Qué es -->
++            <p style="margin:0 0 10px;font-size:15px;font-weight:700;color:#111;">¿Qué es Gestumio?</p>
++            <p style="margin:0 0 22px;font-size:14px;color:#374151;line-height:1.7;">
++              Es el sistema todo-en-uno para administrar tu negocio desde un solo lugar: clientes, cobranzas y pagos,
++              caja diaria, agenda y turnos, actividades y servicios, empleados y sueldos, proveedores y reportes.
++              Todo simple, ordenado y accesible desde cualquier dispositivo.
++            </p>
+ 
+-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+-              <tr>
+-                <td width="38" valign="top">
+-                  <div style="width:30px;height:30px;background:#E8674A;border-radius:50%;text-align:center;line-height:30px;font-size:13px;font-weight:700;color:#fff;">2</div>
+-                </td>
+-                <td style="font-size:14px;color:#374151;line-height:1.65;padding-top:4px;">
+-                  <strong>Si todavía no abonaste</strong> — escribinos por WhatsApp y te guiamos para completar tu suscripción.
+-                </td>
+-              </tr>
++            <!-- Contacto -->
++            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;margin-bottom:26px;">
++              <tr><td style="padding:20px 22px;">
++                <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#1E2A38;">📩 Nuestros canales de contacto</p>
++                <p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.6;">
++                  <strong>Soporte técnico:</strong> <a href="mailto:soporte@gestumio.com" style="color:#1BA84C;text-decoration:none;">soporte@gestumio.com</a>
++                </p>
++                <p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.6;">
++                  <strong>Administración y pagos:</strong> <a href="mailto:administracion@gestumio.com" style="color:#1BA84C;text-decoration:none;">administracion@gestumio.com</a>
++                </p>
++                <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">
++                  <strong>WhatsApp:</strong> <a href="https://wa.me/5491178236708" style="color:#25D366;text-decoration:none;">+54 9 11 7823-6708</a>
++                </p>
++              </td></tr>
+             </table>
+ 
+             <!-- CTA -->
+             <table width="100%" cellpadding="0" cellspacing="0">
+-              <tr>
+-                <td align="center">
+-                  <a href="https://wa.me/5491176353062?text=Hola%2C%20acabo%20de%20registrarme%20en%20Gestumio%20y%20quiero%20activar%20mi%20cuenta"
+-                     style="display:inline-block;background:#25D366;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;letter-spacing:0.01em;">
+-                    💬 Escribinos por WhatsApp
+-                  </a>
+-                </td>
+-              </tr>
++              <tr><td align="center">
++                <a href="https://wa.me/5491178236708?text=Hola%2C%20acabo%20de%20crear%20mi%20cuenta%20en%20Gestumio%20y%20tengo%20una%20consulta"
++                   style="display:inline-block;background:#25D366;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:8px;">
++                  💬 Escribinos por WhatsApp
++                </a>
++              </td></tr>
+             </table>
+           </td>
+         </tr>
+@@ -122,11 +103,11 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+         <tr>
+           <td style="background:#F9FAFB;border-top:1px solid #E5E7EB;padding:22px 40px;text-align:center;">
+             <p style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">
+-              Recibiste este mail porque alguien creó una cuenta en Gestumio con esta dirección.
++              Recibiste este mail porque se creó una cuenta en Gestumio con esta dirección.
+             </p>
+             <p style="margin:0;font-size:12px;color:#9CA3AF;">
+               © 2026 Gestumio &nbsp;·&nbsp;
+-              <a href="https://wa.me/5491176353062" style="color:#1BA84C;text-decoration:none;">Soporte</a>
++              <a href="mailto:soporte@gestumio.com" style="color:#1BA84C;text-decoration:none;">soporte@gestumio.com</a>
+             </p>
+           </td>
+         </tr>
+@@ -141,7 +122,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+     await transporter.sendMail({
+       from: mailFrom(),
+       to: toEmail,
+-      subject: '¡Bienvenido a Gestumio! Tu cuenta está siendo procesada 🎉',
++      subject: '¡Bienvenido a Gestumio! 🎉',
+       html,
+     });
+     console.log(`[mailer] Mail de bienvenida enviado a ${toEmail}`);
+diff --git a/backend/src/routes/auth.js b/backend/src/routes/auth.js
+index 16bd55d..3073227 100644
+--- a/backend/src/routes/auth.js
++++ b/backend/src/routes/auth.js
+@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
+ const jwt = require('jsonwebtoken');
+ const { OAuth2Client } = require('google-auth-library');
+ const prisma = require('../prisma');
+-const { sendPasswordResetEmail } = require('../lib/mailer');
++const { sendPasswordResetEmail, sendWelcomeEmail } = require('../lib/mailer');
+ 
+ const router = express.Router();
+ 
+@@ -84,6 +84,9 @@ router.post('/register', async (req, res) => {
+       data: { email: sEmail, password: hashedPassword, name: sName, role: 'owner', businessId: business.id },
+     });
+ 
++    // Mail de bienvenida (no bloqueante)
++    sendWelcomeEmail({ toEmail: sEmail, toName: sName, businessName: sBusinessName }).catch(() => {});
++
+     res.status(201).json({
+       token: makeToken(user),
+       user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: null },
+@@ -201,6 +204,10 @@ router.post('/google-register', async (req, res) => {
+     } catch (_) { /* ignore */ }
+ 
+     const newUser = await prisma.user.findUnique({ where: { email }, include: { business: true } });
++
++    // Mail de bienvenida (no bloqueante)
++    sendWelcomeEmail({ toEmail: email, toName: name || '', businessName }).catch(() => {});
++
+     res.status(201).json({
+       token: makeToken(newUser),
+       user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, permissions: null },

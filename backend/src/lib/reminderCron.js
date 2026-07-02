@@ -1,215 +1,129 @@
 /**
- * Cron diario de recordatorios automáticos por WhatsApp (via Baileys).
- * Corre a las 09:00 hora Argentina (UTC-3 → 12:00 UTC).
- * Detecta cuotas próximas a vencer (1, 3, 7 días) y cuotas vencidas,
- * y envía mensajes usando la plantilla configurada en Ajustes.
+ * Cron diario de recordatorios por WhatsApp — vía Meta Cloud API.
+ * Corre 09:00 AR (12:00 UTC). Detecta cuotas por vencer (1/3/7 días),
+ * cuotas vencidas y turnos de mañana, y envía PLANTILLAS aprobadas por Meta.
+ *
+ * Los mensajes iniciados por el negocio requieren plantillas aprobadas.
+ * Nombres de plantilla (configurables por env):
+ *   META_TPL_EXPIRING     (default: cuota_por_vencer)   params: nombre, actividad, vencimiento, negocio
+ *   META_TPL_OVERDUE      (default: cuota_vencida)       params: nombre, actividad, vencimiento, negocio
+ *   META_TPL_APPOINTMENT  (default: turno_recordatorio)  params: nombre, servicio, fecha, hora, negocio
+ *   META_TPL_LANG         (default: es_AR)
  */
 
 const cron   = require('node-cron');
-const prisma  = require('../prisma');
-const { getState, sendMessage } = require('./whatsappBaileys');
+const prisma = require('../prisma');
+const meta   = require('./whatsappMeta');
 
 const REMIND_DAYS = [1, 3, 7];
+const TPL = {
+  expiring:    process.env.META_TPL_EXPIRING    || 'cuota_por_vencer',
+  overdue:     process.env.META_TPL_OVERDUE     || 'cuota_vencida',
+  appointment: process.env.META_TPL_APPOINTMENT || 'turno_recordatorio',
+};
+const TPL_LANG = process.env.META_TPL_LANG || 'es_AR';
 
 function fmtDate(d) {
   if (!d) return '';
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function applyTemplate(template, vars) {
-  return template
-    .replace(/\{nombre\}/gi,      vars.nombre      || '')
-    .replace(/\{actividad\}/gi,   vars.actividad   || '')
-    .replace(/\{vencimiento\}/gi, vars.vencimiento || '')
-    .replace(/\{monto\}/gi,       vars.monto       || '')
-    .replace(/\{servicio\}/gi,    vars.servicio    || '')
-    .replace(/\{hora\}/gi,        vars.hora        || '')
-    .replace(/\{fecha\}/gi,       vars.fecha       || '')
-    .replace(/\{negocio\}/gi,     vars.negocio     || '');
-}
-
-async function getTemplate(businessId) {
-  try {
-    const biz = await prisma.$queryRawUnsafe(
-      `SELECT "waTemplateExpiring", "waTemplateOverdue", "waTemplateAppointment", name FROM "Business" WHERE id = ? LIMIT 1`,
-      businessId
-    );
-    return biz?.[0] || null;
-  } catch {
-    return null;
-  }
+// Rango [00:00, +1 día) de una fecha (para comparar solo el día en un DateTime)
+function dayRange(date) {
+  const start = new Date(date); start.setHours(0, 0, 0, 0);
+  const end = new Date(start); end.setDate(end.getDate() + 1);
+  return { gte: start, lt: end };
 }
 
 async function runReminders(onlyBusinessId = null) {
-  console.log('[wa-cron] Iniciando barrido de recordatorios WhatsApp...' + (onlyBusinessId ? ` (negocio ${onlyBusinessId})` : ' (todos)'));
+  console.log('[wa-cron] Barrido de recordatorios (Meta)' + (onlyBusinessId ? ` — negocio ${onlyBusinessId}` : ' — todos'));
+  if (!meta.isConfigured()) {
+    console.log('[wa-cron] META_WA_TOKEN no configurado — barrido omitido');
+    return { sent: 0, errors: 0 };
+  }
 
-  // Helper: ¿este negocio aplica y está conectado?
-  const skip = (bid) => (onlyBusinessId && bid !== onlyBusinessId) || getState(bid).state !== 'connected';
-
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
   let sent = 0, errors = 0;
+
+  // Envía una plantilla, respetando filtros de negocio y config
+  async function send(business, phone, templateName, params, label) {
+    if (!business) return;
+    if (onlyBusinessId && business.id !== onlyBusinessId) return;
+    if (!business.waPhoneId) return;                 // negocio sin número asignado
+    if (!phone) return;
+    try {
+      await meta.sendTemplate(business.waPhoneId, phone, templateName, TPL_LANG, meta.bodyParams(params));
+      sent++;
+      console.log(`[wa-cron] ✓ ${label}`);
+      await new Promise(r => setTimeout(r, 800));
+    } catch (e) {
+      errors++;
+      console.error(`[wa-cron] ✗ ${label}:`, e.message);
+    }
+  }
 
   try {
     // ── Cuotas próximas a vencer ─────────────────────────────────────────────
     for (const days of REMIND_DAYS) {
-      const target = new Date(now);
-      target.setDate(target.getDate() + days);
-      const targetStr = target.toISOString().slice(0, 10);
-
-      const cuotas = await prisma.$queryRawUnsafe(`
-        SELECT
-          c.id as cuotaId, c."dueDate", c.amount,
-          cl.name as clientName, cl.phone as clientPhone,
-          a.name as activityName,
-          e."businessId",
-          b.name as businessName
-        FROM "Cuota" c
-        JOIN "Enrollment" e ON c."enrollmentId" = e.id
-        JOIN "Client" cl ON e."clientId" = cl.id
-        JOIN "Activity" a ON e."activityId" = a.id
-        JOIN "Business" b ON b.id = e."businessId"
-        WHERE c."paymentStatus" = 'pending'
-          AND date(c."dueDate") = date(?)
-          AND cl.phone IS NOT NULL AND cl.phone != ''
-      `, targetStr);
-
-      for (const q of cuotas) {
-        if (skip(q.businessId)) continue;
-        const biz = await getTemplate(q.businessId);
-        if (!biz) continue;
-
-        const templateText = biz.waTemplateExpiring ||
-          'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}';
-
-        const msg = applyTemplate(templateText, {
-          nombre:      q.clientName,
-          actividad:   q.activityName,
-          vencimiento: fmtDate(q.dueDate),
-          monto:       q.amount ? `$${Number(q.amount).toLocaleString('es-AR')}` : '',
-          negocio:     biz.name || q.businessName,
-        });
-
-        try {
-          await sendMessage(q.businessId, q.clientPhone, msg);
-          sent++;
-          console.log(`[wa-cron] ✓ Recordatorio → ${q.clientName} (vence en ${days}d)`);
-          await new Promise(r => setTimeout(r, 800));
-        } catch (e) {
-          errors++;
-          console.error(`[wa-cron] ✗ Error → ${q.clientName}:`, e.message);
-        }
-      }
-    }
-
-    // ── Cuotas ya vencidas ayer ──────────────────────────────────────────────
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const overdue = await prisma.$queryRawUnsafe(`
-      SELECT
-        c.id as cuotaId, c."dueDate", c.amount,
-        cl.name as clientName, cl.phone as clientPhone,
-        a.name as activityName,
-        e."businessId",
-        b.name as businessName
-      FROM "Cuota" c
-      JOIN "Enrollment" e ON c."enrollmentId" = e.id
-      JOIN "Client" cl ON e."clientId" = cl.id
-      JOIN "Activity" a ON e."activityId" = a.id
-      JOIN "Business" b ON b.id = e."businessId"
-      WHERE c."paymentStatus" = 'overdue'
-        AND date(c."dueDate") = date(?)
-        AND cl.phone IS NOT NULL AND cl.phone != ''
-    `, yesterday.toISOString().slice(0, 10));
-
-    for (const q of overdue) {
-      if (skip(q.businessId)) continue;
-      const biz = await getTemplate(q.businessId);
-      if (!biz) continue;
-
-      const templateText = biz.waTemplateOverdue ||
-        'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}';
-
-      const msg = applyTemplate(templateText, {
-        nombre:      q.clientName,
-        actividad:   q.activityName,
-        vencimiento: fmtDate(q.dueDate),
-        monto:       q.amount ? `$${Number(q.amount).toLocaleString('es-AR')}` : '',
-        negocio:     biz.name || q.businessName,
+      const target = new Date(now); target.setDate(target.getDate() + days);
+      const cuotas = await prisma.cuota.findMany({
+        where: { paymentStatus: 'pending', dueDate: dayRange(target) },
+        include: { enrollment: { include: { client: true, activity: { include: { business: true } } } } },
       });
-
-      try {
-        await sendMessage(q.businessId, q.clientPhone, msg);
-        sent++;
-        console.log(`[wa-cron] ✓ Vencido → ${q.clientName}`);
-        await new Promise(r => setTimeout(r, 800));
-      } catch (e) {
-        errors++;
-        console.error(`[wa-cron] ✗ Error → ${q.clientName}:`, e.message);
+      for (const c of cuotas) {
+        const cl = c.enrollment?.client;
+        const act = c.enrollment?.activity;
+        const biz = act?.business;
+        if (!cl?.phone) continue;
+        await send(biz, cl.phone, TPL.expiring,
+          [cl.name, act?.name || '', fmtDate(c.dueDate), biz?.name || ''],
+          `Por vencer → ${cl.name} (${days}d)`);
       }
     }
 
-    // ── Turnos de mañana ────────────────────────────────────────────────────────
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // ── Cuotas vencidas ayer ─────────────────────────────────────────────────
+    const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+    const overdue = await prisma.cuota.findMany({
+      where: { paymentStatus: 'overdue', dueDate: dayRange(yesterday) },
+      include: { enrollment: { include: { client: true, activity: { include: { business: true } } } } },
+    });
+    for (const c of overdue) {
+      const cl = c.enrollment?.client;
+      const act = c.enrollment?.activity;
+      const biz = act?.business;
+      if (!cl?.phone) continue;
+      await send(biz, cl.phone, TPL.overdue,
+        [cl.name, act?.name || '', fmtDate(c.dueDate), biz?.name || ''],
+        `Vencida → ${cl.name}`);
+    }
+
+    // ── Turnos de mañana ─────────────────────────────────────────────────────
+    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().slice(0, 10); // "YYYY-MM-DD"
-
-    const appointments = await prisma.$queryRawUnsafe(`
-      SELECT
-        a.id, a.date, a."startTime", a."endTime",
-        cl.name as clientName, cl.phone as clientPhone,
-        s.name as serviceName,
-        a."businessId",
-        b.name as businessName
-      FROM "Appointment" a
-      JOIN "Client" cl ON a."clientId" = cl.id
-      JOIN "Business" b ON b.id = a."businessId"
-      LEFT JOIN "Service" s ON a."serviceId" = s.id
-      WHERE a.date = ?
-        AND a.status = 'scheduled'
-        AND cl.phone IS NOT NULL AND cl.phone != ''
-    `, tomorrowStr);
-
-    for (const appt of appointments) {
-      if (skip(appt.businessId)) continue;
-      const biz = await getTemplate(appt.businessId);
-      if (!biz) continue;
-
-      const templateText = biz.waTemplateAppointment ||
-        'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}';
-
+    const appts = await prisma.appointment.findMany({
+      where: { date: tomorrowStr, status: 'scheduled' },
+      include: { client: true, service: true, business: true },
+    });
+    for (const appt of appts) {
+      const cl = appt.client;
+      if (!cl?.phone) continue;
       const hora = appt.startTime
         ? appt.startTime + (appt.endTime ? ` - ${appt.endTime}` : '')
         : 'horario a confirmar';
-
-      const msg = applyTemplate(templateText, {
-        nombre:   appt.clientName,
-        servicio: appt.serviceName || 'turno',
-        hora,
-        fecha:    tomorrowStr.split('-').reverse().join('/'),
-        negocio:  biz.name || appt.businessName,
-      });
-
-      try {
-        await sendMessage(appt.businessId, appt.clientPhone, msg);
-        sent++;
-        console.log(`[wa-cron] ✓ Recordatorio turno → ${appt.clientName} (${tomorrowStr})`);
-        await new Promise(r => setTimeout(r, 800));
-      } catch (e) {
-        errors++;
-        console.error(`[wa-cron] ✗ Error → ${appt.clientName}:`, e.message);
-      }
+      await send(appt.business, cl.phone, TPL.appointment,
+        [cl.name, appt.service?.name || 'turno', tomorrowStr.split('-').reverse().join('/'), hora, appt.business?.name || ''],
+        `Turno → ${cl.name} (${tomorrowStr})`);
     }
 
-    console.log(`[wa-cron] Barrido completado — enviados: ${sent}, errores: ${errors}`);
+    console.log(`[wa-cron] Completado — enviados: ${sent}, errores: ${errors}`);
   } catch (err) {
     console.error('[wa-cron] Error general:', err.message);
   }
+  return { sent, errors };
 }
 
 function startReminderCron() {
-  cron.schedule('0 12 * * *', runReminders, { timezone: 'UTC' });
+  cron.schedule('0 12 * * *', () => runReminders(), { timezone: 'UTC' });
   console.log('[wa-cron] Cron programado — 09:00 AR / 12:00 UTC');
 }
 

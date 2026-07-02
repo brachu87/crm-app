@@ -1,0 +1,1162 @@
+diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index 3fed528..299df8c 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -22,6 +22,14 @@ model Business {
+   approvedAt DateTime?
+   extraUsers Int       @default(0)
+ 
++  waPhoneId     String?  // phone_number_id de Meta Cloud API (por negocio)
++  waPhoneNumber String?  // numero visible para mostrar en la UI
++
++  waTemplateExpiring    String?
++  waTemplateOverdue     String?
++  waTemplateAppointment String?
++  enabledModules        String?
++
+   googleCalendarToken  String?
+   googleCalendarId     String?
+   gcalSyncTurnos       Boolean  @default(false)
+diff --git a/backend/src/admin-panel.html b/backend/src/admin-panel.html
+index d8b9b88..919c168 100644
+--- a/backend/src/admin-panel.html
++++ b/backend/src/admin-panel.html
+@@ -278,6 +278,7 @@ function renderTable(accounts) {
+           ${bonifBtn}
+           ${approveBtn}
+           ${extendBtn}
++          <button class="btn-sm" style="background:#dcfce7;color:#166534" onclick="setWhatsApp('${a.id}','${(a.waPhoneId||'').replace(/'/g,"\\'")}','${(a.waPhoneNumber||'').replace(/'/g,"\\'")}')" title="Asignar numero de WhatsApp (Meta)">${a.waPhoneId ? '📱 WA ✓' : '📱 WA'}</button>
+           <button class="btn-sm btn-delete" onclick="deleteAccount('${a.id}','${a.name.replace(/'/g,"\\'")}')">Eliminar</button>
+         </div>
+       </td>
+@@ -323,6 +324,22 @@ async function extendTrial(id) {
+   loadAccounts();
+ }
+ 
++async function setWhatsApp(id, currentId, currentNum) {
++  const phoneId = prompt('Phone Number ID de Meta para este negocio (dejá vacío para desvincular):', currentId || '');
++  if (phoneId === null) return;
++  let phoneNumber = '';
++  if (phoneId.trim()) {
++    phoneNumber = prompt('Número visible (ej: +54 9 11 1234-5678):', currentNum || '') || '';
++  }
++  const r = await fetch(API + `/admin/accounts/${id}/whatsapp`, {
++    method: 'PUT',
++    headers: { 'X-Admin-Secret': secret, 'Content-Type': 'application/json' },
++    body: JSON.stringify({ phoneId: phoneId.trim(), phoneNumber: (phoneNumber||'').trim() })
++  });
++  if (r.ok) { loadAccounts(); }
++  else { const e = await r.json().catch(()=>({})); alert('Error: ' + (e.error || 'no se pudo guardar')); }
++}
++
+ async function setExtra(id, n) {
+   if (n < 0) return;
+   const r = await fetch(API + `/admin/accounts/${id}/extra-users`, {
+diff --git a/backend/src/index.js b/backend/src/index.js
+index 2ec715e..9ab4408 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -39,7 +39,6 @@ const whatsappRoutes = require('./routes/whatsapp');
+ const googleCalendarRoutes = require('./routes/google-calendar');
+ const supportRoutes = require('./routes/support');
+ const { startReminderCron } = require('./lib/reminderCron');
+-const { restoreSessions } = require('./lib/whatsappBaileys');
+ 
+ const app = express();
+ 
+@@ -454,9 +453,8 @@ runOverdueSweep();
+ setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
+ setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada hora
+ 
+-// Iniciar WhatsApp Baileys y cron de recordatorios
+-restoreSessions();
+-// startReminderCron(); // Envío masivo automático desactivado: los recordatorios se mandan manualmente
++// Recordatorios por WhatsApp (Meta Cloud API) — envío manual desde la app.
++// startReminderCron(); // Barrido automático diario (desactivado; se dispara manualmente)
+ 
+ app.listen(PORT, () => {
+   console.log(`Servidor corriendo en puerto ${PORT}`);
+diff --git a/backend/src/lib/reminderCron.js b/backend/src/lib/reminderCron.js
+index 1258e07..5200e9b 100644
+--- a/backend/src/lib/reminderCron.js
++++ b/backend/src/lib/reminderCron.js
+@@ -1,215 +1,129 @@
+ /**
+- * Cron diario de recordatorios automáticos por WhatsApp (via Baileys).
+- * Corre a las 09:00 hora Argentina (UTC-3 → 12:00 UTC).
+- * Detecta cuotas próximas a vencer (1, 3, 7 días) y cuotas vencidas,
+- * y envía mensajes usando la plantilla configurada en Ajustes.
++ * Cron diario de recordatorios por WhatsApp — vía Meta Cloud API.
++ * Corre 09:00 AR (12:00 UTC). Detecta cuotas por vencer (1/3/7 días),
++ * cuotas vencidas y turnos de mañana, y envía PLANTILLAS aprobadas por Meta.
++ *
++ * Los mensajes iniciados por el negocio requieren plantillas aprobadas.
++ * Nombres de plantilla (configurables por env):
++ *   META_TPL_EXPIRING     (default: cuota_por_vencer)   params: nombre, actividad, vencimiento, negocio
++ *   META_TPL_OVERDUE      (default: cuota_vencida)       params: nombre, actividad, vencimiento, negocio
++ *   META_TPL_APPOINTMENT  (default: turno_recordatorio)  params: nombre, servicio, fecha, hora, negocio
++ *   META_TPL_LANG         (default: es_AR)
+  */
+ 
+ const cron   = require('node-cron');
+-const prisma  = require('../prisma');
+-const { getState, sendMessage } = require('./whatsappBaileys');
++const prisma = require('../prisma');
++const meta   = require('./whatsappMeta');
+ 
+ const REMIND_DAYS = [1, 3, 7];
++const TPL = {
++  expiring:    process.env.META_TPL_EXPIRING    || 'cuota_por_vencer',
++  overdue:     process.env.META_TPL_OVERDUE     || 'cuota_vencida',
++  appointment: process.env.META_TPL_APPOINTMENT || 'turno_recordatorio',
++};
++const TPL_LANG = process.env.META_TPL_LANG || 'es_AR';
+ 
+ function fmtDate(d) {
+   if (!d) return '';
+   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+ }
+ 
+-function applyTemplate(template, vars) {
+-  return template
+-    .replace(/\{nombre\}/gi,      vars.nombre      || '')
+-    .replace(/\{actividad\}/gi,   vars.actividad   || '')
+-    .replace(/\{vencimiento\}/gi, vars.vencimiento || '')
+-    .replace(/\{monto\}/gi,       vars.monto       || '')
+-    .replace(/\{servicio\}/gi,    vars.servicio    || '')
+-    .replace(/\{hora\}/gi,        vars.hora        || '')
+-    .replace(/\{fecha\}/gi,       vars.fecha       || '')
+-    .replace(/\{negocio\}/gi,     vars.negocio     || '');
+-}
+-
+-async function getTemplate(businessId) {
+-  try {
+-    const biz = await prisma.$queryRawUnsafe(
+-      `SELECT "waTemplateExpiring", "waTemplateOverdue", "waTemplateAppointment", name FROM "Business" WHERE id = ? LIMIT 1`,
+-      businessId
+-    );
+-    return biz?.[0] || null;
+-  } catch {
+-    return null;
+-  }
++// Rango [00:00, +1 día) de una fecha (para comparar solo el día en un DateTime)
++function dayRange(date) {
++  const start = new Date(date); start.setHours(0, 0, 0, 0);
++  const end = new Date(start); end.setDate(end.getDate() + 1);
++  return { gte: start, lt: end };
+ }
+ 
+ async function runReminders(onlyBusinessId = null) {
+-  console.log('[wa-cron] Iniciando barrido de recordatorios WhatsApp...' + (onlyBusinessId ? ` (negocio ${onlyBusinessId})` : ' (todos)'));
+-
+-  // Helper: ¿este negocio aplica y está conectado?
+-  const skip = (bid) => (onlyBusinessId && bid !== onlyBusinessId) || getState(bid).state !== 'connected';
++  console.log('[wa-cron] Barrido de recordatorios (Meta)' + (onlyBusinessId ? ` — negocio ${onlyBusinessId}` : ' — todos'));
++  if (!meta.isConfigured()) {
++    console.log('[wa-cron] META_WA_TOKEN no configurado — barrido omitido');
++    return { sent: 0, errors: 0 };
++  }
+ 
+-  const now = new Date();
+-  now.setHours(0, 0, 0, 0);
++  const now = new Date(); now.setHours(0, 0, 0, 0);
+   let sent = 0, errors = 0;
+ 
++  // Envía una plantilla, respetando filtros de negocio y config
++  async function send(business, phone, templateName, params, label) {
++    if (!business) return;
++    if (onlyBusinessId && business.id !== onlyBusinessId) return;
++    if (!business.waPhoneId) return;                 // negocio sin número asignado
++    if (!phone) return;
++    try {
++      await meta.sendTemplate(business.waPhoneId, phone, templateName, TPL_LANG, meta.bodyParams(params));
++      sent++;
++      console.log(`[wa-cron] ✓ ${label}`);
++      await new Promise(r => setTimeout(r, 800));
++    } catch (e) {
++      errors++;
++      console.error(`[wa-cron] ✗ ${label}:`, e.message);
++    }
++  }
++
+   try {
+     // ── Cuotas próximas a vencer ─────────────────────────────────────────────
+     for (const days of REMIND_DAYS) {
+-      const target = new Date(now);
+-      target.setDate(target.getDate() + days);
+-      const targetStr = target.toISOString().slice(0, 10);
+-
+-      const cuotas = await prisma.$queryRawUnsafe(`
+-        SELECT
+-          c.id as cuotaId, c."dueDate", c.amount,
+-          cl.name as clientName, cl.phone as clientPhone,
+-          a.name as activityName,
+-          e."businessId",
+-          b.name as businessName
+-        FROM "Cuota" c
+-        JOIN "Enrollment" e ON c."enrollmentId" = e.id
+-        JOIN "Client" cl ON e."clientId" = cl.id
+-        JOIN "Activity" a ON e."activityId" = a.id
+-        JOIN "Business" b ON b.id = e."businessId"
+-        WHERE c."paymentStatus" = 'pending'
+-          AND date(c."dueDate") = date(?)
+-          AND cl.phone IS NOT NULL AND cl.phone != ''
+-      `, targetStr);
+-
+-      for (const q of cuotas) {
+-        if (skip(q.businessId)) continue;
+-        const biz = await getTemplate(q.businessId);
+-        if (!biz) continue;
+-
+-        const templateText = biz.waTemplateExpiring ||
+-          'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}';
+-
+-        const msg = applyTemplate(templateText, {
+-          nombre:      q.clientName,
+-          actividad:   q.activityName,
+-          vencimiento: fmtDate(q.dueDate),
+-          monto:       q.amount ? `$${Number(q.amount).toLocaleString('es-AR')}` : '',
+-          negocio:     biz.name || q.businessName,
+-        });
+-
+-        try {
+-          await sendMessage(q.businessId, q.clientPhone, msg);
+-          sent++;
+-          console.log(`[wa-cron] ✓ Recordatorio → ${q.clientName} (vence en ${days}d)`);
+-          await new Promise(r => setTimeout(r, 800));
+-        } catch (e) {
+-          errors++;
+-          console.error(`[wa-cron] ✗ Error → ${q.clientName}:`, e.message);
+-        }
++      const target = new Date(now); target.setDate(target.getDate() + days);
++      const cuotas = await prisma.cuota.findMany({
++        where: { paymentStatus: 'pending', dueDate: dayRange(target) },
++        include: { enrollment: { include: { client: true, activity: { include: { business: true } } } } },
++      });
++      for (const c of cuotas) {
++        const cl = c.enrollment?.client;
++        const act = c.enrollment?.activity;
++        const biz = act?.business;
++        if (!cl?.phone) continue;
++        await send(biz, cl.phone, TPL.expiring,
++          [cl.name, act?.name || '', fmtDate(c.dueDate), biz?.name || ''],
++          `Por vencer → ${cl.name} (${days}d)`);
+       }
+     }
+ 
+-    // ── Cuotas ya vencidas ayer ──────────────────────────────────────────────
+-    const yesterday = new Date(now);
+-    yesterday.setDate(yesterday.getDate() - 1);
+-
+-    const overdue = await prisma.$queryRawUnsafe(`
+-      SELECT
+-        c.id as cuotaId, c."dueDate", c.amount,
+-        cl.name as clientName, cl.phone as clientPhone,
+-        a.name as activityName,
+-        e."businessId",
+-        b.name as businessName
+-      FROM "Cuota" c
+-      JOIN "Enrollment" e ON c."enrollmentId" = e.id
+-      JOIN "Client" cl ON e."clientId" = cl.id
+-      JOIN "Activity" a ON e."activityId" = a.id
+-      JOIN "Business" b ON b.id = e."businessId"
+-      WHERE c."paymentStatus" = 'overdue'
+-        AND date(c."dueDate") = date(?)
+-        AND cl.phone IS NOT NULL AND cl.phone != ''
+-    `, yesterday.toISOString().slice(0, 10));
+-
+-    for (const q of overdue) {
+-      if (skip(q.businessId)) continue;
+-      const biz = await getTemplate(q.businessId);
+-      if (!biz) continue;
+-
+-      const templateText = biz.waTemplateOverdue ||
+-        'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}';
+-
+-      const msg = applyTemplate(templateText, {
+-        nombre:      q.clientName,
+-        actividad:   q.activityName,
+-        vencimiento: fmtDate(q.dueDate),
+-        monto:       q.amount ? `$${Number(q.amount).toLocaleString('es-AR')}` : '',
+-        negocio:     biz.name || q.businessName,
+-      });
+-
+-      try {
+-        await sendMessage(q.businessId, q.clientPhone, msg);
+-        sent++;
+-        console.log(`[wa-cron] ✓ Vencido → ${q.clientName}`);
+-        await new Promise(r => setTimeout(r, 800));
+-      } catch (e) {
+-        errors++;
+-        console.error(`[wa-cron] ✗ Error → ${q.clientName}:`, e.message);
+-      }
++    // ── Cuotas vencidas ayer ─────────────────────────────────────────────────
++    const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
++    const overdue = await prisma.cuota.findMany({
++      where: { paymentStatus: 'overdue', dueDate: dayRange(yesterday) },
++      include: { enrollment: { include: { client: true, activity: { include: { business: true } } } } },
++    });
++    for (const c of overdue) {
++      const cl = c.enrollment?.client;
++      const act = c.enrollment?.activity;
++      const biz = act?.business;
++      if (!cl?.phone) continue;
++      await send(biz, cl.phone, TPL.overdue,
++        [cl.name, act?.name || '', fmtDate(c.dueDate), biz?.name || ''],
++        `Vencida → ${cl.name}`);
+     }
+ 
+-    // ── Turnos de mañana ────────────────────────────────────────────────────────
+-    const tomorrow = new Date(now);
+-    tomorrow.setDate(tomorrow.getDate() + 1);
++    // ── Turnos de mañana ─────────────────────────────────────────────────────
++    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+     const tomorrowStr = tomorrow.toISOString().slice(0, 10); // "YYYY-MM-DD"
+-
+-    const appointments = await prisma.$queryRawUnsafe(`
+-      SELECT
+-        a.id, a.date, a."startTime", a."endTime",
+-        cl.name as clientName, cl.phone as clientPhone,
+-        s.name as serviceName,
+-        a."businessId",
+-        b.name as businessName
+-      FROM "Appointment" a
+-      JOIN "Client" cl ON a."clientId" = cl.id
+-      JOIN "Business" b ON b.id = a."businessId"
+-      LEFT JOIN "Service" s ON a."serviceId" = s.id
+-      WHERE a.date = ?
+-        AND a.status = 'scheduled'
+-        AND cl.phone IS NOT NULL AND cl.phone != ''
+-    `, tomorrowStr);
+-
+-    for (const appt of appointments) {
+-      if (skip(appt.businessId)) continue;
+-      const biz = await getTemplate(appt.businessId);
+-      if (!biz) continue;
+-
+-      const templateText = biz.waTemplateAppointment ||
+-        'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}';
+-
++    const appts = await prisma.appointment.findMany({
++      where: { date: tomorrowStr, status: 'scheduled' },
++      include: { client: true, service: true, business: true },
++    });
++    for (const appt of appts) {
++      const cl = appt.client;
++      if (!cl?.phone) continue;
+       const hora = appt.startTime
+         ? appt.startTime + (appt.endTime ? ` - ${appt.endTime}` : '')
+         : 'horario a confirmar';
+-
+-      const msg = applyTemplate(templateText, {
+-        nombre:   appt.clientName,
+-        servicio: appt.serviceName || 'turno',
+-        hora,
+-        fecha:    tomorrowStr.split('-').reverse().join('/'),
+-        negocio:  biz.name || appt.businessName,
+-      });
+-
+-      try {
+-        await sendMessage(appt.businessId, appt.clientPhone, msg);
+-        sent++;
+-        console.log(`[wa-cron] ✓ Recordatorio turno → ${appt.clientName} (${tomorrowStr})`);
+-        await new Promise(r => setTimeout(r, 800));
+-      } catch (e) {
+-        errors++;
+-        console.error(`[wa-cron] ✗ Error → ${appt.clientName}:`, e.message);
+-      }
++      await send(appt.business, cl.phone, TPL.appointment,
++        [cl.name, appt.service?.name || 'turno', tomorrowStr.split('-').reverse().join('/'), hora, appt.business?.name || ''],
++        `Turno → ${cl.name} (${tomorrowStr})`);
+     }
+ 
+-    console.log(`[wa-cron] Barrido completado — enviados: ${sent}, errores: ${errors}`);
++    console.log(`[wa-cron] Completado — enviados: ${sent}, errores: ${errors}`);
+   } catch (err) {
+     console.error('[wa-cron] Error general:', err.message);
+   }
++  return { sent, errors };
+ }
+ 
+ function startReminderCron() {
+-  cron.schedule('0 12 * * *', runReminders, { timezone: 'UTC' });
++  cron.schedule('0 12 * * *', () => runReminders(), { timezone: 'UTC' });
+   console.log('[wa-cron] Cron programado — 09:00 AR / 12:00 UTC');
+ }
+ 
+diff --git a/backend/src/lib/whatsappMeta.js b/backend/src/lib/whatsappMeta.js
+index 71af1ac..50892b9 100644
+--- a/backend/src/lib/whatsappMeta.js
++++ b/backend/src/lib/whatsappMeta.js
+@@ -1,162 +1,181 @@
+ /**
+- * WhatsApp Business Cloud API (Meta) — cliente HTTP liviano.
+- * Variables de entorno requeridas:
+- *   META_WA_TOKEN      → Access token permanente del sistema
+- *   META_WA_PHONE_ID   → Phone Number ID (de Meta for Developers)
+- *   META_WA_TEMPLATE   → Nombre de la plantilla aprobada (opcional)
++ * WhatsApp Business Cloud API (Meta) — cliente HTTP multi-negocio.
++ *
++ * Modelo: UNA app de Meta + UN token (env META_WA_TOKEN), y MUCHOS números.
++ * Cada negocio tiene su propio phone_number_id (guardado en Business.waPhoneId).
++ *
++ * Variables de entorno:
++ *   META_WA_TOKEN     → Access token permanente (System User) de tu app de Meta
++ *   META_WA_VERSION   → (opcional) versión del Graph API, default v19.0
++ *
++ * Uso:
++ *   sendText(phoneId, to, message)
++ *   sendTemplate(phoneId, to, templateName, langCode, components)
++ *   sendDocument(phoneId, to, buffer, filename, caption)
+  */
+ 
+ const https = require('https');
+ 
+-function isConfigured() {
+-  return !!(process.env.META_WA_TOKEN && process.env.META_WA_PHONE_ID);
+-}
++const GRAPH_HOST = 'graph.facebook.com';
++const API_VERSION = process.env.META_WA_VERSION || 'v19.0';
++
++function token() { return process.env.META_WA_TOKEN || ''; }
++
++// ¿Hay token central configurado?
++function isConfigured() { return !!token(); }
+ 
+ /**
+- * Normaliza un número argentino al formato internacional E.164.
+- * Ejemplos: "11-1234-5678" → "5491112345678"
+- *           "+54 9 11 1234 5678" → "5491112345678"
++ * Normaliza un número argentino a formato internacional E.164 (solo dígitos).
++ * "11-1234-5678" → "5491112345678"   "+54 9 11 1234 5678" → "5491112345678"
+  */
+ function normalizePhone(phone) {
+   if (!phone) return null;
+-  // Quitar todo excepto dígitos y +
+-  let n = phone.replace(/[^\d+]/g, '');
+-  // Quitar + inicial
++  let n = String(phone).replace(/[^\d+]/g, '');
+   if (n.startsWith('+')) n = n.slice(1);
+-  // Si ya empieza con 54 y tiene 13 dígitos → ok
+   if (n.startsWith('54') && n.length >= 12) return n;
+-  // Si empieza con 0 (ej: 011...) → quitar 0 y agregar 54 9
+   if (n.startsWith('0')) n = n.slice(1);
+-  // Agregar código de país Argentina + 9 (para celulares)
+   if (!n.startsWith('54')) {
+     n = '549' + (n.startsWith('9') ? n.slice(1) : n);
+   }
+   return n;
+ }
+ 
+-/**
+- * Aplica variables a la plantilla de texto.
+- * Variables soportadas: {nombre}, {actividad}, {vencimiento}, {monto}, {negocio}
+- */
++/** Reemplaza variables {var} en un texto. */
+ function applyTemplate(template, vars) {
+-  return template
++  return String(template || '')
+     .replace(/\{nombre\}/gi,      vars.nombre      || '')
+     .replace(/\{actividad\}/gi,   vars.actividad   || '')
+     .replace(/\{vencimiento\}/gi, vars.vencimiento || '')
+     .replace(/\{monto\}/gi,       vars.monto       || '')
++    .replace(/\{servicio\}/gi,    vars.servicio    || '')
++    .replace(/\{hora\}/gi,        vars.hora        || '')
++    .replace(/\{fecha\}/gi,       vars.fecha       || '')
+     .replace(/\{negocio\}/gi,     vars.negocio     || '');
+ }
+ 
+-/**
+- * Envía un mensaje de texto libre.
+- * Funciona sin restricciones con números de prueba verificados.
+- * Para números reales sin sesión activa → usá sendTemplate().
+- */
+-function sendText(toPhone, message) {
++// Request JSON genérico al Graph API
++function graphRequest(path, method, jsonBody, extraHeaders) {
+   return new Promise((resolve, reject) => {
+-    const token   = process.env.META_WA_TOKEN;
+-    const phoneId = process.env.META_WA_PHONE_ID;
+-    const to      = normalizePhone(toPhone);
+-
+-    if (!token || !phoneId) return reject(new Error('META_WA_TOKEN o META_WA_PHONE_ID no configurados'));
+-    if (!to)                return reject(new Error('Número de teléfono inválido: ' + toPhone));
+-
+-    const body = JSON.stringify({
+-      messaging_product: 'whatsapp',
+-      recipient_type: 'individual',
+-      to,
+-      type: 'text',
+-      text: { preview_url: false, body: message },
+-    });
+-
+-    const options = {
+-      hostname: 'graph.facebook.com',
+-      path: `/v19.0/${phoneId}/messages`,
+-      method: 'POST',
+-      headers: {
+-        'Authorization': `Bearer ${token}`,
+-        'Content-Type': 'application/json',
+-        'Content-Length': Buffer.byteLength(body),
+-      },
++    if (!token()) return reject(new Error('META_WA_TOKEN no configurado'));
++    const body = jsonBody != null ? JSON.stringify(jsonBody) : null;
++    const headers = {
++      'Authorization': `Bearer ${token()}`,
++      'Content-Type': 'application/json',
++      ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {}),
++      ...(extraHeaders || {}),
+     };
+-
+-    const req = https.request(options, res => {
++    const req = https.request({ hostname: GRAPH_HOST, path, method, headers }, res => {
+       let data = '';
+-      res.on('data', chunk => { data += chunk; });
++      res.on('data', c => { data += c; });
+       res.on('end', () => {
+-        try {
+-          const parsed = JSON.parse(data);
+-          if (res.statusCode >= 200 && res.statusCode < 300) {
+-            resolve(parsed);
+-          } else {
+-            reject(new Error(`Meta API error ${res.statusCode}: ${JSON.stringify(parsed?.error || parsed)}`));
+-          }
+-        } catch (e) { reject(e); }
++        let parsed = {};
++        try { parsed = JSON.parse(data || '{}'); } catch (_) { parsed = { raw: data }; }
++        if (res.statusCode >= 200 && res.statusCode < 300) resolve(parsed);
++        else reject(new Error(`Meta API ${res.statusCode}: ${JSON.stringify(parsed.error || parsed)}`));
+       });
+     });
+-
+     req.on('error', reject);
+-    req.write(body);
++    if (body) req.write(body);
+     req.end();
+   });
+ }
+ 
+-/**
+- * Envía un mensaje usando una plantilla aprobada por Meta.
+- * Para usar en producción con cualquier número.
+- * templateName: nombre de la plantilla en Meta Business Manager.
+- * components: array de componentes (body parameters).
+- */
+-function sendTemplate(toPhone, templateName, langCode, components) {
+-  return new Promise((resolve, reject) => {
+-    const token   = process.env.META_WA_TOKEN;
+-    const phoneId = process.env.META_WA_PHONE_ID;
+-    const to      = normalizePhone(toPhone);
++function requirePhoneId(phoneId) {
++  if (!phoneId) throw new Error('Este negocio no tiene número de WhatsApp configurado (phone_number_id)');
++  return phoneId;
++}
+ 
+-    if (!token || !phoneId) return reject(new Error('META_WA_TOKEN o META_WA_PHONE_ID no configurados'));
+-    if (!to)                return reject(new Error('Número de teléfono inválido: ' + toPhone));
++/** Envía texto libre. Solo válido dentro de la ventana de 24hs (o números de prueba). */
++async function sendText(phoneId, toPhone, message) {
++  requirePhoneId(phoneId);
++  const to = normalizePhone(toPhone);
++  if (!to) throw new Error('Número de teléfono inválido: ' + toPhone);
++  return graphRequest(`/${API_VERSION}/${phoneId}/messages`, 'POST', {
++    messaging_product: 'whatsapp',
++    recipient_type: 'individual',
++    to,
++    type: 'text',
++    text: { preview_url: false, body: message },
++  });
++}
+ 
+-    const body = JSON.stringify({
+-      messaging_product: 'whatsapp',
+-      to,
+-      type: 'template',
+-      template: {
+-        name: templateName,
+-        language: { code: langCode || 'es_AR' },
+-        components: components || [],
+-      },
+-    });
++/** Envía una plantilla aprobada por Meta (para mensajes iniciados por el negocio). */
++async function sendTemplate(phoneId, toPhone, templateName, langCode, components) {
++  requirePhoneId(phoneId);
++  const to = normalizePhone(toPhone);
++  if (!to) throw new Error('Número de teléfono inválido: ' + toPhone);
++  return graphRequest(`/${API_VERSION}/${phoneId}/messages`, 'POST', {
++    messaging_product: 'whatsapp',
++    to,
++    type: 'template',
++    template: {
++      name: templateName,
++      language: { code: langCode || 'es_AR' },
++      components: components || [],
++    },
++  });
++}
++
++/** Helper: arma el componente body con parámetros de texto posicionales. */
++function bodyParams(values) {
++  return [{ type: 'body', parameters: (values || []).map(v => ({ type: 'text', text: String(v ?? '') })) }];
++}
+ 
++/** Sube un archivo (Buffer) como media y devuelve su id. */
++function uploadMedia(phoneId, buffer, filename, mimeType) {
++  return new Promise((resolve, reject) => {
++    if (!token()) return reject(new Error('META_WA_TOKEN no configurado'));
++    requirePhoneId(phoneId);
++    const boundary = '----GestumioBoundary' + Date.now().toString(16);
++    const pre =
++      `--${boundary}\r\nContent-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n` +
++      `--${boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\n${mimeType}\r\n` +
++      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
++      `Content-Type: ${mimeType}\r\n\r\n`;
++    const post = `\r\n--${boundary}--\r\n`;
++    const payload = Buffer.concat([Buffer.from(pre, 'utf8'), buffer, Buffer.from(post, 'utf8')]);
+     const options = {
+-      hostname: 'graph.facebook.com',
+-      path: `/v19.0/${phoneId}/messages`,
++      hostname: GRAPH_HOST,
++      path: `/${API_VERSION}/${phoneId}/media`,
+       method: 'POST',
+       headers: {
+-        'Authorization': `Bearer ${token}`,
+-        'Content-Type': 'application/json',
+-        'Content-Length': Buffer.byteLength(body),
++        'Authorization': `Bearer ${token()}`,
++        'Content-Type': `multipart/form-data; boundary=${boundary}`,
++        'Content-Length': payload.length,
+       },
+     };
+-
+     const req = https.request(options, res => {
+       let data = '';
+-      res.on('data', chunk => { data += chunk; });
++      res.on('data', c => { data += c; });
+       res.on('end', () => {
+-        try {
+-          const parsed = JSON.parse(data);
+-          if (res.statusCode >= 200 && res.statusCode < 300) {
+-            resolve(parsed);
+-          } else {
+-            reject(new Error(`Meta API error ${res.statusCode}: ${JSON.stringify(parsed?.error || parsed)}`));
+-          }
+-        } catch (e) { reject(e); }
++        let parsed = {};
++        try { parsed = JSON.parse(data || '{}'); } catch (_) { parsed = { raw: data }; }
++        if (res.statusCode >= 200 && res.statusCode < 300 && parsed.id) resolve(parsed.id);
++        else reject(new Error(`Meta media ${res.statusCode}: ${JSON.stringify(parsed.error || parsed)}`));
+       });
+     });
+-
+     req.on('error', reject);
+-    req.write(body);
++    req.write(payload);
+     req.end();
+   });
+ }
+ 
+-module.exports = { isConfigured, normalizePhone, applyTemplate, sendText, sendTemplate };
++/** Sube un PDF y lo envía como documento. */
++async function sendDocument(phoneId, toPhone, buffer, filename, caption) {
++  requirePhoneId(phoneId);
++  const to = normalizePhone(toPhone);
++  if (!to) throw new Error('Número de teléfono inválido: ' + toPhone);
++  const mediaId = await uploadMedia(phoneId, buffer, filename, 'application/pdf');
++  return graphRequest(`/${API_VERSION}/${phoneId}/messages`, 'POST', {
++    messaging_product: 'whatsapp',
++    recipient_type: 'individual',
++    to,
++    type: 'document',
++    document: { id: mediaId, filename, caption: caption || '' },
++  });
++}
++
++module.exports = {
++  isConfigured, normalizePhone, applyTemplate,
++  sendText, sendTemplate, sendDocument, uploadMedia, bodyParams,
++};
+diff --git a/backend/src/routes/admin.js b/backend/src/routes/admin.js
+index ebec766..ad92ad9 100644
+--- a/backend/src/routes/admin.js
++++ b/backend/src/routes/admin.js
+@@ -59,6 +59,8 @@ router.get('/accounts', adminAuth, async (req, res) => {
+         subscriptionExpires: b.subscriptionExpires,
+         bonificado: b.bonificado === true,
+         userCount: b.users.length,
++        waPhoneId: b.waPhoneId || null,
++        waPhoneNumber: b.waPhoneNumber || null,
+         extraUsers: extra,
+         userLimit: INCLUDED_USERS + extra,
+         monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * extra,
+@@ -147,6 +149,21 @@ router.put('/accounts/:id/extra-users', adminAuth, async (req, res) => {
+   }
+ });
+ 
++// PUT /api/admin/accounts/:id/whatsapp — asigna phone_number_id de Meta al negocio
++router.put('/accounts/:id/whatsapp', adminAuth, async (req, res) => {
++  try {
++    const phoneId = (req.body.phoneId || '').toString().trim() || null;
++    const phoneNumber = (req.body.phoneNumber || '').toString().trim() || null;
++    await prisma.business.update({
++      where: { id: req.params.id },
++      data: { waPhoneId: phoneId, waPhoneNumber: phoneNumber },
++    });
++    res.json({ ok: true, waPhoneId: phoneId, waPhoneNumber: phoneNumber });
++  } catch (err) {
++    res.status(500).json({ error: err.message });
++  }
++});
++
+ // DELETE /api/admin/accounts/:id
+ router.delete('/accounts/:id', adminAuth, async (req, res) => {
+   try {
+diff --git a/backend/src/routes/whatsapp.js b/backend/src/routes/whatsapp.js
+index b28910d..30419bc 100644
+--- a/backend/src/routes/whatsapp.js
++++ b/backend/src/routes/whatsapp.js
+@@ -3,7 +3,7 @@ const router   = express.Router();
+ const authMiddleware = require('../middleware/auth');
+ const path = require('path');
+ const fs = require('fs');
+-const { getState, getQR, sendMessage, sendDocument, logout, initWhatsApp } = require('../lib/whatsappBaileys');
++const meta = require('../lib/whatsappMeta');
+ const { generateReceiptPdf, generatePayrollPdf } = require('../lib/receiptPdf');
+ const PHOTOS_DIR = process.env.PHOTOS_DIR
+   || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
+@@ -12,61 +12,57 @@ const { runReminders } = require('../lib/reminderCron');
+ 
+ router.use(authMiddleware);
+ 
+-// GET /api/whatsapp/status
+-router.get('/status', (req, res) => {
+-  res.json(getState(req.user.businessId));
+-});
+-
+-// GET /api/whatsapp/qr  — devuelve el QR como data:image/png;base64
+-router.get('/qr', (req, res) => {
+-  const qr = getQR(req.user.businessId);
+-  if (!qr) return res.status(404).json({ error: 'No hay QR disponible' });
+-  res.json({ qr });
+-});
+-
+-// POST /api/whatsapp/connect  — iniciar conexión (genera QR)
+-router.post('/connect', async (req, res) => {
+-  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede conectar WhatsApp' });
+-  const { state } = getState(req.user.businessId);
+-  if (state === 'connected') return res.json({ ok: true, message: 'Ya conectado' });
+-  // initWhatsApp no bloquea — el QR aparece via polling de /status + /qr
+-  initWhatsApp(req.user.businessId).catch(e => console.error('[wa-connect]', e.message));
+-  res.json({ ok: true, message: 'Iniciando conexión...' });
+-});
++// Devuelve el phone_number_id del negocio (o null)
++async function getBiz(businessId) {
++  return prisma.business.findUnique({
++    where: { id: businessId },
++    select: { waPhoneId: true, waPhoneNumber: true },
++  });
++}
+ 
+-// POST /api/whatsapp/logout  — cerrar sesión
+-router.post('/logout', async (req, res) => {
+-  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede desconectar' });
+-  await logout(req.user.businessId);
+-  res.json({ ok: true });
++// GET /api/whatsapp/status
++router.get('/status', async (req, res) => {
++  try {
++    const biz = await getBiz(req.user.businessId);
++    const connected = meta.isConfigured() && !!biz?.waPhoneId;
++    res.json({
++      provider: 'meta',
++      configured: meta.isConfigured(),   // hay token central
++      connected,                          // este negocio tiene número asignado
++      state: connected ? 'connected' : 'disconnected',
++      phone: biz?.waPhoneNumber || null,
++    });
++  } catch (e) {
++    res.status(500).json({ error: e.message });
++  }
+ });
+ 
+-// POST /api/whatsapp/test  — enviar mensaje de prueba
++// POST /api/whatsapp/test — mensaje de texto de prueba
+ router.post('/test', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+-  const { state } = getState(req.user.businessId);
+-  if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado. Escanear el QR primero.' });
++  const biz = await getBiz(req.user.businessId);
++  if (!meta.isConfigured()) return res.status(400).json({ error: 'WhatsApp no configurado en el servidor (falta el token de Meta)' });
++  if (!biz?.waPhoneId) return res.status(400).json({ error: 'Tu negocio todavía no tiene número de WhatsApp asignado. Contactá a Gestumio.' });
+ 
+   const { phone, message } = req.body;
+   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
+-
+   try {
+-    const result = await sendMessage(req.user.businessId, phone, message);
+-    res.json({ ok: true, to: result.to });
++    await meta.sendText(biz.waPhoneId, phone, message);
++    res.json({ ok: true });
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+   }
+ });
+ 
+-// POST /api/whatsapp/send  — envío directo de un mensaje (con código para fallback a wa.me)
++// POST /api/whatsapp/send — texto libre (ventana 24hs)
+ router.post('/send', async (req, res) => {
+   const { phone, message } = req.body;
+   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
+-  const { state } = getState(req.user.businessId);
+-  if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
++  const biz = await getBiz(req.user.businessId);
++  if (!biz?.waPhoneId) return res.status(409).json({ error: 'WhatsApp no configurado para este negocio', code: 'NOT_CONNECTED' });
+   try {
+-    const result = await sendMessage(req.user.businessId, phone, message);
+-    res.json({ ok: true, to: result.to });
++    await meta.sendText(biz.waPhoneId, phone, message);
++    res.json({ ok: true });
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+   }
+@@ -76,14 +72,14 @@ router.post('/send', async (req, res) => {
+ router.post('/send-receipt', async (req, res) => {
+   const { phone, receipt, caption } = req.body;
+   if (!phone || !receipt) return res.status(400).json({ error: 'phone y receipt son requeridos' });
+-  const { state } = getState(req.user.businessId);
+-  if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
++  const biz = await getBiz(req.user.businessId);
++  if (!biz?.waPhoneId) return res.status(409).json({ error: 'WhatsApp no configurado para este negocio', code: 'NOT_CONNECTED' });
+   try {
+     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+     const pdf = await generateReceiptPdf({ ...receipt, logoPath });
+     const safeNro = String(receipt.nroRecibo || 'pago').replace(/[^\w-]/g, '');
+-    const result = await sendDocument(req.user.businessId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
+-    res.json({ ok: true, to: result.to });
++    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
++    res.json({ ok: true });
+   } catch (err) {
+     console.error('[send-receipt]', err.message);
+     res.status(500).json({ error: err.message });
+@@ -94,41 +90,40 @@ router.post('/send-receipt', async (req, res) => {
+ router.post('/send-payroll', async (req, res) => {
+   const { phone, payroll, caption } = req.body;
+   if (!phone || !payroll) return res.status(400).json({ error: 'phone y payroll son requeridos' });
+-  const { state } = getState(req.user.businessId);
+-  if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
++  const biz = await getBiz(req.user.businessId);
++  if (!biz?.waPhoneId) return res.status(409).json({ error: 'WhatsApp no configurado para este negocio', code: 'NOT_CONNECTED' });
+   try {
+     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+     const pdf = await generatePayrollPdf({ ...payroll, logoPath });
+     const safe = String(payroll.employeeName || 'empleado').replace(/[^\w-]/g, '').slice(0, 30) || 'haberes';
+-    const result = await sendDocument(req.user.businessId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`);
+-    res.json({ ok: true, to: result.to });
++    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`);
++    res.json({ ok: true });
+   } catch (err) {
+     console.error('[send-payroll]', err.message);
+     res.status(500).json({ error: err.message });
+   }
+ });
+ 
+-// POST /api/whatsapp/run-reminders  — disparar cron manualmente
++// POST /api/whatsapp/run-reminders — disparar el barrido manualmente
+ router.post('/run-reminders', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+-  const { state } = getState(req.user.businessId);
+-  if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado' });
++  const biz = await getBiz(req.user.businessId);
++  if (!biz?.waPhoneId) return res.status(400).json({ error: 'WhatsApp no configurado para este negocio' });
+   res.json({ ok: true, message: 'Barrido iniciado en background' });
+   runReminders(req.user.businessId).catch(e => console.error('[manual-reminder]', e.message));
+ });
+ 
+-// GET /api/whatsapp/templates — leer plantillas auto del negocio
++// GET /api/whatsapp/templates — plantillas de texto del negocio
+ router.get('/templates', async (req, res) => {
+   try {
+-    const rows = await prisma.$queryRawUnsafe(
+-      `SELECT "waTemplateExpiring", "waTemplateOverdue", "waTemplateAppointment" FROM "Business" WHERE id = ? LIMIT 1`,
+-      req.user.businessId
+-    );
+-    const row = rows?.[0] || {};
++    const biz = await prisma.business.findUnique({
++      where: { id: req.user.businessId },
++      select: { waTemplateExpiring: true, waTemplateOverdue: true, waTemplateAppointment: true },
++    });
+     res.json({
+-      expiring:    row.waTemplateExpiring    || '',
+-      overdue:     row.waTemplateOverdue     || '',
+-      appointment: row.waTemplateAppointment || '',
++      expiring:    biz?.waTemplateExpiring    || '',
++      overdue:     biz?.waTemplateOverdue     || '',
++      appointment: biz?.waTemplateAppointment || '',
+     });
+   } catch (e) {
+     res.status(500).json({ error: e.message });
+@@ -140,10 +135,14 @@ router.put('/templates', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede editar plantillas' });
+   const { expiring, overdue, appointment } = req.body;
+   try {
+-    await prisma.$executeRawUnsafe(
+-      `UPDATE "Business" SET "waTemplateExpiring" = ?, "waTemplateOverdue" = ?, "waTemplateAppointment" = ? WHERE id = ?`,
+-      expiring || null, overdue || null, appointment || null, req.user.businessId
+-    );
++    await prisma.business.update({
++      where: { id: req.user.businessId },
++      data: {
++        waTemplateExpiring:    expiring    || null,
++        waTemplateOverdue:     overdue     || null,
++        waTemplateAppointment: appointment || null,
++      },
++    });
+     res.json({ ok: true });
+   } catch (e) {
+     res.status(500).json({ error: e.message });
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index e6bbe9e..7bff6b4 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -490,37 +490,29 @@ export default function Settings() {
+ // ── Automatización WhatsApp vía Meta Cloud API ───────────────────────────────
+ function WhatsAppAuto() {
+   const [status, setStatus] = useState(null);
+-  const [qr, setQR] = useState(null);
+   const [testPhone, setTestPhone] = useState('');
+   const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Gestumio 🌿');
+   const [testing, setTesting] = useState(false);
+   const [running, setRunning] = useState(false);
+-  const [connecting, setConnecting] = useState(false);
+   const [feedback, setFeedback] = useState('');
+   const [templates, setTemplates] = useState({ expiring: '', overdue: '', appointment: '' });
+   const [templatesLoaded, setTemplatesLoaded] = useState(false);
+   const [templatesSaved, setTemplatesSaved] = useState(false);
+ 
+-  // Polling cada 2s
+   useEffect(() => {
+-    let interval;
+-    function poll() {
+-      api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
+-    }
+-    poll();
+-    interval = setInterval(poll, 2000);
+-    return () => clearInterval(interval);
++    api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
+   }, []);
+ 
+-  // Cargar plantillas cuando está conectado
++  const connected = status?.connected;
++
+   useEffect(() => {
+-    if (status?.state === 'connected' && !templatesLoaded) {
++    if (connected && !templatesLoaded) {
+       api.get('/whatsapp/templates').then(r => {
+         setTemplates(r.data);
+         setTemplatesLoaded(true);
+       }).catch(() => {});
+     }
+-  }, [status?.state, templatesLoaded]);
++  }, [connected, templatesLoaded]);
+ 
+   async function handleSaveTemplates() {
+     try {
+@@ -532,36 +524,6 @@ function WhatsAppAuto() {
+     }
+   }
+ 
+-  // Cuando hay QR disponible, pedirlo
+-  useEffect(() => {
+-    if (status?.state === 'qr_ready') {
+-      api.get('/whatsapp/qr').then(r => setQR(r.data.qr)).catch(() => {});
+-    } else if (status?.state === 'connected') {
+-      setQR(null); // solo limpiar QR cuando conectamos exitosamente
+-    }
+-    // en 'connecting' o 'disconnected' mantenemos el QR anterior si lo había
+-  }, [status?.state]);
+-
+-  async function handleConnect() {
+-    setConnecting(true); setFeedback('');
+-    try {
+-      await api.post('/whatsapp/connect');
+-      setFeedback('');
+-    } catch (e) {
+-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+-    } finally { setConnecting(false); }
+-  }
+-
+-  async function handleLogout() {
+-    if (!confirm('¿Cerrar sesión de WhatsApp? Tendrás que escanear el QR de nuevo.')) return;
+-    try {
+-      await api.post('/whatsapp/logout');
+-      setFeedback('Sesión cerrada.');
+-    } catch (e) {
+-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+-    }
+-  }
+-
+   async function handleTest() {
+     if (!testPhone || !testMsg) return;
+     setTesting(true); setFeedback('');
+@@ -583,28 +545,17 @@ function WhatsAppAuto() {
+     } finally { setRunning(false); }
+   }
+ 
+-  const state = status?.state || 'disconnected';
+-  const stateLabel = {
+-    disconnected: 'Desconectado',
+-    connecting:   qr ? 'Actualizando QR...' : 'Conectando...',
+-    qr_ready:     'Esperando QR',
+-    connected:    'Conectado',
+-  }[state] || state;
+-  const stateColor = {
+-    disconnected: '#ef4444',
+-    connecting:   '#f59e0b',
+-    qr_ready:     '#f59e0b',
+-    connected:    '#22c55e',
+-  }[state] || '#94a3b8';
++  const stateColor = connected ? '#22c55e' : '#ef4444';
++  const stateLabel = connected ? 'Conectado (API oficial)' : 'Sin número asignado';
+ 
+   return (
+     <div className="card" style={{ marginTop: 24 }}>
+       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+         <span style={{ fontSize: 28 }}>🤖</span>
+         <div>
+-          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Conexión de WhatsApp</h2>
++          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>WhatsApp (API oficial de Meta)</h2>
+           <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
+-            Vinculá tu WhatsApp para enviar recordatorios y comprobantes (envío manual)
++            Enviá recordatorios y comprobantes a tus clientes desde tu número oficial de WhatsApp Business.
+           </p>
+         </div>
+         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+@@ -616,75 +567,29 @@ function WhatsAppAuto() {
+         </div>
+       </div>
+ 
+-      {/* Estado: desconectado — mostrar botón conectar */}
+-      {state === 'disconnected' && (
+-        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
+-            Conectá tu WhatsApp para enviar recordatorios y comprobantes a tus clientes.
+-          </p>
+-          <button className="btn btn-primary" onClick={handleConnect} disabled={connecting}>
+-            {connecting ? 'Iniciando...' : '📱 Conectar WhatsApp'}
+-          </button>
+-        </div>
+-      )}
+-
+-      {/* Estado: conectando sin QR previo */}
+-      {state === 'connecting' && !qr && (
+-        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-soft)', fontSize: 14 }}>
+-          ⏳ Iniciando conexión...
+-        </div>
+-      )}
+-
+-      {/* Estado: QR listo o reconectando con QR previo */}
+-      {(state === 'qr_ready' || (state === 'connecting' && qr)) && (
+-        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+-          <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>
+-            📱 Escaneá este código QR con WhatsApp
+-          </p>
+-          <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+-            Abrí WhatsApp → Dispositivos vinculados → Vincular dispositivo
+-          </p>
+-          {qr ? (
+-            <img
+-              src={qr}
+-              alt="QR WhatsApp"
+-              style={{ width: 240, height: 240, borderRadius: 12, border: '2px solid var(--border)' }}
+-            />
+-          ) : (
+-            <div style={{ width: 240, height: 240, margin: '0 auto', borderRadius: 12,
+-              border: '2px dashed var(--border)', display: 'flex', alignItems: 'center',
+-              justifyContent: 'center', color: 'var(--ink-soft)', fontSize: 13 }}>
+-              Cargando QR...
+-            </div>
+-          )}
+-          <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>
+-            El QR se renueva automáticamente. Se actualiza en segundos.
+-          </p>
++      {!connected && (
++        <div style={{
++          background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10,
++          padding: 14, fontSize: 13, color: '#92400e',
++        }}>
++          Tu número de WhatsApp Business todavía no está habilitado. El equipo de Gestumio activa tu número
++          en la API oficial de Meta y queda listo para enviar recordatorios y comprobantes.
++          Escribinos si querés activarlo.
+         </div>
+       )}
+ 
+-      {/* Estado: conectado */}
+-      {state === 'connected' && (
++      {connected && (
+         <>
+           <div style={{
+             background: '#f0fdf4', border: '1px solid #bbf7d0',
+             borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534',
+-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+           }}>
+-            <span>
+-              ✅ WhatsApp conectado{status?.phone ? ` (${status.phone})` : ''}.
+-              Listo para enviar recordatorios y comprobantes manualmente desde Cobranza.
+-            </span>
+-            <button
+-              onClick={handleLogout}
+-              style={{ background: 'none', border: '1px solid #16653444', color: '#166534',
+-                borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+-              Desconectar
+-            </button>
++            ✅ WhatsApp habilitado{status?.phone ? ` (${status.phone})` : ''} con la API oficial.
++            Listo para enviar recordatorios y comprobantes.
+           </div>
+ 
+           <div style={{ marginBottom: 16 }}>
+-            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Probar envío manual</p>
++            <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Probar envío</p>
+             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+               <input
+                 value={testPhone}
+@@ -702,24 +607,33 @@ function WhatsAppAuto() {
+                 fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical',
+                 boxSizing: 'border-box', marginBottom: 8 }}
+             />
+-            <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
+-              {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}
+-            </button>
++            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
++              <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
++                {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}
++              </button>
++              <button className="btn btn-secondary" onClick={handleRunNow} disabled={running}>
++                {running ? 'Ejecutando...' : '🔔 Enviar recordatorios ahora'}
++              </button>
++            </div>
++            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 8 }}>
++              Nota: el texto libre solo llega si el cliente te escribió en las últimas 24hs. Los recordatorios
++              automáticos usan las plantillas aprobadas por Meta.
++            </p>
+           </div>
+-
+         </>
+       )}
+ 
+-      {/* Plantillas automáticas — siempre visibles */}
++      {/* Plantillas de texto (para envíos dentro de la ventana de 24hs) */}
+       <div className="card" style={{ marginTop: 16 }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+-          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Plantillas de mensajes automáticos</h2>
++          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Textos de mensajes</h2>
+           <button className="btn btn-primary btn-sm" onClick={handleSaveTemplates}>
+             {templatesSaved ? '✓ Guardado' : 'Guardar'}
+           </button>
+         </div>
+         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+-          Podés personalizar el texto de cada recordatorio. Dejá el campo vacío para usar el mensaje por defecto.
++          Personalizá el texto de cada recordatorio para los envíos dentro de la ventana de 24hs.
++          Dejá el campo vacío para usar el mensaje por defecto.
+         </p>
+         {[
+           {

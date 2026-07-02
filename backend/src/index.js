@@ -39,7 +39,6 @@ const whatsappRoutes = require('./routes/whatsapp');
 const googleCalendarRoutes = require('./routes/google-calendar');
 const supportRoutes = require('./routes/support');
 const { startReminderCron } = require('./lib/reminderCron');
-const { restoreSessions } = require('./lib/whatsappBaileys');
 
 const app = express();
 
@@ -454,9 +453,8 @@ runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada hora
 
-// Iniciar WhatsApp Baileys y cron de recordatorios
-restoreSessions();
-// startReminderCron(); // Envío masivo automático desactivado: los recordatorios se mandan manualmente
+// Recordatorios por WhatsApp (Meta Cloud API) — envío manual desde la app.
+// startReminderCron(); // Barrido automático diario (desactivado; se dispara manualmente)
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);

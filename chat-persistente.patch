@@ -1,0 +1,26 @@
+diff --git a/frontend/src/components/ChatBot.jsx b/frontend/src/components/ChatBot.jsx
+index 23d2728..47eaa41 100644
+--- a/frontend/src/components/ChatBot.jsx
++++ b/frontend/src/components/ChatBot.jsx
+@@ -392,21 +392,10 @@ export default function ChatBot() {
+   const [input, setInput] = useState('');
+   const [typing, setTyping] = useState(false);
+   const [unread, setUnread] = useState(0);
+-  const [lastRoute, setLastRoute] = useState(location.pathname);
+   const bottomRef = useRef(null);
+ 
+   const menu = getMenu(location.pathname);
+ 
+-  // Reset al cambiar de sección
+-  useEffect(() => {
+-    if (location.pathname !== lastRoute) {
+-      setLastRoute(location.pathname);
+-      setMessages([{ from: 'bot', text: WELCOME, showMenu: true }]);
+-      setInput('');
+-      setTyping(false);
+-    }
+-  }, [location.pathname, lastRoute]);
+-
+   // Scroll al último mensaje
+   useEffect(() => {
+     if (open) {

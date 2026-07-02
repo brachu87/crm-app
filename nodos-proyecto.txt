@@ -1,0 +1,19 @@
+====== PROYECTOS INDEXADOS ====== 
+level=info msg=mem.init budget_mb=7902 total_ram_mb=15805
+{"projects":[{"name":"C-crm-app","root_path":"C:/crm-app","nodes":1442,"edges":2902,"size_bytes":4915200}]}
+ 
+====== ARQUITECTURA (lenguajes, paquetes, rutas, hotspots) ====== 
+level=info msg=mem.init budget_mb=7902 total_ram_mb=15805
+{"error":"project not found or not indexed","hint":"Use list_projects to see all indexed projects, then pass the project name.","available_projects":["C-crm-app"],"count":1}
+ 
+====== NODOS: FUNCIONES ====== 
+level=info msg=mem.init budget_mb=7902 total_ram_mb=15805
+{"error":"project not found or not indexed","hint":"Use list_projects to see all indexed projects, then pass the project name.","available_projects":["C-crm-app"],"count":1}
+ 
+====== NODOS: CLASES ====== 
+level=info msg=mem.init budget_mb=7902 total_ram_mb=15805
+{"error":"project not found or not indexed","hint":"Use list_projects to see all indexed projects, then pass the project name.","available_projects":["C-crm-app"],"count":1}
+ 
+====== NODOS: RUTAS (endpoints) ====== 
+level=info msg=mem.init budget_mb=7902 total_ram_mb=15805
+{"error":"project not found or not indexed","hint":"Use list_projects to see all indexed projects, then pass the project name.","available_projects":["C-crm-app"],"count":1}

@@ -59,6 +59,8 @@ router.get('/accounts', adminAuth, async (req, res) => {
         subscriptionExpires: b.subscriptionExpires,
         bonificado: b.bonificado === true,
         userCount: b.users.length,
+        waPhoneId: b.waPhoneId || null,
+        waPhoneNumber: b.waPhoneNumber || null,
         extraUsers: extra,
         userLimit: INCLUDED_USERS + extra,
         monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * extra,
@@ -142,6 +144,21 @@ router.put('/accounts/:id/extra-users', adminAuth, async (req, res) => {
       data: { extraUsers: n },
     });
     res.json({ ok: true, extraUsers: n, userLimit: INCLUDED_USERS + n, monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * n });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/accounts/:id/whatsapp — asigna phone_number_id de Meta al negocio
+router.put('/accounts/:id/whatsapp', adminAuth, async (req, res) => {
+  try {
+    const phoneId = (req.body.phoneId || '').toString().trim() || null;
+    const phoneNumber = (req.body.phoneNumber || '').toString().trim() || null;
+    await prisma.business.update({
+      where: { id: req.params.id },
+      data: { waPhoneId: phoneId, waPhoneNumber: phoneNumber },
+    });
+    res.json({ ok: true, waPhoneId: phoneId, waPhoneNumber: phoneNumber });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
