@@ -1,0 +1,30 @@
+diff --git a/backend/src/index.js b/backend/src/index.js
+index 9ab4408..23f8e4f 100644
+--- a/backend/src/index.js
++++ b/backend/src/index.js
+@@ -417,14 +417,17 @@ async function ensureWATemplateColumns() {
+ async function sweepExpiredTrials() {
+   try {
+     // Trial = 15 days from createdAt. Auto-expire and block access.
+-    const result = await prisma.$executeRawUnsafe(`
+-      UPDATE "Business"
+-      SET "subscriptionStatus" = 'expired', "approved" = 0
+-      WHERE "subscriptionStatus" = 'trial'
+-        AND "bonificado" = 0
+-        AND datetime("createdAt", '+15 days') < datetime('now')
+-    `);
+-    if (result > 0) console.log(`[trial-sweep] Expired ${result} trial account(s)`);
++    // Trial vencido = creado hace más de 15 días. Prisma (agnóstico a la base).
++    const cutoff = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
++    const result = await prisma.business.updateMany({
++      where: {
++        subscriptionStatus: 'trial',
++        bonificado: false,
++        createdAt: { lt: cutoff },
++      },
++      data: { subscriptionStatus: 'expired', approved: false },
++    });
++    if (result.count > 0) console.log(`[trial-sweep] Expired ${result.count} trial account(s)`);
+   } catch (err) {
+     console.error('[trial-sweep] error:', err.message);
+   }
