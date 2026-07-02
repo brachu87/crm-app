@@ -1,14 +1,33 @@
 const nodemailer = require('nodemailer');
 
 function getTransporter() {
+  // SMTP genérico (Zoho, hosting/cPanel, Microsoft 365, etc.)
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const port = parseInt(process.env.SMTP_PORT || '465', 10);
+    const secure = process.env.SMTP_SECURE != null
+      ? String(process.env.SMTP_SECURE) === 'true'
+      : port === 465; // 465 => SSL; 587 => STARTTLS
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+  }
+  // Fallback: Gmail (compatibilidad con configuración anterior)
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) return null;
-
   return nodemailer.createTransport({
     service: 'gmail',
     auth: { user, pass },
   });
+}
+
+// Dirección remitente. Prioriza MAIL_FROM, luego el usuario SMTP, luego Gmail.
+function mailFrom() {
+  const addr = process.env.MAIL_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || '';
+  return `"Gestumio" <${addr}>`;
 }
 
 async function sendWelcomeEmail({ toEmail, toName, businessName }) {
@@ -120,7 +139,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
 
   try {
     await transporter.sendMail({
-      from: `"Gestumio" <${process.env.GMAIL_USER}>`,
+      from: mailFrom(),
       to: toEmail,
       subject: '¡Bienvenido a Gestumio! Tu cuenta está siendo procesada 🎉',
       html,
@@ -171,7 +190,7 @@ async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
 </body></html>`;
   try {
     await transporter.sendMail({
-      from: `"Gestumio" <${process.env.GMAIL_USER}>`,
+      from: mailFrom(),
       to: toEmail,
       subject: 'Restablecé tu contraseña de Gestumio',
       html,
