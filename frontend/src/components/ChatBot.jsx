@@ -392,20 +392,9 @@ export default function ChatBot() {
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [lastRoute, setLastRoute] = useState(location.pathname);
   const bottomRef = useRef(null);
 
   const menu = getMenu(location.pathname);
-
-  // Reset al cambiar de sección
-  useEffect(() => {
-    if (location.pathname !== lastRoute) {
-      setLastRoute(location.pathname);
-      setMessages([{ from: 'bot', text: WELCOME, showMenu: true }]);
-      setInput('');
-      setTyping(false);
-    }
-  }, [location.pathname, lastRoute]);
 
   // Scroll al último mensaje
   useEffect(() => {
