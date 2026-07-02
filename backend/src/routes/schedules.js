@@ -19,16 +19,27 @@ router.get('/', auth, async (req, res) => {
         { employeeId: null, activity: { activityEmployees: { some: { employeeId } } } },
       ];
     }
+    const today = new Date().toISOString().slice(0, 10);
     const schedules = await prisma.classSchedule.findMany({
       where,
       include: {
         activity: { select: { id: true, name: true } },
         employee: { select: { id: true, name: true } },
-        branch: { select: { id: true, name: true } }
+        branch: { select: { id: true, name: true } },
+        classReservations: {
+          where: { status: 'reserved', date: { gte: today } },
+          include: { client: { select: { id: true, name: true } } },
+          orderBy: { date: 'asc' },
+        },
       },
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
     });
-    res.json(schedules);
+    // Aplanar reservas para la UI
+    const out = schedules.map(sc => ({
+      ...sc,
+      reservations: sc.classReservations.map(r => ({ id: r.id, date: r.date, clientName: r.client?.name || 'Socio' })),
+    }));
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

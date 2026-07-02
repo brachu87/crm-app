@@ -198,4 +198,90 @@ router.post('/appointments/:id/cancel', portalAuth, async (req, res) => {
   } catch (e) { console.error('[portal-appt-cancel]', e.message); res.status(500).json({ error: 'Error' }); }
 });
 
+// Calcula la próxima fecha (>= hoy) que cae en dayOfWeek (0=Dom..6=Sáb) → "YYYY-MM-DD"
+function nextDateForDow(dow) {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  const diff = (dow - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+const DOW = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+// GET /api/portal/classes — clases (horarios) del negocio para reservar cupo
+router.get('/classes', portalAuth, async (req, res) => {
+  try {
+    const businessId = await socioBusinessId(req.socioId);
+    if (!businessId) return res.status(404).json({ error: 'No encontrado' });
+    const schedules = await prisma.classSchedule.findMany({
+      where: { businessId, active: true },
+      include: { activity: { select: { name: true } } },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+    const out = [];
+    for (const sc of schedules) {
+      const date = nextDateForDow(sc.dayOfWeek);
+      const taken = await prisma.classReservation.count({ where: { classScheduleId: sc.id, date, status: 'reserved' } });
+      const mine = await prisma.classReservation.count({ where: { classScheduleId: sc.id, date, status: 'reserved', clientId: req.socioId } });
+      out.push({
+        id: sc.id,
+        activity: sc.activity?.name || 'Actividad',
+        dayOfWeek: sc.dayOfWeek, dayLabel: DOW[sc.dayOfWeek] || '',
+        startTime: sc.startTime, endTime: sc.endTime,
+        maxCapacity: sc.maxCapacity || null,
+        date, taken, spotsLeft: sc.maxCapacity ? Math.max(0, sc.maxCapacity - taken) : null,
+        alreadyReserved: mine > 0,
+      });
+    }
+    res.json(out);
+  } catch (e) { console.error('[portal-classes]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// GET /api/portal/my-classes — reservas de clase próximas del socio
+router.get('/my-classes', portalAuth, async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const reservas = await prisma.classReservation.findMany({
+      where: { clientId: req.socioId, status: 'reserved', date: { gte: today } },
+      include: { classSchedule: { include: { activity: { select: { name: true } } } } },
+      orderBy: [{ date: 'asc' }],
+    });
+    res.json(reservas.map(r => ({
+      id: r.id, date: r.date,
+      activity: r.classSchedule?.activity?.name || 'Actividad',
+      startTime: r.classSchedule?.startTime || '', endTime: r.classSchedule?.endTime || '',
+    })));
+  } catch (e) { console.error('[portal-myclasses]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// POST /api/portal/classes/:scheduleId/reserve — reservar cupo
+router.post('/classes/:scheduleId/reserve', portalAuth, async (req, res) => {
+  try {
+    const businessId = await socioBusinessId(req.socioId);
+    const sc = await prisma.classSchedule.findFirst({ where: { id: req.params.scheduleId, businessId, active: true } });
+    if (!sc) return res.status(404).json({ error: 'Clase no encontrada' });
+    const date = req.body.date || nextDateForDow(sc.dayOfWeek);
+    // ¿ya reservó?
+    const dup = await prisma.classReservation.findFirst({ where: { classScheduleId: sc.id, clientId: req.socioId, date, status: 'reserved' } });
+    if (dup) return res.status(409).json({ error: 'Ya reservaste esta clase' });
+    // cupo
+    if (sc.maxCapacity) {
+      const taken = await prisma.classReservation.count({ where: { classScheduleId: sc.id, date, status: 'reserved' } });
+      if (taken >= sc.maxCapacity) return res.status(409).json({ error: 'No quedan cupos para esta clase' });
+    }
+    await prisma.classReservation.create({ data: { businessId, classScheduleId: sc.id, clientId: req.socioId, date, status: 'reserved' } });
+    res.status(201).json({ ok: true });
+  } catch (e) { console.error('[portal-reserve]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// POST /api/portal/class-reservations/:id/cancel
+router.post('/class-reservations/:id/cancel', portalAuth, async (req, res) => {
+  try {
+    const r = await prisma.classReservation.findFirst({ where: { id: req.params.id, clientId: req.socioId } });
+    if (!r) return res.status(404).json({ error: 'Reserva no encontrada' });
+    await prisma.classReservation.update({ where: { id: r.id }, data: { status: 'cancelled' } });
+    res.json({ ok: true });
+  } catch (e) { console.error('[portal-cancel-class]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
 module.exports = router;

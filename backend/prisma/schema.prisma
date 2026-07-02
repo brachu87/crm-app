@@ -54,6 +54,7 @@ model Business {
   payrollRecords   PayrollRecord[]
   services         Service[]
   appointments     Appointment[]
+  classReservations ClassReservation[]
 }
 
 model User {
@@ -86,6 +87,7 @@ model Client {
   responsablePhone String?
   globalDiscount   Float        @default(0)
   memberNumber     String?      @unique   // número de socio (usuario del portal), único global
+  classReservations ClassReservation[]
   portalPassword   String?                // hash de la contraseña del portal (si no, usa el DNI)
   businessId       String
   business         Business     @relation(fields: [businessId], references: [id])
@@ -342,6 +344,7 @@ model ClassSchedule {
   @@index([branchId])
   @@index([activityId])
   attendances Attendance[]
+  classReservations ClassReservation[]
 }
 
 model Attendance {
@@ -445,5 +448,22 @@ model ManualIncome {
   createdAt   DateTime @default(now())
 
   @@index([businessId])
+  @@index([clientId])
+}
+
+model ClassReservation {
+  id              String        @id @default(cuid())
+  businessId      String
+  business        Business      @relation(fields: [businessId], references: [id])
+  classScheduleId String
+  classSchedule   ClassSchedule @relation(fields: [classScheduleId], references: [id])
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id])
+  date            String        // "YYYY-MM-DD"
+  status          String        @default("reserved") // reserved | cancelled
+  createdAt       DateTime      @default(now())
+
+  @@index([businessId])
+  @@index([classScheduleId])
   @@index([clientId])
 }

@@ -74,11 +74,28 @@ function PortalDashboard({ me, onLogout, onReload }) {
   const [showPass, setShowPass] = useState(false);
   const [showReserva, setShowReserva] = useState(false);
   const [appts, setAppts] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [myClasses, setMyClasses] = useState([]);
+  const [reserving, setReserving] = useState(null);
   const statusColor = { paid: '#16a34a', pending: '#d97706', overdue: '#dc2626' };
   const statusLabel = { paid: 'Al día', pending: 'Pendiente', overdue: 'Vencida' };
 
   function loadAppts() { portalFetch('/appointments').then(setAppts).catch(() => {}); }
-  useEffect(() => { loadAppts(); }, []);
+  function loadClasses() {
+    portalFetch('/classes').then(setClasses).catch(() => {});
+    portalFetch('/my-classes').then(setMyClasses).catch(() => {});
+  }
+  useEffect(() => { loadAppts(); loadClasses(); }, []);
+
+  async function reserveClass(id) {
+    setReserving(id);
+    try { await portalFetch('/classes/' + id + '/reserve', { method: 'POST' }); loadClasses(); }
+    catch (e) { alert(e.message); } finally { setReserving(null); }
+  }
+  async function cancelClass(id) {
+    if (!confirm('¿Cancelar tu reserva de clase?')) return;
+    try { await portalFetch('/class-reservations/' + id + '/cancel', { method: 'POST' }); loadClasses(); } catch (_) {}
+  }
 
   async function cancelAppt(id) {
     if (!confirm('¿Cancelar este turno?')) return;
@@ -142,6 +159,41 @@ function PortalDashboard({ me, onLogout, onReload }) {
                 <button onClick={() => cancelAppt(a.id)} style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
               </div>
             ))
+          )}
+        </div>
+
+        <div style={cardS}>
+          <h2 style={{ margin: '0 0 4px', fontSize: 16 }}>Reservar cupo en clases</h2>
+          <p style={{ margin: '0 0 12px', fontSize: 12, color: '#64748b' }}>Próxima fecha de cada clase.</p>
+          {classes.length === 0 ? (
+            <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>No hay clases con horario disponibles.</p>
+          ) : (
+            classes.map((c, i) => (
+              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < classes.length - 1 ? '1px solid #eef2f7' : 'none' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{c.activity}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{c.dayLabel} {fmtDate(c.date)} · {c.startTime}–{c.endTime}{c.maxCapacity ? ` · ${c.spotsLeft} cupos libres` : ''}</div>
+                </div>
+                {c.alreadyReserved ? (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>Reservado ✓</span>
+                ) : (c.maxCapacity && c.spotsLeft <= 0) ? (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626' }}>Sin cupos</span>
+                ) : (
+                  <button onClick={() => reserveClass(c.id)} disabled={reserving === c.id} style={{ ...btn, padding: '6px 12px', fontSize: 12 }}>{reserving === c.id ? '...' : 'Reservar'}</button>
+                )}
+              </div>
+            ))
+          )}
+          {myClasses.length > 0 && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>Mis clases reservadas</p>
+              {myClasses.map((r) => (
+                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+                  <div style={{ fontSize: 13 }}>{r.activity} · {fmtDate(r.date)} {r.startTime}</div>
+                  <button onClick={() => cancelClass(r.id)} style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 6, padding: '3px 9px', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

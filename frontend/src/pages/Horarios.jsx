@@ -121,6 +121,11 @@ export default function Horarios() {
                   {s.employee && <div className="sc-employee">👤 {s.employee.name}</div>}
                   {s.branch && <div className="sc-branch">🏢 {s.branch.name}</div>}
                   {s.maxCapacity && <div className="sc-capacity">👥 cupo {s.maxCapacity}</div>}
+                  {s.reservations && s.reservations.length > 0 && (
+                    <div className="sc-capacity" style={{ color: '#1d4ed8' }} title={s.reservations.map(r => `${r.clientName} (${r.date})`).join('\n')}>
+                      📋 {s.reservations.length} reservado{s.reservations.length > 1 ? 's' : ''}
+                    </div>
+                  )}
                   <div className="sc-actions">
                     {can.editar && <button onClick={() => openEdit(s)}>✏️</button>}
                     {can.editar && <button onClick={() => del(s)}>🗑️</button>}

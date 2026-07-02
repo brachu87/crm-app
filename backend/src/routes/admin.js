@@ -181,6 +181,7 @@ router.delete('/accounts/:id', adminAuth, async (req, res) => {
       prisma.attendance.deleteMany({ where: { businessId: id } }),
       prisma.activityEmployee.deleteMany({ where: { activity: { businessId: id } } }),
       prisma.payrollRecord.deleteMany({ where: { businessId: id } }),
+      prisma.classReservation.deleteMany({ where: { businessId: id } }),
       prisma.classSchedule.deleteMany({ where: { businessId: id } }),
       prisma.service.deleteMany({ where: { businessId: id } }),
       prisma.activity.deleteMany({ where: { businessId: id } }),

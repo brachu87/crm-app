@@ -1,0 +1,282 @@
+diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index 795de15..043d08d 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -54,6 +54,7 @@ model Business {
+   payrollRecords   PayrollRecord[]
+   services         Service[]
+   appointments     Appointment[]
++  classReservations ClassReservation[]
+ }
+ 
+ model User {
+@@ -86,6 +87,7 @@ model Client {
+   responsablePhone String?
+   globalDiscount   Float        @default(0)
+   memberNumber     String?      @unique   // número de socio (usuario del portal), único global
++  classReservations ClassReservation[]
+   portalPassword   String?                // hash de la contraseña del portal (si no, usa el DNI)
+   businessId       String
+   business         Business     @relation(fields: [businessId], references: [id])
+@@ -342,6 +344,7 @@ model ClassSchedule {
+   @@index([branchId])
+   @@index([activityId])
+   attendances Attendance[]
++  classReservations ClassReservation[]
+ }
+ 
+ model Attendance {
+@@ -447,3 +450,20 @@ model ManualIncome {
+   @@index([businessId])
+   @@index([clientId])
+ }
++
++model ClassReservation {
++  id              String        @id @default(cuid())
++  businessId      String
++  business        Business      @relation(fields: [businessId], references: [id])
++  classScheduleId String
++  classSchedule   ClassSchedule @relation(fields: [classScheduleId], references: [id])
++  clientId        String
++  client          Client        @relation(fields: [clientId], references: [id])
++  date            String        // "YYYY-MM-DD"
++  status          String        @default("reserved") // reserved | cancelled
++  createdAt       DateTime      @default(now())
++
++  @@index([businessId])
++  @@index([classScheduleId])
++  @@index([clientId])
++}
+diff --git a/backend/src/routes/admin.js b/backend/src/routes/admin.js
+index ac9907f..0fa5d5d 100644
+--- a/backend/src/routes/admin.js
++++ b/backend/src/routes/admin.js
+@@ -181,6 +181,7 @@ router.delete('/accounts/:id', adminAuth, async (req, res) => {
+       prisma.attendance.deleteMany({ where: { businessId: id } }),
+       prisma.activityEmployee.deleteMany({ where: { activity: { businessId: id } } }),
+       prisma.payrollRecord.deleteMany({ where: { businessId: id } }),
++      prisma.classReservation.deleteMany({ where: { businessId: id } }),
+       prisma.classSchedule.deleteMany({ where: { businessId: id } }),
+       prisma.service.deleteMany({ where: { businessId: id } }),
+       prisma.activity.deleteMany({ where: { businessId: id } }),
+diff --git a/backend/src/routes/portal.js b/backend/src/routes/portal.js
+index f3b89c6..6b3a647 100644
+--- a/backend/src/routes/portal.js
++++ b/backend/src/routes/portal.js
+@@ -198,4 +198,90 @@ router.post('/appointments/:id/cancel', portalAuth, async (req, res) => {
+   } catch (e) { console.error('[portal-appt-cancel]', e.message); res.status(500).json({ error: 'Error' }); }
+ });
+ 
++// Calcula la próxima fecha (>= hoy) que cae en dayOfWeek (0=Dom..6=Sáb) → "YYYY-MM-DD"
++function nextDateForDow(dow) {
++  const d = new Date(); d.setHours(0, 0, 0, 0);
++  const diff = (dow - d.getDay() + 7) % 7;
++  d.setDate(d.getDate() + diff);
++  return d.toISOString().slice(0, 10);
++}
++
++const DOW = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
++
++// GET /api/portal/classes — clases (horarios) del negocio para reservar cupo
++router.get('/classes', portalAuth, async (req, res) => {
++  try {
++    const businessId = await socioBusinessId(req.socioId);
++    if (!businessId) return res.status(404).json({ error: 'No encontrado' });
++    const schedules = await prisma.classSchedule.findMany({
++      where: { businessId, active: true },
++      include: { activity: { select: { name: true } } },
++      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
++    });
++    const out = [];
++    for (const sc of schedules) {
++      const date = nextDateForDow(sc.dayOfWeek);
++      const taken = await prisma.classReservation.count({ where: { classScheduleId: sc.id, date, status: 'reserved' } });
++      const mine = await prisma.classReservation.count({ where: { classScheduleId: sc.id, date, status: 'reserved', clientId: req.socioId } });
++      out.push({
++        id: sc.id,
++        activity: sc.activity?.name || 'Actividad',
++        dayOfWeek: sc.dayOfWeek, dayLabel: DOW[sc.dayOfWeek] || '',
++        startTime: sc.startTime, endTime: sc.endTime,
++        maxCapacity: sc.maxCapacity || null,
++        date, taken, spotsLeft: sc.maxCapacity ? Math.max(0, sc.maxCapacity - taken) : null,
++        alreadyReserved: mine > 0,
++      });
++    }
++    res.json(out);
++  } catch (e) { console.error('[portal-classes]', e.message); res.status(500).json({ error: 'Error' }); }
++});
++
++// GET /api/portal/my-classes — reservas de clase próximas del socio
++router.get('/my-classes', portalAuth, async (req, res) => {
++  try {
++    const today = new Date().toISOString().slice(0, 10);
++    const reservas = await prisma.classReservation.findMany({
++      where: { clientId: req.socioId, status: 'reserved', date: { gte: today } },
++      include: { classSchedule: { include: { activity: { select: { name: true } } } } },
++      orderBy: [{ date: 'asc' }],
++    });
++    res.json(reservas.map(r => ({
++      id: r.id, date: r.date,
++      activity: r.classSchedule?.activity?.name || 'Actividad',
++      startTime: r.classSchedule?.startTime || '', endTime: r.classSchedule?.endTime || '',
++    })));
++  } catch (e) { console.error('[portal-myclasses]', e.message); res.status(500).json({ error: 'Error' }); }
++});
++
++// POST /api/portal/classes/:scheduleId/reserve — reservar cupo
++router.post('/classes/:scheduleId/reserve', portalAuth, async (req, res) => {
++  try {
++    const businessId = await socioBusinessId(req.socioId);
++    const sc = await prisma.classSchedule.findFirst({ where: { id: req.params.scheduleId, businessId, active: true } });
++    if (!sc) return res.status(404).json({ error: 'Clase no encontrada' });
++    const date = req.body.date || nextDateForDow(sc.dayOfWeek);
++    // ¿ya reservó?
++    const dup = await prisma.classReservation.findFirst({ where: { classScheduleId: sc.id, clientId: req.socioId, date, status: 'reserved' } });
++    if (dup) return res.status(409).json({ error: 'Ya reservaste esta clase' });
++    // cupo
++    if (sc.maxCapacity) {
++      const taken = await prisma.classReservation.count({ where: { classScheduleId: sc.id, date, status: 'reserved' } });
++      if (taken >= sc.maxCapacity) return res.status(409).json({ error: 'No quedan cupos para esta clase' });
++    }
++    await prisma.classReservation.create({ data: { businessId, classScheduleId: sc.id, clientId: req.socioId, date, status: 'reserved' } });
++    res.status(201).json({ ok: true });
++  } catch (e) { console.error('[portal-reserve]', e.message); res.status(500).json({ error: 'Error' }); }
++});
++
++// POST /api/portal/class-reservations/:id/cancel
++router.post('/class-reservations/:id/cancel', portalAuth, async (req, res) => {
++  try {
++    const r = await prisma.classReservation.findFirst({ where: { id: req.params.id, clientId: req.socioId } });
++    if (!r) return res.status(404).json({ error: 'Reserva no encontrada' });
++    await prisma.classReservation.update({ where: { id: r.id }, data: { status: 'cancelled' } });
++    res.json({ ok: true });
++  } catch (e) { console.error('[portal-cancel-class]', e.message); res.status(500).json({ error: 'Error' }); }
++});
++
+ module.exports = router;
+diff --git a/backend/src/routes/schedules.js b/backend/src/routes/schedules.js
+index 536e222..cd65cee 100644
+--- a/backend/src/routes/schedules.js
++++ b/backend/src/routes/schedules.js
+@@ -19,16 +19,27 @@ router.get('/', auth, async (req, res) => {
+         { employeeId: null, activity: { activityEmployees: { some: { employeeId } } } },
+       ];
+     }
++    const today = new Date().toISOString().slice(0, 10);
+     const schedules = await prisma.classSchedule.findMany({
+       where,
+       include: {
+         activity: { select: { id: true, name: true } },
+         employee: { select: { id: true, name: true } },
+-        branch: { select: { id: true, name: true } }
++        branch: { select: { id: true, name: true } },
++        classReservations: {
++          where: { status: 'reserved', date: { gte: today } },
++          include: { client: { select: { id: true, name: true } } },
++          orderBy: { date: 'asc' },
++        },
+       },
+       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
+     });
+-    res.json(schedules);
++    // Aplanar reservas para la UI
++    const out = schedules.map(sc => ({
++      ...sc,
++      reservations: sc.classReservations.map(r => ({ id: r.id, date: r.date, clientName: r.client?.name || 'Socio' })),
++    }));
++    res.json(out);
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+   }
+diff --git a/frontend/src/pages/Horarios.jsx b/frontend/src/pages/Horarios.jsx
+index dc68a28..cc77926 100644
+--- a/frontend/src/pages/Horarios.jsx
++++ b/frontend/src/pages/Horarios.jsx
+@@ -121,6 +121,11 @@ export default function Horarios() {
+                   {s.employee && <div className="sc-employee">👤 {s.employee.name}</div>}
+                   {s.branch && <div className="sc-branch">🏢 {s.branch.name}</div>}
+                   {s.maxCapacity && <div className="sc-capacity">👥 cupo {s.maxCapacity}</div>}
++                  {s.reservations && s.reservations.length > 0 && (
++                    <div className="sc-capacity" style={{ color: '#1d4ed8' }} title={s.reservations.map(r => `${r.clientName} (${r.date})`).join('\n')}>
++                      📋 {s.reservations.length} reservado{s.reservations.length > 1 ? 's' : ''}
++                    </div>
++                  )}
+                   <div className="sc-actions">
+                     {can.editar && <button onClick={() => openEdit(s)}>✏️</button>}
+                     {can.editar && <button onClick={() => del(s)}>🗑️</button>}
+diff --git a/frontend/src/portal/PortalApp.jsx b/frontend/src/portal/PortalApp.jsx
+index 52ec635..a15afe5 100644
+--- a/frontend/src/portal/PortalApp.jsx
++++ b/frontend/src/portal/PortalApp.jsx
+@@ -74,11 +74,28 @@ function PortalDashboard({ me, onLogout, onReload }) {
+   const [showPass, setShowPass] = useState(false);
+   const [showReserva, setShowReserva] = useState(false);
+   const [appts, setAppts] = useState([]);
++  const [classes, setClasses] = useState([]);
++  const [myClasses, setMyClasses] = useState([]);
++  const [reserving, setReserving] = useState(null);
+   const statusColor = { paid: '#16a34a', pending: '#d97706', overdue: '#dc2626' };
+   const statusLabel = { paid: 'Al día', pending: 'Pendiente', overdue: 'Vencida' };
+ 
+   function loadAppts() { portalFetch('/appointments').then(setAppts).catch(() => {}); }
+-  useEffect(() => { loadAppts(); }, []);
++  function loadClasses() {
++    portalFetch('/classes').then(setClasses).catch(() => {});
++    portalFetch('/my-classes').then(setMyClasses).catch(() => {});
++  }
++  useEffect(() => { loadAppts(); loadClasses(); }, []);
++
++  async function reserveClass(id) {
++    setReserving(id);
++    try { await portalFetch('/classes/' + id + '/reserve', { method: 'POST' }); loadClasses(); }
++    catch (e) { alert(e.message); } finally { setReserving(null); }
++  }
++  async function cancelClass(id) {
++    if (!confirm('¿Cancelar tu reserva de clase?')) return;
++    try { await portalFetch('/class-reservations/' + id + '/cancel', { method: 'POST' }); loadClasses(); } catch (_) {}
++  }
+ 
+   async function cancelAppt(id) {
+     if (!confirm('¿Cancelar este turno?')) return;
+@@ -145,6 +162,41 @@ function PortalDashboard({ me, onLogout, onReload }) {
+           )}
+         </div>
+ 
++        <div style={cardS}>
++          <h2 style={{ margin: '0 0 4px', fontSize: 16 }}>Reservar cupo en clases</h2>
++          <p style={{ margin: '0 0 12px', fontSize: 12, color: '#64748b' }}>Próxima fecha de cada clase.</p>
++          {classes.length === 0 ? (
++            <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>No hay clases con horario disponibles.</p>
++          ) : (
++            classes.map((c, i) => (
++              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < classes.length - 1 ? '1px solid #eef2f7' : 'none' }}>
++                <div>
++                  <div style={{ fontWeight: 600, fontSize: 14 }}>{c.activity}</div>
++                  <div style={{ fontSize: 12, color: '#64748b' }}>{c.dayLabel} {fmtDate(c.date)} · {c.startTime}–{c.endTime}{c.maxCapacity ? ` · ${c.spotsLeft} cupos libres` : ''}</div>
++                </div>
++                {c.alreadyReserved ? (
++                  <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>Reservado ✓</span>
++                ) : (c.maxCapacity && c.spotsLeft <= 0) ? (
++                  <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626' }}>Sin cupos</span>
++                ) : (
++                  <button onClick={() => reserveClass(c.id)} disabled={reserving === c.id} style={{ ...btn, padding: '6px 12px', fontSize: 12 }}>{reserving === c.id ? '...' : 'Reservar'}</button>
++                )}
++              </div>
++            ))
++          )}
++          {myClasses.length > 0 && (
++            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
++              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>Mis clases reservadas</p>
++              {myClasses.map((r) => (
++                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
++                  <div style={{ fontSize: 13 }}>{r.activity} · {fmtDate(r.date)} {r.startTime}</div>
++                  <button onClick={() => cancelClass(r.id)} style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 6, padding: '3px 9px', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
++                </div>
++              ))}
++            </div>
++          )}
++        </div>
++
+         <div style={{ textAlign: 'center', marginTop: 8 }}>
+           <button onClick={() => setShowPass(true)} style={{ background: 'none', border: 'none', color: '#1BA84C', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Cambiar contraseña</button>
+         </div>
