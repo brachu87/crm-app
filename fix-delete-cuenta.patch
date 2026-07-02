@@ -1,0 +1,60 @@
+diff --git a/backend/src/routes/admin.js b/backend/src/routes/admin.js
+index ad92ad9..7395ec8 100644
+--- a/backend/src/routes/admin.js
++++ b/backend/src/routes/admin.js
+@@ -168,30 +168,31 @@ router.put('/accounts/:id/whatsapp', adminAuth, async (req, res) => {
+ router.delete('/accounts/:id', adminAuth, async (req, res) => {
+   try {
+     const id = req.params.id;
+-    const D = (sql, ...args) => prisma.$executeRawUnsafe(sql, ...args);
+-
+-    await D(`DELETE FROM "ManualIncome" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Appointment" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Service" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "PayrollRecord" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Attendance" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "ClassSchedule" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "ActivityEmployee" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Branch" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "AccountMovement" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Expense" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Employee" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "DailyCash" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Note" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Supplier" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Payment" WHERE "cuotaId" IN (SELECT c.id FROM "Cuota" c JOIN "Enrollment" e ON c."enrollmentId" = e.id JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = $1)`, id);
+-    await D(`DELETE FROM "Cuota" WHERE "enrollmentId" IN (SELECT e.id FROM "Enrollment" e JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = $1)`, id);
+-    await D(`DELETE FROM "Enrollment" WHERE "activityId" IN (SELECT id FROM "Activity" WHERE "businessId" = $1)`, id);
+-    await D(`DELETE FROM "Activity" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "ClientNote" WHERE "clientId" IN (SELECT id FROM "Client" WHERE "businessId" = $1)`, id);
+-    await D(`DELETE FROM "Client" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "User" WHERE "businessId" = $1`, id);
+-    await D(`DELETE FROM "Business" WHERE id = $1`, id);
++// Borrado en cascada, en transacción atómica y en orden de dependencias (FK-safe en Postgres).
++    await prisma.$transaction([
++      prisma.payment.deleteMany({ where: { cuota: { enrollment: { activity: { businessId: id } } } } }),
++      prisma.cuota.deleteMany({ where: { enrollment: { activity: { businessId: id } } } }),
++      prisma.enrollment.deleteMany({ where: { activity: { businessId: id } } }),
++      prisma.clientNote.deleteMany({ where: { client: { businessId: id } } }),
++      prisma.accountMovement.deleteMany({ where: { businessId: id } }),
++      prisma.manualIncome.deleteMany({ where: { businessId: id } }),
++      prisma.appointment.deleteMany({ where: { businessId: id } }),
++      prisma.attendance.deleteMany({ where: { businessId: id } }),
++      prisma.activityEmployee.deleteMany({ where: { activity: { businessId: id } } }),
++      prisma.payrollRecord.deleteMany({ where: { businessId: id } }),
++      prisma.classSchedule.deleteMany({ where: { businessId: id } }),
++      prisma.service.deleteMany({ where: { businessId: id } }),
++      prisma.activity.deleteMany({ where: { businessId: id } }),
++      prisma.employee.deleteMany({ where: { businessId: id } }),
++      prisma.expense.deleteMany({ where: { businessId: id } }),
++      prisma.branch.deleteMany({ where: { businessId: id } }),
++      prisma.supplier.deleteMany({ where: { businessId: id } }),
++      prisma.note.deleteMany({ where: { businessId: id } }),
++      prisma.dailyCash.deleteMany({ where: { businessId: id } }),
++      prisma.client.deleteMany({ where: { businessId: id } }),
++      prisma.user.deleteMany({ where: { businessId: id } }),
++      prisma.business.delete({ where: { id } }),
++    ]);
+ 
+     res.json({ ok: true });
+   } catch (err) {
