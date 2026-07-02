@@ -3,6 +3,9 @@ const prisma = require('../prisma');
 const router = express.Router();
 
 const TRIAL_DAYS = 15;
+const BASE_PRICE = 50000;      // precio del plan base (incluye INCLUDED_USERS usuarios)
+const EXTRA_USER_PRICE = 20000; // costo por cada usuario adicional
+const INCLUDED_USERS = 3;      // usuarios incluidos en el plan base
 
 function adminAuth(req, res, next) {
   const envSecret = process.env.ADMIN_SECRET;
@@ -30,7 +33,7 @@ router.get('/accounts', adminAuth, async (req, res) => {
   try {
     const businesses = await prisma.$queryRawUnsafe(`
       SELECT
-        b.id, b.name, b.category, b.phone, b."createdAt", b.approved, b."approvedAt",
+        b.id, b.name, b.category, b.phone, b."createdAt", b.approved, b."approvedAt", b."extraUsers",
         b."subscriptionStatus", b."subscriptionExpires", b."bonificado",
         u.name as ownerName, u.email as ownerEmail, u."lastAccessAt" as ownerLastAccess,
         (SELECT COUNT(*) FROM "User" u2 WHERE u2."businessId" = b.id) as userCount
@@ -51,6 +54,9 @@ router.get('/accounts', adminAuth, async (req, res) => {
       subscriptionExpires: b.subscriptionExpires,
       bonificado: b.bonificado === 1 || b.bonificado === true,
       userCount: Number(b.userCount) || 0,
+      extraUsers: Number(b.extraUsers) || 0,
+      userLimit: INCLUDED_USERS + (Number(b.extraUsers) || 0),
+      monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * (Number(b.extraUsers) || 0),
       trialDaysLeft: trialDaysLeft(b.createdAt),
       owner: b.ownerName ? { name: b.ownerName, email: b.ownerEmail, lastAccessAt: b.ownerLastAccess } : null,
     }));
@@ -114,6 +120,22 @@ router.put('/accounts/:id/extend-trial', adminAuth, async (req, res) => {
       data: { createdAt: new Date(), subscriptionStatus: 'trial' },
     });
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/accounts/:id/extra-users — setea usuarios adicionales (cada uno suma $20.000/mes)
+router.put('/accounts/:id/extra-users', adminAuth, async (req, res) => {
+  try {
+    let n = parseInt(req.body.extraUsers, 10);
+    if (isNaN(n) || n < 0) return res.status(400).json({ error: 'Cantidad de usuarios extra inválida' });
+    if (n > 50) return res.status(400).json({ error: 'Máximo 50 usuarios extra' });
+    await prisma.business.update({
+      where: { id: req.params.id },
+      data: { extraUsers: n },
+    });
+    res.json({ ok: true, extraUsers: n, userLimit: INCLUDED_USERS + n, monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * n });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

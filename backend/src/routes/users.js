@@ -33,8 +33,10 @@ router.post('/', async (req, res) => {
   try {
     if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el owner puede crear usuarios' });
 
+    const biz = await prisma.business.findUnique({ where: { id: req.user.businessId }, select: { extraUsers: true } });
+    const limit = 3 + (biz?.extraUsers || 0);
     const count = await prisma.user.count({ where: { businessId: req.user.businessId } });
-    if (count >= 3) return res.status(400).json({ error: 'Límite alcanzado: máximo 3 usuarios por negocio' });
+    if (count >= limit) return res.status(400).json({ error: `Límite alcanzado: máximo ${limit} usuario(s). Escribinos para habilitar más usuarios (+$20.000/mes c/u).` });
 
     const { name, email, password, role } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'Nombre, email y contraseña son obligatorios' });

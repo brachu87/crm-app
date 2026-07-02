@@ -1102,6 +1102,9 @@ function BillingCard({ billing, onRefresh }) {
   const trialDaysLeft = billing?.trialDaysLeft ?? null;
   const trialEnds = billing?.trialEnds ? new Date(billing.trialEnds) : null;
   const bonificado = billing?.bonificado || false;
+  const extraUsers = billing?.extraUsers || 0;
+  const monthlyPrice = billing?.monthlyPrice || 50000;
+  const userLimit = billing?.userLimit || 3;
 
   const STATUS_INFO = {
     active:  { label: bonificado ? 'Acceso bonificado' : 'Activa', color: bonificado ? '#7c3aed' : '#10b981', icon: bonificado ? '🎁' : '✅' },
@@ -1203,7 +1206,12 @@ function BillingCard({ billing, onRefresh }) {
         <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 20px', flex: 1, minWidth: 160 }}>
           <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Plan</div>
           <div style={{ fontWeight: 700, fontSize: 15 }}>Plan Mensual</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>$50.000 / mes</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>${monthlyPrice.toLocaleString('es-AR')} / mes</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>
+            {extraUsers > 0
+              ? `Incluye ${userLimit} usuarios (3 base + ${extraUsers} extra)`
+              : 'Incluye 3 usuarios'}
+          </div>
         </div>
       </div>
 

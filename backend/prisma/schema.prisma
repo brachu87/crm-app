@@ -20,6 +20,7 @@ model Business {
 
   approved   Boolean   @default(true)
   approvedAt DateTime?
+  extraUsers Int       @default(0)
 
   googleCalendarToken  String?
   googleCalendarId     String?

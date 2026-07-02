@@ -7,8 +7,16 @@ const prisma = require('../prisma');
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
 const APP_URL = process.env.APP_URL || 'https://crm-app-production-0669.up.railway.app';
-const PRICE = 50000;
+const BASE_PRICE = 50000;       // plan base (incluye 3 usuarios)
+const EXTRA_USER_PRICE = 20000; // por cada usuario adicional
+const INCLUDED_USERS = 3;
+const PRICE = BASE_PRICE;        // compatibilidad
 const PLAN_DAYS = 30;
+
+// Precio mensual del negocio segun sus usuarios extra
+function monthlyPriceFor(biz) {
+  return BASE_PRICE + EXTRA_USER_PRICE * (biz?.extraUsers || 0);
+}
 
 function getMpClient() {
   return new MercadoPagoConfig({ accessToken: MP_ACCESS_TOKEN });
@@ -31,6 +39,10 @@ router.get('/status', authMiddleware, async (req, res) => {
       bonificado: biz.bonificado || false,
       trialEnds: trialEnds.toISOString(),
       trialDaysLeft,
+      extraUsers: biz.extraUsers || 0,
+      includedUsers: INCLUDED_USERS,
+      userLimit: INCLUDED_USERS + (biz.extraUsers || 0),
+      monthlyPrice: monthlyPriceFor(biz),
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -54,10 +66,12 @@ router.post('/preference', authMiddleware, async (req, res) => {
           {
             id: `gestumio-plan-${biz.id}`,
             title: 'Gestumio — Plan Mensual',
-            description: `Suscripción mensual para ${biz.name}`,
+            description: (biz.extraUsers || 0) > 0
+              ? `Suscripción mensual para ${biz.name} (3 usuarios incluidos + ${biz.extraUsers} extra)`
+              : `Suscripción mensual para ${biz.name}`,
             quantity: 1,
             currency_id: 'ARS',
-            unit_price: PRICE,
+            unit_price: monthlyPriceFor(biz),
           },
         ],
         payer: {
