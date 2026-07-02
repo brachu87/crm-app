@@ -52,7 +52,7 @@ async function runReminders(onlyBusinessId = null) {
     if (!business.waPhoneId) return;                 // negocio sin número asignado
     if (!phone) return;
     try {
-      await meta.sendTemplate(business.waPhoneId, phone, templateName, TPL_LANG, meta.bodyParams(params));
+      await meta.sendTemplate(business.waPhoneId, phone, templateName, TPL_LANG, meta.bodyParams(params), business.waToken);
       sent++;
       console.log(`[wa-cron] ✓ ${label}`);
       await new Promise(r => setTimeout(r, 800));

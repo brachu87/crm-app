@@ -1,0 +1,456 @@
+diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index 299df8c..bca1d68 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -24,6 +24,8 @@ model Business {
+ 
+   waPhoneId     String?  // phone_number_id de Meta Cloud API (por negocio)
+   waPhoneNumber String?  // numero visible para mostrar en la UI
++  waWabaId      String?  // WhatsApp Business Account ID del negocio
++  waToken       String?  // token de acceso del negocio (Embedded Signup)
+ 
+   waTemplateExpiring    String?
+   waTemplateOverdue     String?
+diff --git a/backend/src/lib/reminderCron.js b/backend/src/lib/reminderCron.js
+index 5200e9b..5bd1c5d 100644
+--- a/backend/src/lib/reminderCron.js
++++ b/backend/src/lib/reminderCron.js
+@@ -52,7 +52,7 @@ async function runReminders(onlyBusinessId = null) {
+     if (!business.waPhoneId) return;                 // negocio sin número asignado
+     if (!phone) return;
+     try {
+-      await meta.sendTemplate(business.waPhoneId, phone, templateName, TPL_LANG, meta.bodyParams(params));
++      await meta.sendTemplate(business.waPhoneId, phone, templateName, TPL_LANG, meta.bodyParams(params), business.waToken);
+       sent++;
+       console.log(`[wa-cron] ✓ ${label}`);
+       await new Promise(r => setTimeout(r, 800));
+diff --git a/backend/src/lib/whatsappMeta.js b/backend/src/lib/whatsappMeta.js
+index 50892b9..455bcee 100644
+--- a/backend/src/lib/whatsappMeta.js
++++ b/backend/src/lib/whatsappMeta.js
+@@ -19,10 +19,11 @@ const https = require('https');
+ const GRAPH_HOST = 'graph.facebook.com';
+ const API_VERSION = process.env.META_WA_VERSION || 'v19.0';
+ 
+-function token() { return process.env.META_WA_TOKEN || ''; }
++// Token: usa el override del negocio (Embedded Signup) o cae al token central por env.
++function tok(override) { return override || process.env.META_WA_TOKEN || ''; }
+ 
+-// ¿Hay token central configurado?
+-function isConfigured() { return !!token(); }
++// ¿Hay algún token configurable? (central por env)
++function isConfigured() { return !!(process.env.META_WA_TOKEN); }
+ 
+ /**
+  * Normaliza un número argentino a formato internacional E.164 (solo dígitos).
+@@ -54,12 +55,13 @@ function applyTemplate(template, vars) {
+ }
+ 
+ // Request JSON genérico al Graph API
+-function graphRequest(path, method, jsonBody, extraHeaders) {
++function graphRequest(path, method, jsonBody, extraHeaders, accessToken) {
+   return new Promise((resolve, reject) => {
+-    if (!token()) return reject(new Error('META_WA_TOKEN no configurado'));
++    const t = tok(accessToken);
++    if (!t) return reject(new Error('Token de WhatsApp no configurado'));
+     const body = jsonBody != null ? JSON.stringify(jsonBody) : null;
+     const headers = {
+-      'Authorization': `Bearer ${token()}`,
++      'Authorization': `Bearer ${t}`,
+       'Content-Type': 'application/json',
+       ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {}),
+       ...(extraHeaders || {}),
+@@ -86,7 +88,7 @@ function requirePhoneId(phoneId) {
+ }
+ 
+ /** Envía texto libre. Solo válido dentro de la ventana de 24hs (o números de prueba). */
+-async function sendText(phoneId, toPhone, message) {
++async function sendText(phoneId, toPhone, message, accessToken) {
+   requirePhoneId(phoneId);
+   const to = normalizePhone(toPhone);
+   if (!to) throw new Error('Número de teléfono inválido: ' + toPhone);
+@@ -96,11 +98,11 @@ async function sendText(phoneId, toPhone, message) {
+     to,
+     type: 'text',
+     text: { preview_url: false, body: message },
+-  });
++  }, null, accessToken);
+ }
+ 
+ /** Envía una plantilla aprobada por Meta (para mensajes iniciados por el negocio). */
+-async function sendTemplate(phoneId, toPhone, templateName, langCode, components) {
++async function sendTemplate(phoneId, toPhone, templateName, langCode, components, accessToken) {
+   requirePhoneId(phoneId);
+   const to = normalizePhone(toPhone);
+   if (!to) throw new Error('Número de teléfono inválido: ' + toPhone);
+@@ -113,7 +115,7 @@ async function sendTemplate(phoneId, toPhone, templateName, langCode, components
+       language: { code: langCode || 'es_AR' },
+       components: components || [],
+     },
+-  });
++  }, null, accessToken);
+ }
+ 
+ /** Helper: arma el componente body con parámetros de texto posicionales. */
+@@ -122,9 +124,10 @@ function bodyParams(values) {
+ }
+ 
+ /** Sube un archivo (Buffer) como media y devuelve su id. */
+-function uploadMedia(phoneId, buffer, filename, mimeType) {
++function uploadMedia(phoneId, buffer, filename, mimeType, accessToken) {
+   return new Promise((resolve, reject) => {
+-    if (!token()) return reject(new Error('META_WA_TOKEN no configurado'));
++    const t = tok(accessToken);
++    if (!t) return reject(new Error('Token de WhatsApp no configurado'));
+     requirePhoneId(phoneId);
+     const boundary = '----GestumioBoundary' + Date.now().toString(16);
+     const pre =
+@@ -139,7 +142,7 @@ function uploadMedia(phoneId, buffer, filename, mimeType) {
+       path: `/${API_VERSION}/${phoneId}/media`,
+       method: 'POST',
+       headers: {
+-        'Authorization': `Bearer ${token()}`,
++        'Authorization': `Bearer ${t}`,
+         'Content-Type': `multipart/form-data; boundary=${boundary}`,
+         'Content-Length': payload.length,
+       },
+@@ -161,21 +164,63 @@ function uploadMedia(phoneId, buffer, filename, mimeType) {
+ }
+ 
+ /** Sube un PDF y lo envía como documento. */
+-async function sendDocument(phoneId, toPhone, buffer, filename, caption) {
++async function sendDocument(phoneId, toPhone, buffer, filename, caption, accessToken) {
+   requirePhoneId(phoneId);
+   const to = normalizePhone(toPhone);
+   if (!to) throw new Error('Número de teléfono inválido: ' + toPhone);
+-  const mediaId = await uploadMedia(phoneId, buffer, filename, 'application/pdf');
++  const mediaId = await uploadMedia(phoneId, buffer, filename, 'application/pdf', accessToken);
+   return graphRequest(`/${API_VERSION}/${phoneId}/messages`, 'POST', {
+     messaging_product: 'whatsapp',
+     recipient_type: 'individual',
+     to,
+     type: 'document',
+     document: { id: mediaId, filename, caption: caption || '' },
++  }, null, accessToken);
++}
++
++// ===== Embedded Signup helpers =====
++
++// Intercambia el 'code' del Embedded Signup por un token de acceso del negocio.
++function exchangeCode(code) {
++  const appId = process.env.META_APP_ID;
++  const appSecret = process.env.META_APP_SECRET;
++  if (!appId || !appSecret) return Promise.reject(new Error('META_APP_ID / META_APP_SECRET no configurados'));
++  const path = `/${API_VERSION}/oauth/access_token?client_id=${encodeURIComponent(appId)}`
++    + `&client_secret=${encodeURIComponent(appSecret)}&code=${encodeURIComponent(code)}`;
++  return new Promise((resolve, reject) => {
++    https.get({ hostname: GRAPH_HOST, path }, res => {
++      let data = '';
++      res.on('data', c => { data += c; });
++      res.on('end', () => {
++        let parsed = {};
++        try { parsed = JSON.parse(data || '{}'); } catch (_) { parsed = { raw: data }; }
++        if (res.statusCode >= 200 && res.statusCode < 300 && parsed.access_token) resolve(parsed.access_token);
++        else reject(new Error(`Meta oauth ${res.statusCode}: ${JSON.stringify(parsed.error || parsed)}`));
++      });
++    }).on('error', reject);
+   });
+ }
+ 
++// Suscribe la app a los webhooks de la WABA (necesario para recibir/operar).
++function subscribeApp(wabaId, accessToken) {
++  return graphRequest(`/${API_VERSION}/${wabaId}/subscribed_apps`, 'POST', {}, null, accessToken);
++}
++
++// Registra el número en la Cloud API (coexistence). PIN de 6 dígitos.
++function registerPhone(phoneId, accessToken, pin) {
++  return graphRequest(`/${API_VERSION}/${phoneId}/register`, 'POST', {
++    messaging_product: 'whatsapp',
++    pin: pin || '000000',
++  }, null, accessToken);
++}
++
++// Lee el número visible del phone_number_id.
++function getPhoneInfo(phoneId, accessToken) {
++  return graphRequest(`/${API_VERSION}/${phoneId}?fields=display_phone_number,verified_name`, 'GET', null, null, accessToken);
++}
++
+ module.exports = {
+   isConfigured, normalizePhone, applyTemplate,
+   sendText, sendTemplate, sendDocument, uploadMedia, bodyParams,
++  exchangeCode, subscribeApp, registerPhone, getPhoneInfo,
+ };
+diff --git a/backend/src/routes/whatsapp.js b/backend/src/routes/whatsapp.js
+index 30419bc..4770033 100644
+--- a/backend/src/routes/whatsapp.js
++++ b/backend/src/routes/whatsapp.js
+@@ -16,7 +16,7 @@ router.use(authMiddleware);
+ async function getBiz(businessId) {
+   return prisma.business.findUnique({
+     where: { id: businessId },
+-    select: { waPhoneId: true, waPhoneNumber: true },
++    select: { waPhoneId: true, waPhoneNumber: true, waWabaId: true, waToken: true },
+   });
+ }
+ 
+@@ -24,11 +24,12 @@ async function getBiz(businessId) {
+ router.get('/status', async (req, res) => {
+   try {
+     const biz = await getBiz(req.user.businessId);
+-    const connected = meta.isConfigured() && !!biz?.waPhoneId;
++    const hasToken = !!(biz?.waToken) || meta.isConfigured();
++    const connected = hasToken && !!biz?.waPhoneId;
+     res.json({
+       provider: 'meta',
+-      configured: meta.isConfigured(),   // hay token central
+-      connected,                          // este negocio tiene número asignado
++      configured: hasToken,
++      connected,                          // este negocio tiene número conectado
+       state: connected ? 'connected' : 'disconnected',
+       phone: biz?.waPhoneNumber || null,
+     });
+@@ -41,13 +42,12 @@ router.get('/status', async (req, res) => {
+ router.post('/test', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+   const biz = await getBiz(req.user.businessId);
+-  if (!meta.isConfigured()) return res.status(400).json({ error: 'WhatsApp no configurado en el servidor (falta el token de Meta)' });
+-  if (!biz?.waPhoneId) return res.status(400).json({ error: 'Tu negocio todavía no tiene número de WhatsApp asignado. Contactá a Gestumio.' });
++  if (!biz?.waPhoneId) return res.status(400).json({ error: 'Tu negocio todavía no tiene WhatsApp conectado.' });
+ 
+   const { phone, message } = req.body;
+   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
+   try {
+-    await meta.sendText(biz.waPhoneId, phone, message);
++    await meta.sendText(biz.waPhoneId, phone, message, biz.waToken);
+     res.json({ ok: true });
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+@@ -61,7 +61,7 @@ router.post('/send', async (req, res) => {
+   const biz = await getBiz(req.user.businessId);
+   if (!biz?.waPhoneId) return res.status(409).json({ error: 'WhatsApp no configurado para este negocio', code: 'NOT_CONNECTED' });
+   try {
+-    await meta.sendText(biz.waPhoneId, phone, message);
++    await meta.sendText(biz.waPhoneId, phone, message, biz.waToken);
+     res.json({ ok: true });
+   } catch (err) {
+     res.status(500).json({ error: err.message });
+@@ -78,7 +78,7 @@ router.post('/send-receipt', async (req, res) => {
+     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+     const pdf = await generateReceiptPdf({ ...receipt, logoPath });
+     const safeNro = String(receipt.nroRecibo || 'pago').replace(/[^\w-]/g, '');
+-    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
++    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`, biz.waToken);
+     res.json({ ok: true });
+   } catch (err) {
+     console.error('[send-receipt]', err.message);
+@@ -96,7 +96,7 @@ router.post('/send-payroll', async (req, res) => {
+     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+     const pdf = await generatePayrollPdf({ ...payroll, logoPath });
+     const safe = String(payroll.employeeName || 'empleado').replace(/[^\w-]/g, '').slice(0, 30) || 'haberes';
+-    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`);
++    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`, biz.waToken);
+     res.json({ ok: true });
+   } catch (err) {
+     console.error('[send-payroll]', err.message);
+@@ -149,4 +149,58 @@ router.put('/templates', async (req, res) => {
+   }
+ });
+ 
++// GET /api/whatsapp/embedded-config — datos públicos para iniciar el Embedded Signup
++router.get('/embedded-config', async (req, res) => {
++  res.json({
++    appId: process.env.META_APP_ID || null,
++    configId: process.env.META_CONFIG_ID || null,
++    graphVersion: process.env.META_WA_VERSION || 'v19.0',
++    ready: !!(process.env.META_APP_ID && process.env.META_CONFIG_ID && process.env.META_APP_SECRET),
++  });
++});
++
++// POST /api/whatsapp/embedded-signup — recibe el code + IDs del Embedded Signup
++// Body: { code, phoneNumberId, wabaId }
++router.post('/embedded-signup', async (req, res) => {
++  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede conectar WhatsApp' });
++  const { code, phoneNumberId, wabaId } = req.body || {};
++  if (!code || !phoneNumberId || !wabaId) {
++    return res.status(400).json({ error: 'Faltan datos del registro (code, phoneNumberId, wabaId)' });
++  }
++  try {
++    // 1) Intercambiar el code por un token de acceso del negocio
++    const accessToken = await meta.exchangeCode(code);
++    // 2) Suscribir la app a los webhooks de la WABA
++    try { await meta.subscribeApp(wabaId, accessToken); } catch (e) { console.warn('[es] subscribeApp:', e.message); }
++    // 3) Registrar el número (coexistence). Best-effort.
++    try { await meta.registerPhone(phoneNumberId, accessToken); } catch (e) { console.warn('[es] register:', e.message); }
++    // 4) Leer el número visible
++    let display = null;
++    try { const info = await meta.getPhoneInfo(phoneNumberId, accessToken); display = info?.display_phone_number || null; } catch (e) { console.warn('[es] phoneInfo:', e.message); }
++    // 5) Guardar en el negocio
++    await prisma.business.update({
++      where: { id: req.user.businessId },
++      data: { waPhoneId: phoneNumberId, waWabaId: wabaId, waToken: accessToken, waPhoneNumber: display },
++    });
++    res.json({ ok: true, phone: display });
++  } catch (err) {
++    console.error('[embedded-signup]', err.message);
++    res.status(500).json({ error: err.message });
++  }
++});
++
++// POST /api/whatsapp/disconnect — desvincular el WhatsApp del negocio
++router.post('/disconnect', async (req, res) => {
++  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede desconectar' });
++  try {
++    await prisma.business.update({
++      where: { id: req.user.businessId },
++      data: { waPhoneId: null, waWabaId: null, waToken: null, waPhoneNumber: null },
++    });
++    res.json({ ok: true });
++  } catch (err) {
++    res.status(500).json({ error: err.message });
++  }
++});
++
+ module.exports = router;
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index 7bff6b4..7b9b16a 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -1,4 +1,4 @@
+-import React, { useEffect, useState } from 'react';
++import React, { useEffect, useState, useRef } from 'react';
+ import api from '../api/client';
+ import AuthImage from '../components/AuthImage';
+ import { useAuth } from '../context/AuthContext';
+@@ -498,13 +498,89 @@ function WhatsAppAuto() {
+   const [templates, setTemplates] = useState({ expiring: '', overdue: '', appointment: '' });
+   const [templatesLoaded, setTemplatesLoaded] = useState(false);
+   const [templatesSaved, setTemplatesSaved] = useState(false);
++  const [esConfig, setEsConfig] = useState(null);
++  const [connecting, setConnecting] = useState(false);
++  const sessionInfoRef = useRef({ phoneNumberId: null, wabaId: null });
+ 
+   useEffect(() => {
+     api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
++    api.get('/whatsapp/embedded-config').then(r => setEsConfig(r.data)).catch(() => {});
++    // Cargar SDK de Facebook (Embedded Signup)
++    if (!document.getElementById('fb-sdk')) {
++      const sc = document.createElement('script');
++      sc.id = 'fb-sdk'; sc.async = true; sc.defer = true; sc.crossOrigin = 'anonymous';
++      sc.src = 'https://connect.facebook.net/en_US/sdk.js';
++      document.body.appendChild(sc);
++    }
++    // Capturar phone_number_id + waba_id del popup de Embedded Signup
++    function onMessage(ev) {
++      let host = '';
++      try { host = new URL(ev.origin).hostname; } catch (_) { return; }
++      if (!/(^|\.)facebook\.com$/.test(host)) return;
++      try {
++        const data = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
++        if (data && data.type === 'WA_EMBEDDED_SIGNUP' && data.data) {
++          sessionInfoRef.current = {
++            phoneNumberId: data.data.phone_number_id || null,
++            wabaId: data.data.waba_id || null,
++          };
++        }
++      } catch (_) {}
++    }
++    window.addEventListener('message', onMessage);
++    return () => window.removeEventListener('message', onMessage);
+   }, []);
+ 
++  // Inicializar FB SDK cuando tengamos la config
++  useEffect(() => {
++    if (!esConfig?.appId) return;
++    const init = () => { try { window.FB.init({ appId: esConfig.appId, cookie: true, xfbml: false, version: esConfig.graphVersion || 'v19.0' }); } catch (_) {} };
++    if (window.FB) init();
++    else window.fbAsyncInit = init;
++  }, [esConfig]);
++
+   const connected = status?.connected;
+ 
++  function handleConnect() {
++    if (!esConfig?.ready || !esConfig?.configId) { setFeedback('❌ La conexión de WhatsApp aún no está disponible. Escribinos.'); return; }
++    if (!window.FB) { setFeedback('❌ No cargó el conector de Meta. Recargá la página.'); return; }
++    setConnecting(true); setFeedback('');
++    sessionInfoRef.current = { phoneNumberId: null, wabaId: null };
++    window.FB.login((response) => {
++      (async () => {
++        try {
++          const code = response && response.authResponse && response.authResponse.code;
++          const { phoneNumberId, wabaId } = sessionInfoRef.current || {};
++          if (!code) { setFeedback('Conexión cancelada.'); setConnecting(false); return; }
++          if (!phoneNumberId || !wabaId) { setFeedback('❌ No se recibió el número. Reintentá el registro.'); setConnecting(false); return; }
++          const r = await api.post('/whatsapp/embedded-signup', { code, phoneNumberId, wabaId });
++          setFeedback('✅ WhatsApp conectado' + (r.data.phone ? ` (${r.data.phone})` : ''));
++          const st = await api.get('/whatsapp/status');
++          setStatus(st.data);
++        } catch (e) {
++          setFeedback('❌ ' + (e.response?.data?.error || e.message));
++        } finally { setConnecting(false); }
++      })();
++    }, {
++      config_id: esConfig.configId,
++      response_type: 'code',
++      override_default_response_type: true,
++      extras: { setup: {}, featureType: 'whatsapp_business_app_onboarding', sessionInfoVersion: '3' },
++    });
++  }
++
++  async function handleDisconnect() {
++    if (!confirm('¿Desconectar WhatsApp de este negocio?')) return;
++    try {
++      await api.post('/whatsapp/disconnect');
++      const st = await api.get('/whatsapp/status');
++      setStatus(st.data);
++      setFeedback('WhatsApp desconectado.');
++    } catch (e) {
++      setFeedback('❌ ' + (e.response?.data?.error || e.message));
++    }
++  }
++
+   useEffect(() => {
+     if (connected && !templatesLoaded) {
+       api.get('/whatsapp/templates').then(r => {
+@@ -568,13 +644,19 @@ function WhatsAppAuto() {
+       </div>
+ 
+       {!connected && (
+-        <div style={{
+-          background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10,
+-          padding: 14, fontSize: 13, color: '#92400e',
+-        }}>
+-          Tu número de WhatsApp Business todavía no está habilitado. El equipo de Gestumio activa tu número
+-          en la API oficial de Meta y queda listo para enviar recordatorios y comprobantes.
+-          Escribinos si querés activarlo.
++        <div style={{ textAlign: 'center', padding: '20px 0' }}>
++          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
++            Conectá tu WhatsApp Business para enviar recordatorios y comprobantes desde tu propio número.
++            Vas a poder seguir usándolo normalmente en tu celular.
++          </p>
++          <button className="btn btn-primary" onClick={handleConnect} disabled={connecting || !esConfig?.ready}>
++            {connecting ? 'Conectando...' : '📱 Conectar WhatsApp'}
++          </button>
++          {esConfig && !esConfig.ready && (
++            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>
++              La conexión todavía no está habilitada en el servidor. Escribinos para activarla.
++            </p>
++          )}
+         </div>
+       )}
+ 
+@@ -583,9 +665,13 @@ function WhatsAppAuto() {
+           <div style={{
+             background: '#f0fdf4', border: '1px solid #bbf7d0',
+             borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534',
++            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+           }}>
+-            ✅ WhatsApp habilitado{status?.phone ? ` (${status.phone})` : ''} con la API oficial.
+-            Listo para enviar recordatorios y comprobantes.
++            <span>✅ WhatsApp habilitado{status?.phone ? ` (${status.phone})` : ''} con la API oficial. Listo para enviar recordatorios y comprobantes.</span>
++            <button onClick={handleDisconnect}
++              style={{ background: 'none', border: '1px solid #16653444', color: '#166534', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
++              Desconectar
++            </button>
+           </div>
+ 
+           <div style={{ marginBottom: 16 }}>

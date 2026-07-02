@@ -24,6 +24,8 @@ model Business {
 
   waPhoneId     String?  // phone_number_id de Meta Cloud API (por negocio)
   waPhoneNumber String?  // numero visible para mostrar en la UI
+  waWabaId      String?  // WhatsApp Business Account ID del negocio
+  waToken       String?  // token de acceso del negocio (Embedded Signup)
 
   waTemplateExpiring    String?
   waTemplateOverdue     String?

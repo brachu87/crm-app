@@ -16,7 +16,7 @@ router.use(authMiddleware);
 async function getBiz(businessId) {
   return prisma.business.findUnique({
     where: { id: businessId },
-    select: { waPhoneId: true, waPhoneNumber: true },
+    select: { waPhoneId: true, waPhoneNumber: true, waWabaId: true, waToken: true },
   });
 }
 
@@ -24,11 +24,12 @@ async function getBiz(businessId) {
 router.get('/status', async (req, res) => {
   try {
     const biz = await getBiz(req.user.businessId);
-    const connected = meta.isConfigured() && !!biz?.waPhoneId;
+    const hasToken = !!(biz?.waToken) || meta.isConfigured();
+    const connected = hasToken && !!biz?.waPhoneId;
     res.json({
       provider: 'meta',
-      configured: meta.isConfigured(),   // hay token central
-      connected,                          // este negocio tiene número asignado
+      configured: hasToken,
+      connected,                          // este negocio tiene número conectado
       state: connected ? 'connected' : 'disconnected',
       phone: biz?.waPhoneNumber || null,
     });
@@ -41,13 +42,12 @@ router.get('/status', async (req, res) => {
 router.post('/test', async (req, res) => {
   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
   const biz = await getBiz(req.user.businessId);
-  if (!meta.isConfigured()) return res.status(400).json({ error: 'WhatsApp no configurado en el servidor (falta el token de Meta)' });
-  if (!biz?.waPhoneId) return res.status(400).json({ error: 'Tu negocio todavía no tiene número de WhatsApp asignado. Contactá a Gestumio.' });
+  if (!biz?.waPhoneId) return res.status(400).json({ error: 'Tu negocio todavía no tiene WhatsApp conectado.' });
 
   const { phone, message } = req.body;
   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
   try {
-    await meta.sendText(biz.waPhoneId, phone, message);
+    await meta.sendText(biz.waPhoneId, phone, message, biz.waToken);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -61,7 +61,7 @@ router.post('/send', async (req, res) => {
   const biz = await getBiz(req.user.businessId);
   if (!biz?.waPhoneId) return res.status(409).json({ error: 'WhatsApp no configurado para este negocio', code: 'NOT_CONNECTED' });
   try {
-    await meta.sendText(biz.waPhoneId, phone, message);
+    await meta.sendText(biz.waPhoneId, phone, message, biz.waToken);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -78,7 +78,7 @@ router.post('/send-receipt', async (req, res) => {
     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
     const pdf = await generateReceiptPdf({ ...receipt, logoPath });
     const safeNro = String(receipt.nroRecibo || 'pago').replace(/[^\w-]/g, '');
-    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
+    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`, biz.waToken);
     res.json({ ok: true });
   } catch (err) {
     console.error('[send-receipt]', err.message);
@@ -96,7 +96,7 @@ router.post('/send-payroll', async (req, res) => {
     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
     const pdf = await generatePayrollPdf({ ...payroll, logoPath });
     const safe = String(payroll.employeeName || 'empleado').replace(/[^\w-]/g, '').slice(0, 30) || 'haberes';
-    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`);
+    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`, biz.waToken);
     res.json({ ok: true });
   } catch (err) {
     console.error('[send-payroll]', err.message);
@@ -146,6 +146,60 @@ router.put('/templates', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/whatsapp/embedded-config — datos públicos para iniciar el Embedded Signup
+router.get('/embedded-config', async (req, res) => {
+  res.json({
+    appId: process.env.META_APP_ID || null,
+    configId: process.env.META_CONFIG_ID || null,
+    graphVersion: process.env.META_WA_VERSION || 'v19.0',
+    ready: !!(process.env.META_APP_ID && process.env.META_CONFIG_ID && process.env.META_APP_SECRET),
+  });
+});
+
+// POST /api/whatsapp/embedded-signup — recibe el code + IDs del Embedded Signup
+// Body: { code, phoneNumberId, wabaId }
+router.post('/embedded-signup', async (req, res) => {
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede conectar WhatsApp' });
+  const { code, phoneNumberId, wabaId } = req.body || {};
+  if (!code || !phoneNumberId || !wabaId) {
+    return res.status(400).json({ error: 'Faltan datos del registro (code, phoneNumberId, wabaId)' });
+  }
+  try {
+    // 1) Intercambiar el code por un token de acceso del negocio
+    const accessToken = await meta.exchangeCode(code);
+    // 2) Suscribir la app a los webhooks de la WABA
+    try { await meta.subscribeApp(wabaId, accessToken); } catch (e) { console.warn('[es] subscribeApp:', e.message); }
+    // 3) Registrar el número (coexistence). Best-effort.
+    try { await meta.registerPhone(phoneNumberId, accessToken); } catch (e) { console.warn('[es] register:', e.message); }
+    // 4) Leer el número visible
+    let display = null;
+    try { const info = await meta.getPhoneInfo(phoneNumberId, accessToken); display = info?.display_phone_number || null; } catch (e) { console.warn('[es] phoneInfo:', e.message); }
+    // 5) Guardar en el negocio
+    await prisma.business.update({
+      where: { id: req.user.businessId },
+      data: { waPhoneId: phoneNumberId, waWabaId: wabaId, waToken: accessToken, waPhoneNumber: display },
+    });
+    res.json({ ok: true, phone: display });
+  } catch (err) {
+    console.error('[embedded-signup]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/whatsapp/disconnect — desvincular el WhatsApp del negocio
+router.post('/disconnect', async (req, res) => {
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede desconectar' });
+  try {
+    await prisma.business.update({
+      where: { id: req.user.businessId },
+      data: { waPhoneId: null, waWabaId: null, waToken: null, waPhoneNumber: null },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

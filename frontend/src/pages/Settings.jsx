@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../api/client';
 import AuthImage from '../components/AuthImage';
 import { useAuth } from '../context/AuthContext';
@@ -498,12 +498,88 @@ function WhatsAppAuto() {
   const [templates, setTemplates] = useState({ expiring: '', overdue: '', appointment: '' });
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [templatesSaved, setTemplatesSaved] = useState(false);
+  const [esConfig, setEsConfig] = useState(null);
+  const [connecting, setConnecting] = useState(false);
+  const sessionInfoRef = useRef({ phoneNumberId: null, wabaId: null });
 
   useEffect(() => {
     api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
+    api.get('/whatsapp/embedded-config').then(r => setEsConfig(r.data)).catch(() => {});
+    // Cargar SDK de Facebook (Embedded Signup)
+    if (!document.getElementById('fb-sdk')) {
+      const sc = document.createElement('script');
+      sc.id = 'fb-sdk'; sc.async = true; sc.defer = true; sc.crossOrigin = 'anonymous';
+      sc.src = 'https://connect.facebook.net/en_US/sdk.js';
+      document.body.appendChild(sc);
+    }
+    // Capturar phone_number_id + waba_id del popup de Embedded Signup
+    function onMessage(ev) {
+      let host = '';
+      try { host = new URL(ev.origin).hostname; } catch (_) { return; }
+      if (!/(^|\.)facebook\.com$/.test(host)) return;
+      try {
+        const data = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+        if (data && data.type === 'WA_EMBEDDED_SIGNUP' && data.data) {
+          sessionInfoRef.current = {
+            phoneNumberId: data.data.phone_number_id || null,
+            wabaId: data.data.waba_id || null,
+          };
+        }
+      } catch (_) {}
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, []);
 
+  // Inicializar FB SDK cuando tengamos la config
+  useEffect(() => {
+    if (!esConfig?.appId) return;
+    const init = () => { try { window.FB.init({ appId: esConfig.appId, cookie: true, xfbml: false, version: esConfig.graphVersion || 'v19.0' }); } catch (_) {} };
+    if (window.FB) init();
+    else window.fbAsyncInit = init;
+  }, [esConfig]);
+
   const connected = status?.connected;
+
+  function handleConnect() {
+    if (!esConfig?.ready || !esConfig?.configId) { setFeedback('❌ La conexión de WhatsApp aún no está disponible. Escribinos.'); return; }
+    if (!window.FB) { setFeedback('❌ No cargó el conector de Meta. Recargá la página.'); return; }
+    setConnecting(true); setFeedback('');
+    sessionInfoRef.current = { phoneNumberId: null, wabaId: null };
+    window.FB.login((response) => {
+      (async () => {
+        try {
+          const code = response && response.authResponse && response.authResponse.code;
+          const { phoneNumberId, wabaId } = sessionInfoRef.current || {};
+          if (!code) { setFeedback('Conexión cancelada.'); setConnecting(false); return; }
+          if (!phoneNumberId || !wabaId) { setFeedback('❌ No se recibió el número. Reintentá el registro.'); setConnecting(false); return; }
+          const r = await api.post('/whatsapp/embedded-signup', { code, phoneNumberId, wabaId });
+          setFeedback('✅ WhatsApp conectado' + (r.data.phone ? ` (${r.data.phone})` : ''));
+          const st = await api.get('/whatsapp/status');
+          setStatus(st.data);
+        } catch (e) {
+          setFeedback('❌ ' + (e.response?.data?.error || e.message));
+        } finally { setConnecting(false); }
+      })();
+    }, {
+      config_id: esConfig.configId,
+      response_type: 'code',
+      override_default_response_type: true,
+      extras: { setup: {}, featureType: 'whatsapp_business_app_onboarding', sessionInfoVersion: '3' },
+    });
+  }
+
+  async function handleDisconnect() {
+    if (!confirm('¿Desconectar WhatsApp de este negocio?')) return;
+    try {
+      await api.post('/whatsapp/disconnect');
+      const st = await api.get('/whatsapp/status');
+      setStatus(st.data);
+      setFeedback('WhatsApp desconectado.');
+    } catch (e) {
+      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+    }
+  }
 
   useEffect(() => {
     if (connected && !templatesLoaded) {
@@ -568,13 +644,19 @@ function WhatsAppAuto() {
       </div>
 
       {!connected && (
-        <div style={{
-          background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10,
-          padding: 14, fontSize: 13, color: '#92400e',
-        }}>
-          Tu número de WhatsApp Business todavía no está habilitado. El equipo de Gestumio activa tu número
-          en la API oficial de Meta y queda listo para enviar recordatorios y comprobantes.
-          Escribinos si querés activarlo.
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
+            Conectá tu WhatsApp Business para enviar recordatorios y comprobantes desde tu propio número.
+            Vas a poder seguir usándolo normalmente en tu celular.
+          </p>
+          <button className="btn btn-primary" onClick={handleConnect} disabled={connecting || !esConfig?.ready}>
+            {connecting ? 'Conectando...' : '📱 Conectar WhatsApp'}
+          </button>
+          {esConfig && !esConfig.ready && (
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>
+              La conexión todavía no está habilitada en el servidor. Escribinos para activarla.
+            </p>
+          )}
         </div>
       )}
 
@@ -583,9 +665,13 @@ function WhatsAppAuto() {
           <div style={{
             background: '#f0fdf4', border: '1px solid #bbf7d0',
             borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
           }}>
-            ✅ WhatsApp habilitado{status?.phone ? ` (${status.phone})` : ''} con la API oficial.
-            Listo para enviar recordatorios y comprobantes.
+            <span>✅ WhatsApp habilitado{status?.phone ? ` (${status.phone})` : ''} con la API oficial. Listo para enviar recordatorios y comprobantes.</span>
+            <button onClick={handleDisconnect}
+              style={{ background: 'none', border: '1px solid #16653444', color: '#166534', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Desconectar
+            </button>
           </div>
 
           <div style={{ marginBottom: 16 }}>
