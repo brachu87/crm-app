@@ -1,0 +1,119 @@
+diff --git a/backend/src/lib/mailer.js b/backend/src/lib/mailer.js
+index dfe5954..2cf563e 100644
+--- a/backend/src/lib/mailer.js
++++ b/backend/src/lib/mailer.js
+@@ -30,12 +30,45 @@ function mailFrom() {
+   return `"Gestumio" <${addr}>`;
+ }
+ 
+-async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+-  const transporter = getTransporter();
+-  if (!transporter) {
+-    console.log('[mailer] GMAIL_USER / GMAIL_APP_PASSWORD no configuradas, mail omitido');
+-    return;
++function fromAddress() {
++  return process.env.MAIL_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || '';
++}
++
++function isEmailConfigured() {
++  return !!(process.env.BREVO_API_KEY || getTransporter());
++}
++
++// Envío unificado: prioriza la API HTTP de Brevo (HTTPS, no usa puertos SMTP), luego SMTP.
++async function deliver({ to, subject, html }) {
++  if (process.env.BREVO_API_KEY) {
++    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
++      method: 'POST',
++      headers: {
++        'api-key': process.env.BREVO_API_KEY,
++        'content-type': 'application/json',
++        'accept': 'application/json',
++      },
++      body: JSON.stringify({
++        sender: { email: fromAddress(), name: 'Gestumio' },
++        to: [{ email: to }],
++        subject,
++        htmlContent: html,
++      }),
++    });
++    if (!(res.status >= 200 && res.status < 300)) {
++      const t = await res.text().catch(() => '');
++      throw new Error(`Brevo API ${res.status}: ${t}`);
++    }
++    return true;
+   }
++  const transporter = getTransporter();
++  if (!transporter) throw new Error('Email no configurado (falta BREVO_API_KEY o SMTP_*)');
++  await transporter.sendMail({ from: mailFrom(), to, subject, html });
++  return true;
++}
++
++async function sendWelcomeEmail({ toEmail, toName, businessName }) {
++  if (!isEmailConfigured()) { console.log('[mailer] Email no configurado, bienvenida omitida'); return; }
+ 
+   const html = `
+ <!DOCTYPE html>
+@@ -119,12 +152,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+ </html>`;
+ 
+   try {
+-    await transporter.sendMail({
+-      from: mailFrom(),
+-      to: toEmail,
+-      subject: '¡Bienvenido a Gestumio! 🎉',
+-      html,
+-    });
++    await deliver({ to: toEmail, subject: '¡Bienvenido a Gestumio! 🎉', html });
+     console.log(`[mailer] Mail de bienvenida enviado a ${toEmail}`);
+   } catch (err) {
+     console.error('[mailer] Error al enviar mail:', err.message);
+@@ -133,11 +161,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
+ }
+ 
+ async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
+-  const transporter = getTransporter();
+-  if (!transporter) {
+-    console.log('[mailer] GMAIL no configurado, mail de reset omitido');
+-    return false;
+-  }
++  if (!isEmailConfigured()) { console.log('[mailer] Email no configurado, reset omitido'); return false; }
+   const html = `
+ <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+ <body style="margin:0;padding:0;background:#FAF7F2;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+@@ -170,12 +194,7 @@ async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
+   </table>
+ </body></html>`;
+   try {
+-    await transporter.sendMail({
+-      from: mailFrom(),
+-      to: toEmail,
+-      subject: 'Restablecé tu contraseña de Gestumio',
+-      html,
+-    });
++    await deliver({ to: toEmail, subject: 'Restablecé tu contraseña de Gestumio', html });
+     console.log(`[mailer] Mail de reset enviado a ${toEmail}`);
+     return true;
+   } catch (err) {
+@@ -186,18 +205,12 @@ async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
+ 
+ // Envía un mail de prueba y devuelve el resultado (para diagnóstico desde el admin).
+ async function sendTest(toEmail) {
+-  const transporter = getTransporter();
+-  if (!transporter) {
+-    return { ok: false, reason: 'SMTP no configurado (faltan SMTP_HOST / SMTP_USER / SMTP_PASS, o GMAIL_*).' };
++  if (!isEmailConfigured()) {
++    return { ok: false, reason: 'Email no configurado (falta BREVO_API_KEY, o SMTP_HOST/USER/PASS).' };
+   }
+   try {
+-    await transporter.sendMail({
+-      from: mailFrom(),
+-      to: toEmail,
+-      subject: 'Prueba de correo — Gestumio',
+-      html: '<p>Este es un mail de prueba de Gestumio. Si lo recibís, el envío está funcionando ✅</p>',
+-    });
+-    return { ok: true, from: mailFrom() };
++    await deliver({ to: toEmail, subject: 'Prueba de correo — Gestumio', html: '<p>Este es un mail de prueba de Gestumio. Si lo recibís, el envío está funcionando ✅</p>' });
++    return { ok: true, from: fromAddress() };
+   } catch (err) {
+     return { ok: false, reason: err.message };
+   }
