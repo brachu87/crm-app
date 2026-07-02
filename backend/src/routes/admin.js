@@ -31,35 +31,41 @@ function trialDaysLeft(createdAt) {
 // GET /api/admin/accounts
 router.get('/accounts', adminAuth, async (req, res) => {
   try {
-    const businesses = await prisma.$queryRawUnsafe(`
-      SELECT
-        b.id, b.name, b.category, b.phone, b."createdAt", b.approved, b."approvedAt", b."extraUsers",
-        b."subscriptionStatus", b."subscriptionExpires", b."bonificado",
-        u.name as ownerName, u.email as ownerEmail, u."lastAccessAt" as ownerLastAccess,
-        (SELECT COUNT(*) FROM "User" u2 WHERE u2."businessId" = b.id) as userCount
-      FROM "Business" b
-      LEFT JOIN "User" u ON u."businessId" = b.id AND u.role = 'owner'
-      ORDER BY b."createdAt" DESC
-    `);
+    // Prisma client (agnostico a la base) — evita el problema de alias en minuscula de Postgres
+    const businesses = await prisma.business.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        users: {
+          select: { id: true, name: true, email: true, role: true, lastAccessAt: true, createdAt: true },
+        },
+      },
+    });
 
-    const result = businesses.map(b => ({
-      id: b.id,
-      name: b.name,
-      category: b.category,
-      phone: b.phone || null,
-      createdAt: b.createdAt,
-      approved: b.approved === 1 || b.approved === true,
-      approvedAt: b.approvedAt,
-      subscriptionStatus: b.subscriptionStatus || 'trial',
-      subscriptionExpires: b.subscriptionExpires,
-      bonificado: b.bonificado === 1 || b.bonificado === true,
-      userCount: Number(b.userCount) || 0,
-      extraUsers: Number(b.extraUsers) || 0,
-      userLimit: INCLUDED_USERS + (Number(b.extraUsers) || 0),
-      monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * (Number(b.extraUsers) || 0),
-      trialDaysLeft: trialDaysLeft(b.createdAt),
-      owner: b.ownerName ? { name: b.ownerName, email: b.ownerEmail, lastAccessAt: b.ownerLastAccess } : null,
-    }));
+    const result = businesses.map(b => {
+      const extra = b.extraUsers || 0;
+      // Propietario: primero el rol owner; si no hay, el usuario mas antiguo
+      const owner = b.users.find(u => u.role === 'owner')
+        || [...b.users].sort((a, c) => new Date(a.createdAt || 0) - new Date(c.createdAt || 0))[0]
+        || null;
+      return {
+        id: b.id,
+        name: b.name,
+        category: b.category,
+        phone: b.phone || null,
+        createdAt: b.createdAt,
+        approved: b.approved === true,
+        approvedAt: b.approvedAt,
+        subscriptionStatus: b.subscriptionStatus || 'trial',
+        subscriptionExpires: b.subscriptionExpires,
+        bonificado: b.bonificado === true,
+        userCount: b.users.length,
+        extraUsers: extra,
+        userLimit: INCLUDED_USERS + extra,
+        monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * extra,
+        trialDaysLeft: trialDaysLeft(b.createdAt),
+        owner: owner ? { name: owner.name, email: owner.email, lastAccessAt: owner.lastAccessAt } : null,
+      };
+    });
 
     res.json(result);
   } catch (err) {
