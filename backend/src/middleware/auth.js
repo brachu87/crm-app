@@ -38,12 +38,12 @@ async function subscriptionCheck(req, res, next) {
     const bid = req.user.businessId;
     let cached = _subCache.get(bid);
     if (!cached || cached.exp < Date.now()) {
-      const biz = await prisma.$queryRawUnsafe(
-        `SELECT "subscriptionStatus", "bonificado" FROM "Business" WHERE id = ? LIMIT 1`,
-        bid
-      );
-      if (!biz || biz.length === 0) return res.status(403).json({ error: 'Negocio no encontrado' });
-      cached = { exp: Date.now() + SUB_TTL_MS, data: biz[0] };
+      const biz = await prisma.business.findUnique({
+        where: { id: bid },
+        select: { subscriptionStatus: true, bonificado: true },
+      });
+      if (!biz) return res.status(403).json({ error: 'Negocio no encontrado' });
+      cached = { exp: Date.now() + SUB_TTL_MS, data: biz };
       _subCache.set(bid, cached);
     }
     const { subscriptionStatus, bonificado } = cached.data;

@@ -65,10 +65,10 @@ router.get('/accounts', adminAuth, async (req, res) => {
 // PUT /api/admin/accounts/:id/approve
 router.put('/accounts/:id/approve', adminAuth, async (req, res) => {
   try {
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Business" SET approved = 1, "approvedAt" = datetime('now') WHERE id = ?`,
-      req.params.id
-    );
+    await prisma.business.update({
+      where: { id: req.params.id },
+      data: { approved: true, approvedAt: new Date() },
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -78,10 +78,10 @@ router.put('/accounts/:id/approve', adminAuth, async (req, res) => {
 // PUT /api/admin/accounts/:id/reject
 router.put('/accounts/:id/reject', adminAuth, async (req, res) => {
   try {
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Business" SET approved = 0, "approvedAt" = NULL WHERE id = ?`,
-      req.params.id
-    );
+    await prisma.business.update({
+      where: { id: req.params.id },
+      data: { approved: false, approvedAt: null },
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -92,11 +92,14 @@ router.put('/accounts/:id/reject', adminAuth, async (req, res) => {
 router.put('/accounts/:id/bonificado', adminAuth, async (req, res) => {
   try {
     const { bonificado } = req.body;
-    const val = bonificado ? 1 : 0;
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Business" SET "bonificado" = ?, "subscriptionStatus" = CASE WHEN ? = 1 THEN 'active' ELSE "subscriptionStatus" END WHERE id = ?`,
-      val, val, req.params.id
-    );
+    await prisma.business.update({
+      where: { id: req.params.id },
+      data: {
+        bonificado: !!bonificado,
+        // Si se bonifica, activar la cuenta; si no, dejar el estado actual
+        ...(bonificado ? { subscriptionStatus: 'active' } : {}),
+      },
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -106,10 +109,10 @@ router.put('/accounts/:id/bonificado', adminAuth, async (req, res) => {
 // PUT /api/admin/accounts/:id/extend-trial — extiende trial 14 días más
 router.put('/accounts/:id/extend-trial', adminAuth, async (req, res) => {
   try {
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Business" SET "createdAt" = datetime('now'), "subscriptionStatus" = 'trial' WHERE id = ?`,
-      req.params.id
-    );
+    await prisma.business.update({
+      where: { id: req.params.id },
+      data: { createdAt: new Date(), subscriptionStatus: 'trial' },
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -122,28 +125,28 @@ router.delete('/accounts/:id', adminAuth, async (req, res) => {
     const id = req.params.id;
     const D = (sql, ...args) => prisma.$executeRawUnsafe(sql, ...args);
 
-    await D(`DELETE FROM "ManualIncome" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Appointment" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Service" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "PayrollRecord" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Attendance" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "ClassSchedule" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "ActivityEmployee" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Branch" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "AccountMovement" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Expense" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Employee" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "DailyCash" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Note" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Supplier" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Payment" WHERE "cuotaId" IN (SELECT c.id FROM "Cuota" c JOIN "Enrollment" e ON c."enrollmentId" = e.id JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = ?)`, id);
-    await D(`DELETE FROM "Cuota" WHERE "enrollmentId" IN (SELECT e.id FROM "Enrollment" e JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = ?)`, id);
-    await D(`DELETE FROM "Enrollment" WHERE "activityId" IN (SELECT id FROM "Activity" WHERE "businessId" = ?)`, id);
-    await D(`DELETE FROM "Activity" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "ClientNote" WHERE "clientId" IN (SELECT id FROM "Client" WHERE "businessId" = ?)`, id);
-    await D(`DELETE FROM "Client" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "User" WHERE "businessId" = ?`, id);
-    await D(`DELETE FROM "Business" WHERE id = ?`, id);
+    await D(`DELETE FROM "ManualIncome" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Appointment" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Service" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "PayrollRecord" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Attendance" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "ClassSchedule" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "ActivityEmployee" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Branch" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "AccountMovement" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Expense" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Employee" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "DailyCash" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Note" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Supplier" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Payment" WHERE "cuotaId" IN (SELECT c.id FROM "Cuota" c JOIN "Enrollment" e ON c."enrollmentId" = e.id JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = $1)`, id);
+    await D(`DELETE FROM "Cuota" WHERE "enrollmentId" IN (SELECT e.id FROM "Enrollment" e JOIN "Activity" a ON e."activityId" = a.id WHERE a."businessId" = $1)`, id);
+    await D(`DELETE FROM "Enrollment" WHERE "activityId" IN (SELECT id FROM "Activity" WHERE "businessId" = $1)`, id);
+    await D(`DELETE FROM "Activity" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "ClientNote" WHERE "clientId" IN (SELECT id FROM "Client" WHERE "businessId" = $1)`, id);
+    await D(`DELETE FROM "Client" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "User" WHERE "businessId" = $1`, id);
+    await D(`DELETE FROM "Business" WHERE id = $1`, id);
 
     res.json({ ok: true });
   } catch (err) {

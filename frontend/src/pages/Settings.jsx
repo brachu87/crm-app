@@ -1203,7 +1203,7 @@ function BillingCard({ billing, onRefresh }) {
         <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 20px', flex: 1, minWidth: 160 }}>
           <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Plan</div>
           <div style={{ fontWeight: 700, fontSize: 15 }}>Plan Mensual</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>$75.000 / mes</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>$50.000 / mes</div>
         </div>
       </div>
 

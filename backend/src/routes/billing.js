@@ -7,7 +7,7 @@ const prisma = require('../prisma');
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
 const APP_URL = process.env.APP_URL || 'https://crm-app-production-0669.up.railway.app';
-const PRICE = 75000;
+const PRICE = 50000;
 const PLAN_DAYS = 30;
 
 function getMpClient() {
@@ -180,10 +180,10 @@ router.post('/webhook', express.json(), async (req, res) => {
     });
 
     // Also approve the account if it was pending
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Business" SET approved = 1, "approvedAt" = datetime('now') WHERE id = ? AND approved = 0`,
-      businessId
-    );
+    await prisma.business.updateMany({
+      where: { id: businessId, approved: false },
+      data: { approved: true, approvedAt: new Date() },
+    });
 
     console.log(`[billing] Pago aprobado para negocio ${businessId} — activo hasta ${expires.toISOString()}`);
   } catch (e) {

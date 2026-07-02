@@ -18,6 +18,9 @@ model Business {
   subscriptionExpires  DateTime?
   bonificado           Boolean  @default(false)
 
+  approved   Boolean   @default(true)
+  approvedAt DateTime?
+
   googleCalendarToken  String?
   googleCalendarId     String?
   gcalSyncTurnos       Boolean  @default(false)

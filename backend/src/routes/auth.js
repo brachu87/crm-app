@@ -42,15 +42,15 @@ function makeToken(user) {
 // Check if business is approved (uses raw SQL, safe if column doesn't exist yet)
 async function isBusinessApproved(businessId) {
   try {
-    const rows = await prisma.$queryRawUnsafe(
-      `SELECT approved FROM "Business" WHERE id = ?`, businessId
-    );
-    if (!rows.length) return true; // no row = allow
-    const val = rows[0].approved;
-    if (val === undefined || val === null) return true; // column missing = allow
-    return val === 1 || val === true;
+    const biz = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { approved: true },
+    });
+    if (!biz) return true; // no row = allow
+    if (biz.approved === undefined || biz.approved === null) return true;
+    return biz.approved === true || biz.approved === 1;
   } catch {
-    return true; // column doesn't exist yet = allow
+    return true; // fail-open
   }
 }
 
@@ -78,7 +78,7 @@ router.post('/register', async (req, res) => {
     const business = await prisma.business.create({ data: { name: businessName, category: category || 'otro', phone: sPhone || null } });
 
     // Auto-approve: la cuenta empieza con acceso inmediato en período de prueba
-    try { await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 1 WHERE id = ?`, business.id); } catch (_) {}
+    try { await prisma.business.update({ where: { id: business.id }, data: { approved: true } }); } catch (_) {}
 
     const user = await prisma.user.create({
       data: { email: sEmail, password: hashedPassword, name: sName, role: 'owner', businessId: business.id },
@@ -197,8 +197,8 @@ router.post('/google-register', async (req, res) => {
 
     // Auto-approve: acceso inmediato con período de prueba
     try {
-      await prisma.$executeRawUnsafe(`UPDATE "Business" SET approved = 1 WHERE id = ?`, business.id);
-    } catch (_) { /* columna no existe aún */ }
+      await prisma.business.update({ where: { id: business.id }, data: { approved: true } });
+    } catch (_) { /* ignore */ }
 
     const newUser = await prisma.user.findUnique({ where: { email }, include: { business: true } });
     res.status(201).json({
