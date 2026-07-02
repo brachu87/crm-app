@@ -490,6 +490,8 @@ export default function Settings() {
 // ── Automatización WhatsApp vía Meta Cloud API ───────────────────────────────
 function WhatsAppAuto() {
   const [status, setStatus] = useState(null);
+  const [qr, setQR] = useState(null);
+  const [connecting, setConnecting] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Gestumio 🌿');
   const [testing, setTesting] = useState(false);
@@ -498,106 +500,64 @@ function WhatsAppAuto() {
   const [templates, setTemplates] = useState({ expiring: '', overdue: '', appointment: '' });
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [templatesSaved, setTemplatesSaved] = useState(false);
-  const [esConfig, setEsConfig] = useState(null);
-  const [connecting, setConnecting] = useState(false);
-  const sessionInfoRef = useRef({ phoneNumberId: null, wabaId: null });
 
+  const state = status?.state || 'disconnected';
+  const connected = state === 'connected';
+
+  // Polling de estado cada 3s
   useEffect(() => {
-    api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
-    api.get('/whatsapp/embedded-config').then(r => setEsConfig(r.data)).catch(() => {});
-    // Cargar SDK de Facebook (Embedded Signup)
-    if (!document.getElementById('fb-sdk')) {
-      const sc = document.createElement('script');
-      sc.id = 'fb-sdk'; sc.async = true; sc.defer = true; sc.crossOrigin = 'anonymous';
-      sc.src = 'https://connect.facebook.net/en_US/sdk.js';
-      document.body.appendChild(sc);
-    }
-    // Capturar phone_number_id + waba_id del popup de Embedded Signup
-    function onMessage(ev) {
-      let host = '';
-      try { host = new URL(ev.origin).hostname; } catch (_) { return; }
-      if (!/(^|\.)facebook\.com$/.test(host)) return;
-      try {
-        const data = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
-        if (data && data.type === 'WA_EMBEDDED_SIGNUP' && data.data) {
-          sessionInfoRef.current = {
-            phoneNumberId: data.data.phone_number_id || null,
-            wabaId: data.data.waba_id || null,
-          };
-        }
-      } catch (_) {}
-    }
-    window.addEventListener('message', onMessage);
-    return () => window.removeEventListener('message', onMessage);
+    let stop = false;
+    function poll() { api.get('/whatsapp/status').then(r => { if (!stop) setStatus(r.data); }).catch(() => {}); }
+    poll();
+    const iv = setInterval(poll, 3000);
+    return () => { stop = true; clearInterval(iv); };
   }, []);
 
-  // Inicializar FB SDK cuando tengamos la config
+  // Cuando conecta, limpiar QR; cargar plantillas
   useEffect(() => {
-    if (!esConfig?.appId) return;
-    const init = () => { try { window.FB.init({ appId: esConfig.appId, cookie: true, xfbml: false, version: esConfig.graphVersion || 'v19.0' }); } catch (_) {} };
-    if (window.FB) init();
-    else window.fbAsyncInit = init;
-  }, [esConfig]);
-
-  const connected = status?.connected;
-
-  function handleConnect() {
-    if (!esConfig?.ready || !esConfig?.configId) { setFeedback('❌ La conexión de WhatsApp aún no está disponible. Escribinos.'); return; }
-    if (!window.FB) { setFeedback('❌ No cargó el conector de Meta. Recargá la página.'); return; }
-    setConnecting(true); setFeedback('');
-    sessionInfoRef.current = { phoneNumberId: null, wabaId: null };
-    window.FB.login((response) => {
-      (async () => {
-        try {
-          const code = response && response.authResponse && response.authResponse.code;
-          const { phoneNumberId, wabaId } = sessionInfoRef.current || {};
-          if (!code) { setFeedback('Conexión cancelada.'); setConnecting(false); return; }
-          if (!phoneNumberId || !wabaId) { setFeedback('❌ No se recibió el número. Reintentá el registro.'); setConnecting(false); return; }
-          const r = await api.post('/whatsapp/embedded-signup', { code, phoneNumberId, wabaId });
-          setFeedback('✅ WhatsApp conectado' + (r.data.phone ? ` (${r.data.phone})` : ''));
-          const st = await api.get('/whatsapp/status');
-          setStatus(st.data);
-        } catch (e) {
-          setFeedback('❌ ' + (e.response?.data?.error || e.message));
-        } finally { setConnecting(false); }
-      })();
-    }, {
-      config_id: esConfig.configId,
-      response_type: 'code',
-      override_default_response_type: true,
-      extras: { setup: {}, featureType: 'whatsapp_business_app_onboarding', sessionInfoVersion: '3' },
-    });
-  }
-
-  async function handleDisconnect() {
-    if (!confirm('¿Desconectar WhatsApp de este negocio?')) return;
-    try {
-      await api.post('/whatsapp/disconnect');
-      const st = await api.get('/whatsapp/status');
-      setStatus(st.data);
-      setFeedback('WhatsApp desconectado.');
-    } catch (e) {
-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
-    }
-  }
-
-  useEffect(() => {
-    if (connected && !templatesLoaded) {
-      api.get('/whatsapp/templates').then(r => {
-        setTemplates(r.data);
-        setTemplatesLoaded(true);
-      }).catch(() => {});
+    if (connected) {
+      setQR(null);
+      if (!templatesLoaded) {
+        api.get('/whatsapp/templates').then(r => { setTemplates(r.data); setTemplatesLoaded(true); }).catch(() => {});
+      }
     }
   }, [connected, templatesLoaded]);
+
+  // Mientras esperamos el escaneo, refrescar el QR periódicamente
+  useEffect(() => {
+    if (connected || !qr) return;
+    const iv = setInterval(() => {
+      api.get('/whatsapp/qr').then(r => setQR(r.data.qr)).catch(() => {});
+    }, 20000);
+    return () => clearInterval(iv);
+  }, [qr, connected]);
+
+  async function handleConnect() {
+    setConnecting(true); setFeedback('');
+    try {
+      const r = await api.post('/whatsapp/connect');
+      if (r.data.qr) setQR(r.data.qr);
+      else { const q = await api.get('/whatsapp/qr').catch(() => null); if (q) setQR(q.data.qr); }
+    } catch (e) {
+      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+    } finally { setConnecting(false); }
+  }
+
+  async function handleLogout() {
+    if (!confirm('¿Desconectar WhatsApp de este negocio?')) return;
+    try {
+      await api.post('/whatsapp/logout');
+      setQR(null);
+      const st = await api.get('/whatsapp/status'); setStatus(st.data);
+      setFeedback('WhatsApp desconectado.');
+    } catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
+  }
 
   async function handleSaveTemplates() {
     try {
       await api.put('/whatsapp/templates', templates);
-      setTemplatesSaved(true);
-      setTimeout(() => setTemplatesSaved(false), 2000);
-    } catch (e) {
-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
-    }
+      setTemplatesSaved(true); setTimeout(() => setTemplatesSaved(false), 2000);
+    } catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
   }
 
   async function handleTest() {
@@ -606,9 +566,8 @@ function WhatsAppAuto() {
     try {
       await api.post('/whatsapp/test', { phone: testPhone, message: testMsg });
       setFeedback('✅ Mensaje enviado correctamente');
-    } catch (e) {
-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
-    } finally { setTesting(false); }
+    } catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
+    finally { setTesting(false); }
   }
 
   async function handleRunNow() {
@@ -616,166 +575,114 @@ function WhatsAppAuto() {
     try {
       await api.post('/whatsapp/run-reminders');
       setFeedback('✅ Barrido iniciado en background');
-    } catch (e) {
-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
-    } finally { setRunning(false); }
+    } catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
+    finally { setRunning(false); }
   }
 
-  const stateColor = connected ? '#22c55e' : '#ef4444';
-  const stateLabel = connected ? 'Conectado (API oficial)' : 'Sin número asignado';
+  const notConfigured = status && status.configured === false;
+  const stateColor = connected ? '#22c55e' : (state === 'connecting' ? '#f59e0b' : '#ef4444');
+  const stateLabel = connected ? 'Conectado' : (state === 'connecting' ? 'Conectando...' : 'Desconectado');
 
   return (
     <div className="card" style={{ marginTop: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <span style={{ fontSize: 28 }}>🤖</span>
         <div>
-          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>WhatsApp (API oficial de Meta)</h2>
+          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Conexión de WhatsApp</h2>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
-            Enviá recordatorios y comprobantes a tus clientes desde tu número oficial de WhatsApp Business.
+            Vinculá tu WhatsApp para enviar recordatorios y comprobantes. Podés seguir usándolo en tu celular.
           </p>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{
-            display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
-            background: stateColor, boxShadow: `0 0 0 2px ${stateColor}33`,
-          }} />
+          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: stateColor, boxShadow: `0 0 0 2px ${stateColor}33` }} />
           <span style={{ fontSize: 13, fontWeight: 600 }}>{stateLabel}</span>
         </div>
       </div>
 
-      {!connected && (
-        <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
-            Conectá tu WhatsApp Business para enviar recordatorios y comprobantes desde tu propio número.
-            Vas a poder seguir usándolo normalmente en tu celular.
-          </p>
-          <button className="btn btn-primary" onClick={handleConnect} disabled={connecting || !esConfig?.ready}>
-            {connecting ? 'Conectando...' : '📱 Conectar WhatsApp'}
-          </button>
-          {esConfig && !esConfig.ready && (
-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>
-              La conexión todavía no está habilitada en el servidor. Escribinos para activarla.
-            </p>
+      {notConfigured && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, fontSize: 13, color: '#92400e' }}>
+          La conexión de WhatsApp todavía no está habilitada en el servidor. Escribinos para activarla.
+        </div>
+      )}
+
+      {!notConfigured && !connected && (
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          {!qr && (
+            <>
+              <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
+                Conectá tu WhatsApp para enviar recordatorios y comprobantes a tus clientes.
+              </p>
+              <button className="btn btn-primary" onClick={handleConnect} disabled={connecting}>
+                {connecting ? 'Generando QR...' : '📱 Conectar WhatsApp'}
+              </button>
+            </>
+          )}
+          {qr && (
+            <div>
+              <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>📱 Escaneá este código QR</p>
+              <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+                WhatsApp → Dispositivos vinculados → Vincular dispositivo
+              </p>
+              <img src={qr} alt="QR WhatsApp" style={{ width: 240, height: 240, borderRadius: 12, border: '2px solid var(--border)' }} />
+              <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>El QR se renueva automáticamente.</p>
+            </div>
           )}
         </div>
       )}
 
       {connected && (
         <>
-          <div style={{
-            background: '#f0fdf4', border: '1px solid #bbf7d0',
-            borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
-          }}>
-            <span>✅ WhatsApp habilitado{status?.phone ? ` (${status.phone})` : ''} con la API oficial. Listo para enviar recordatorios y comprobantes.</span>
-            <button onClick={handleDisconnect}
-              style={{ background: 'none', border: '1px solid #16653444', color: '#166534', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              Desconectar
-            </button>
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <span>✅ WhatsApp conectado. Listo para enviar recordatorios y comprobantes.</span>
+            <button onClick={handleLogout} style={{ background: 'none', border: '1px solid #16653444', color: '#166534', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>Desconectar</button>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Probar envío</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <input
-                value={testPhone}
-                onChange={e => setTestPhone(e.target.value)}
-                placeholder="Ej: 1123456789"
-                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)',
-                  fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }}
-              />
+              <input value={testPhone} onChange={e => setTestPhone(e.target.value)} placeholder="Ej: 1123456789"
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }} />
             </div>
-            <textarea
-              value={testMsg}
-              onChange={e => setTestMsg(e.target.value)}
-              rows={2}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)',
-                fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical',
-                boxSizing: 'border-box', marginBottom: 8 }}
-            />
+            <textarea value={testMsg} onChange={e => setTestMsg(e.target.value)} rows={2}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical', boxSizing: 'border-box', marginBottom: 8 }} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
-                {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}
-              </button>
-              <button className="btn btn-secondary" onClick={handleRunNow} disabled={running}>
-                {running ? 'Ejecutando...' : '🔔 Enviar recordatorios ahora'}
-              </button>
+              <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>{testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}</button>
+              <button className="btn btn-secondary" onClick={handleRunNow} disabled={running}>{running ? 'Ejecutando...' : '🔔 Enviar recordatorios ahora'}</button>
             </div>
-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 8 }}>
-              Nota: el texto libre solo llega si el cliente te escribió en las últimas 24hs. Los recordatorios
-              automáticos usan las plantillas aprobadas por Meta.
-            </p>
           </div>
         </>
       )}
 
-      {/* Plantillas de texto (para envíos dentro de la ventana de 24hs) */}
+      {/* Textos de los recordatorios automáticos */}
       <div className="card" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Textos de mensajes</h2>
-          <button className="btn btn-primary btn-sm" onClick={handleSaveTemplates}>
-            {templatesSaved ? '✓ Guardado' : 'Guardar'}
-          </button>
+          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Plantillas de mensajes automáticos</h2>
+          <button className="btn btn-primary btn-sm" onClick={handleSaveTemplates}>{templatesSaved ? '✓ Guardado' : 'Guardar'}</button>
         </div>
         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
-          Personalizá el texto de cada recordatorio para los envíos dentro de la ventana de 24hs.
-          Dejá el campo vacío para usar el mensaje por defecto.
+          Personalizá el texto de cada recordatorio. Dejá el campo vacío para usar el mensaje por defecto.
         </p>
         {[
-          {
-            key: 'expiring',
-            label: '📅 Cuota próxima a vencer',
-            hint: 'Se envía 1, 3 y 7 días antes del vencimiento',
-            vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}',
-            def: 'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}',
-          },
-          {
-            key: 'overdue',
-            label: '⚠️ Cuota vencida',
-            hint: 'Se envía el día después del vencimiento',
-            vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}',
-            def: 'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}',
-          },
-          {
-            key: 'appointment',
-            label: '📆 Recordatorio de turno',
-            hint: 'Se envía un día antes del turno agendado',
-            vars: '{nombre} {servicio} {hora} {fecha} {negocio}',
-            def: 'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}',
-          },
+          { key: 'expiring', label: '📅 Cuota próxima a vencer', hint: 'Se envía 1, 3 y 7 días antes del vencimiento', vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}', def: 'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}' },
+          { key: 'overdue', label: '⚠️ Cuota vencida', hint: 'Se envía el día después del vencimiento', vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}', def: 'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}' },
+          { key: 'appointment', label: '📆 Recordatorio de turno', hint: 'Se envía un día antes del turno', vars: '{nombre} {servicio} {hora} {fecha} {negocio}', def: 'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}' },
         ].map(({ key, label, hint, vars, def }) => (
           <div key={key} style={{ marginBottom: 16 }}>
             <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{label}</p>
-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>
-              {hint} · Variables: <code style={{ fontSize: 11 }}>{vars}</code>
-            </p>
-            <textarea
-              rows={2}
-              value={templates[key] || ''}
-              onChange={e => setTemplates(t => ({ ...t, [key]: e.target.value }))}
-              placeholder={def}
-              style={{
-                width: '100%', padding: '8px 10px', borderRadius: 8,
-                border: '1px solid var(--border)', fontSize: 13, lineHeight: 1.5,
-                resize: 'vertical', background: 'var(--surface)', color: 'var(--ink)',
-                boxSizing: 'border-box',
-              }}
-            />
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>{hint} · Variables: <code style={{ fontSize: 11 }}>{vars}</code></p>
+            <textarea rows={2} value={templates[key] || ''} onChange={e => setTemplates(t => ({ ...t, [key]: e.target.value }))} placeholder={def}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, lineHeight: 1.5, resize: 'vertical', background: 'var(--surface)', color: 'var(--ink)', boxSizing: 'border-box' }} />
           </div>
         ))}
       </div>
 
       {feedback && (
-        <div style={{
-          marginTop: 14, padding: '10px 14px', borderRadius: 8,
-          background: feedback.startsWith('✅') ? '#f0fdf4' : '#fef2f2',
-          color: feedback.startsWith('✅') ? '#166534' : '#991b1b',
-          fontSize: 13, fontWeight: 500,
-        }}>{feedback}</div>
+        <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: feedback.startsWith('✅') ? '#f0fdf4' : '#fef2f2', color: feedback.startsWith('✅') ? '#166534' : '#991b1b', fontSize: 13, fontWeight: 500 }}>{feedback}</div>
       )}
     </div>
   );
 }
+
 
 function WhatsAppTemplates() {
   const [templates, setTemplates] = useState(getTemplates);

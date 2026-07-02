@@ -1,0 +1,956 @@
+diff --git a/backend/src/lib/reminderCron.js b/backend/src/lib/reminderCron.js
+index 5bd1c5d..b1350bf 100644
+--- a/backend/src/lib/reminderCron.js
++++ b/backend/src/lib/reminderCron.js
+@@ -1,34 +1,38 @@
+ /**
+- * Cron diario de recordatorios por WhatsApp — vía Meta Cloud API.
+- * Corre 09:00 AR (12:00 UTC). Detecta cuotas por vencer (1/3/7 días),
+- * cuotas vencidas y turnos de mañana, y envía PLANTILLAS aprobadas por Meta.
+- *
+- * Los mensajes iniciados por el negocio requieren plantillas aprobadas.
+- * Nombres de plantilla (configurables por env):
+- *   META_TPL_EXPIRING     (default: cuota_por_vencer)   params: nombre, actividad, vencimiento, negocio
+- *   META_TPL_OVERDUE      (default: cuota_vencida)       params: nombre, actividad, vencimiento, negocio
+- *   META_TPL_APPOINTMENT  (default: turno_recordatorio)  params: nombre, servicio, fecha, hora, negocio
+- *   META_TPL_LANG         (default: es_AR)
++ * Cron diario de recordatorios por WhatsApp — vía Evolution API.
++ * 09:00 AR (12:00 UTC). Cuotas por vencer (1/3/7 días), vencidas y turnos de mañana.
++ * Usa texto libre con las plantillas configuradas por el negocio (sin aprobación de Meta).
+  */
+ 
+-const cron   = require('node-cron');
++const cron = require('node-cron');
+ const prisma = require('../prisma');
+-const meta   = require('./whatsappMeta');
++const evo = require('./whatsappEvolution');
+ 
+ const REMIND_DAYS = [1, 3, 7];
+-const TPL = {
+-  expiring:    process.env.META_TPL_EXPIRING    || 'cuota_por_vencer',
+-  overdue:     process.env.META_TPL_OVERDUE     || 'cuota_vencida',
+-  appointment: process.env.META_TPL_APPOINTMENT || 'turno_recordatorio',
+-};
+-const TPL_LANG = process.env.META_TPL_LANG || 'es_AR';
+ 
+ function fmtDate(d) {
+   if (!d) return '';
+   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+ }
+ 
+-// Rango [00:00, +1 día) de una fecha (para comparar solo el día en un DateTime)
++function applyTemplate(t, v) {
++  return String(t || '')
++    .replace(/\{nombre\}/gi,      v.nombre      || '')
++    .replace(/\{actividad\}/gi,   v.actividad   || '')
++    .replace(/\{vencimiento\}/gi, v.vencimiento || '')
++    .replace(/\{monto\}/gi,       v.monto       || '')
++    .replace(/\{servicio\}/gi,    v.servicio    || '')
++    .replace(/\{hora\}/gi,        v.hora        || '')
++    .replace(/\{fecha\}/gi,       v.fecha       || '')
++    .replace(/\{negocio\}/gi,     v.negocio     || '');
++}
++
++const DEFAULTS = {
++  expiring:    'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}',
++  overdue:     'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}',
++  appointment: 'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}',
++};
++
+ function dayRange(date) {
+   const start = new Date(date); start.setHours(0, 0, 0, 0);
+   const end = new Date(start); end.setDate(end.getDate() + 1);
+@@ -36,34 +40,35 @@ function dayRange(date) {
+ }
+ 
+ async function runReminders(onlyBusinessId = null) {
+-  console.log('[wa-cron] Barrido de recordatorios (Meta)' + (onlyBusinessId ? ` — negocio ${onlyBusinessId}` : ' — todos'));
+-  if (!meta.isConfigured()) {
+-    console.log('[wa-cron] META_WA_TOKEN no configurado — barrido omitido');
+-    return { sent: 0, errors: 0 };
+-  }
++  console.log('[wa-cron] Barrido de recordatorios (Evolution)' + (onlyBusinessId ? ` — negocio ${onlyBusinessId}` : ' — todos'));
++  if (!evo.isConfigured()) { console.log('[wa-cron] Evolution no configurada — omitido'); return { sent: 0, errors: 0 }; }
+ 
+   const now = new Date(); now.setHours(0, 0, 0, 0);
+   let sent = 0, errors = 0;
++  const stateCache = new Map();
+ 
+-  // Envía una plantilla, respetando filtros de negocio y config
+-  async function send(business, phone, templateName, params, label) {
+-    if (!business) return;
+-    if (onlyBusinessId && business.id !== onlyBusinessId) return;
+-    if (!business.waPhoneId) return;                 // negocio sin número asignado
+-    if (!phone) return;
++  async function connected(bid) {
++    if (onlyBusinessId && bid !== onlyBusinessId) return false;
++    if (!stateCache.has(bid)) {
++      try { stateCache.set(bid, (await evo.getState(bid)).state === 'connected'); }
++      catch { stateCache.set(bid, false); }
++    }
++    return stateCache.get(bid);
++  }
++
++  async function send(business, phone, tplText, vars, label) {
++    if (!business || !phone) return;
++    if (!(await connected(business.id))) return;
+     try {
+-      await meta.sendTemplate(business.waPhoneId, phone, templateName, TPL_LANG, meta.bodyParams(params), business.waToken);
++      await evo.sendText(business.id, phone, applyTemplate(tplText, vars));
+       sent++;
+       console.log(`[wa-cron] ✓ ${label}`);
+-      await new Promise(r => setTimeout(r, 800));
+-    } catch (e) {
+-      errors++;
+-      console.error(`[wa-cron] ✗ ${label}:`, e.message);
+-    }
++      await new Promise(r => setTimeout(r, 900));
++    } catch (e) { errors++; console.error(`[wa-cron] ✗ ${label}:`, e.message); }
+   }
+ 
+   try {
+-    // ── Cuotas próximas a vencer ─────────────────────────────────────────────
++    // Cuotas por vencer
+     for (const days of REMIND_DAYS) {
+       const target = new Date(now); target.setDate(target.getDate() + days);
+       const cuotas = await prisma.cuota.findMany({
+@@ -71,48 +76,45 @@ async function runReminders(onlyBusinessId = null) {
+         include: { enrollment: { include: { client: true, activity: { include: { business: true } } } } },
+       });
+       for (const c of cuotas) {
+-        const cl = c.enrollment?.client;
+-        const act = c.enrollment?.activity;
+-        const biz = act?.business;
+-        if (!cl?.phone) continue;
+-        await send(biz, cl.phone, TPL.expiring,
+-          [cl.name, act?.name || '', fmtDate(c.dueDate), biz?.name || ''],
+-          `Por vencer → ${cl.name} (${days}d)`);
++        const cl = c.enrollment?.client, act = c.enrollment?.activity, biz = act?.business;
++        if (!cl?.phone || !biz) continue;
++        await send(biz, cl.phone, biz.waTemplateExpiring || DEFAULTS.expiring, {
++          nombre: cl.name, actividad: act?.name || '', vencimiento: fmtDate(c.dueDate),
++          monto: c.amountDue != null ? `$${Number(c.amountDue).toLocaleString('es-AR')}` : '', negocio: biz.name || '',
++        }, `Por vencer → ${cl.name} (${days}d)`);
+       }
+     }
+ 
+-    // ── Cuotas vencidas ayer ─────────────────────────────────────────────────
++    // Cuotas vencidas ayer
+     const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+     const overdue = await prisma.cuota.findMany({
+       where: { paymentStatus: 'overdue', dueDate: dayRange(yesterday) },
+       include: { enrollment: { include: { client: true, activity: { include: { business: true } } } } },
+     });
+     for (const c of overdue) {
+-      const cl = c.enrollment?.client;
+-      const act = c.enrollment?.activity;
+-      const biz = act?.business;
+-      if (!cl?.phone) continue;
+-      await send(biz, cl.phone, TPL.overdue,
+-        [cl.name, act?.name || '', fmtDate(c.dueDate), biz?.name || ''],
+-        `Vencida → ${cl.name}`);
++      const cl = c.enrollment?.client, act = c.enrollment?.activity, biz = act?.business;
++      if (!cl?.phone || !biz) continue;
++      await send(biz, cl.phone, biz.waTemplateOverdue || DEFAULTS.overdue, {
++        nombre: cl.name, actividad: act?.name || '', vencimiento: fmtDate(c.dueDate),
++        monto: c.amountDue != null ? `$${Number(c.amountDue).toLocaleString('es-AR')}` : '', negocio: biz.name || '',
++      }, `Vencida → ${cl.name}`);
+     }
+ 
+-    // ── Turnos de mañana ─────────────────────────────────────────────────────
++    // Turnos de mañana
+     const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+-    const tomorrowStr = tomorrow.toISOString().slice(0, 10); // "YYYY-MM-DD"
++    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+     const appts = await prisma.appointment.findMany({
+       where: { date: tomorrowStr, status: 'scheduled' },
+       include: { client: true, service: true, business: true },
+     });
+     for (const appt of appts) {
+-      const cl = appt.client;
+-      if (!cl?.phone) continue;
+-      const hora = appt.startTime
+-        ? appt.startTime + (appt.endTime ? ` - ${appt.endTime}` : '')
+-        : 'horario a confirmar';
+-      await send(appt.business, cl.phone, TPL.appointment,
+-        [cl.name, appt.service?.name || 'turno', tomorrowStr.split('-').reverse().join('/'), hora, appt.business?.name || ''],
+-        `Turno → ${cl.name} (${tomorrowStr})`);
++      const cl = appt.client, biz = appt.business;
++      if (!cl?.phone || !biz) continue;
++      const hora = appt.startTime ? appt.startTime + (appt.endTime ? ` - ${appt.endTime}` : '') : 'horario a confirmar';
++      await send(biz, cl.phone, biz.waTemplateAppointment || DEFAULTS.appointment, {
++        nombre: cl.name, servicio: appt.service?.name || 'turno',
++        fecha: tomorrowStr.split('-').reverse().join('/'), hora, negocio: biz.name || '',
++      }, `Turno → ${cl.name} (${tomorrowStr})`);
+     }
+ 
+     console.log(`[wa-cron] Completado — enviados: ${sent}, errores: ${errors}`);
+diff --git a/backend/src/lib/whatsappEvolution.js b/backend/src/lib/whatsappEvolution.js
+new file mode 100644
+index 0000000..0ac8081
+--- /dev/null
++++ b/backend/src/lib/whatsappEvolution.js
+@@ -0,0 +1,116 @@
++/**
++ * Cliente de Evolution API (WhatsApp no oficial, multi-instancia).
++ * Una instancia por negocio: `gestumio_<businessId>`.
++ *
++ * Variables de entorno:
++ *   EVOLUTION_API_URL   → base del servidor Evolution (ej: https://evo.up.railway.app)
++ *   EVOLUTION_API_KEY   → API key global (AUTHENTICATION_API_KEY del server)
++ */
++
++const BASE = (process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
++const KEY  = process.env.EVOLUTION_API_KEY || '';
++
++function isConfigured() { return !!(BASE && KEY); }
++
++function instanceName(businessId) { return `gestumio_${businessId}`; }
++
++// Normaliza a dígitos con código de país AR
++function normalizePhone(phone) {
++  if (!phone) return null;
++  let n = String(phone).replace(/[^\d+]/g, '');
++  if (n.startsWith('+')) n = n.slice(1);
++  if (n.startsWith('54') && n.length >= 12) return n;
++  if (n.startsWith('0')) n = n.slice(1);
++  if (!n.startsWith('54')) n = '549' + (n.startsWith('9') ? n.slice(1) : n);
++  return n;
++}
++
++async function req(method, path, body) {
++  if (!isConfigured()) throw new Error('Evolution API no configurada (EVOLUTION_API_URL / EVOLUTION_API_KEY)');
++  const res = await fetch(`${BASE}${path}`, {
++    method,
++    headers: { 'Content-Type': 'application/json', 'apikey': KEY },
++    body: body != null ? JSON.stringify(body) : undefined,
++  });
++  const text = await res.text();
++  let data = {};
++  try { data = text ? JSON.parse(text) : {}; } catch (_) { data = { raw: text }; }
++  if (!res.ok) {
++    const msg = data?.response?.message || data?.message || data?.error || `HTTP ${res.status}`;
++    throw new Error(`Evolution ${res.status}: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
++  }
++  return data;
++}
++
++// Crea la instancia si no existe y devuelve el QR (base64) si aparece.
++async function connect(businessId) {
++  const name = instanceName(businessId);
++  try {
++    const r = await req('POST', '/instance/create', {
++      instanceName: name,
++      qrcode: true,
++      integration: 'WHATSAPP-BAILEYS',
++    });
++    return { qr: r?.qrcode?.base64 || null };
++  } catch (e) {
++    // Si ya existe, pedimos el connect para traer el QR
++    if (/already|exists|in use|already in use/i.test(e.message)) {
++      return getQR(businessId);
++    }
++    throw e;
++  }
++}
++
++async function getQR(businessId) {
++  const name = instanceName(businessId);
++  const r = await req('GET', `/instance/connect/${name}`);
++  return { qr: r?.base64 || r?.qrcode?.base64 || null, code: r?.code || null };
++}
++
++// Estado: 'connected' | 'connecting' | 'disconnected'
++async function getState(businessId) {
++  const name = instanceName(businessId);
++  try {
++    const r = await req('GET', `/instance/connectionState/${name}`);
++    const st = r?.instance?.state || r?.state || 'close';
++    if (st === 'open') return { state: 'connected' };
++    if (st === 'connecting') return { state: 'connecting' };
++    return { state: 'disconnected' };
++  } catch (_) {
++    return { state: 'disconnected' };
++  }
++}
++
++async function sendText(businessId, phone, text) {
++  const name = instanceName(businessId);
++  const number = normalizePhone(phone);
++  if (!number) throw new Error('Número inválido: ' + phone);
++  return req('POST', `/message/sendText/${name}`, { number, text });
++}
++
++async function sendDocument(businessId, phone, buffer, filename, caption) {
++  const name = instanceName(businessId);
++  const number = normalizePhone(phone);
++  if (!number) throw new Error('Número inválido: ' + phone);
++  const media = Buffer.isBuffer(buffer) ? buffer.toString('base64') : String(buffer);
++  return req('POST', `/message/sendMedia/${name}`, {
++    number,
++    mediatype: 'document',
++    mimetype: 'application/pdf',
++    media,
++    fileName: filename,
++    caption: caption || '',
++  });
++}
++
++async function logout(businessId) {
++  const name = instanceName(businessId);
++  try { await req('DELETE', `/instance/logout/${name}`); } catch (_) {}
++  try { await req('DELETE', `/instance/delete/${name}`); } catch (_) {}
++  return { ok: true };
++}
++
++module.exports = {
++  isConfigured, instanceName, normalizePhone,
++  connect, getQR, getState, sendText, sendDocument, logout,
++};
+diff --git a/backend/src/routes/whatsapp.js b/backend/src/routes/whatsapp.js
+index 4770033..1f783cd 100644
+--- a/backend/src/routes/whatsapp.js
++++ b/backend/src/routes/whatsapp.js
+@@ -3,7 +3,7 @@ const router   = express.Router();
+ const authMiddleware = require('../middleware/auth');
+ const path = require('path');
+ const fs = require('fs');
+-const meta = require('../lib/whatsappMeta');
++const evo = require('../lib/whatsappEvolution');
+ const { generateReceiptPdf, generatePayrollPdf } = require('../lib/receiptPdf');
+ const PHOTOS_DIR = process.env.PHOTOS_DIR
+   || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
+@@ -12,103 +12,109 @@ const { runReminders } = require('../lib/reminderCron');
+ 
+ router.use(authMiddleware);
+ 
+-// Devuelve el phone_number_id del negocio (o null)
+-async function getBiz(businessId) {
+-  return prisma.business.findUnique({
+-    where: { id: businessId },
+-    select: { waPhoneId: true, waPhoneNumber: true, waWabaId: true, waToken: true },
+-  });
+-}
+-
+ // GET /api/whatsapp/status
+ router.get('/status', async (req, res) => {
+   try {
+-    const biz = await getBiz(req.user.businessId);
+-    const hasToken = !!(biz?.waToken) || meta.isConfigured();
+-    const connected = hasToken && !!biz?.waPhoneId;
+-    res.json({
+-      provider: 'meta',
+-      configured: hasToken,
+-      connected,                          // este negocio tiene número conectado
+-      state: connected ? 'connected' : 'disconnected',
+-      phone: biz?.waPhoneNumber || null,
+-    });
++    if (!evo.isConfigured()) return res.json({ provider: 'evolution', configured: false, state: 'disconnected' });
++    const { state } = await evo.getState(req.user.businessId);
++    res.json({ provider: 'evolution', configured: true, state, connected: state === 'connected' });
++  } catch (e) {
++    res.status(500).json({ error: e.message });
++  }
++});
++
++// POST /api/whatsapp/connect — crea la instancia y devuelve el QR
++router.post('/connect', async (req, res) => {
++  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede conectar WhatsApp' });
++  if (!evo.isConfigured()) return res.status(400).json({ error: 'WhatsApp no está configurado en el servidor.' });
++  try {
++    const r = await evo.connect(req.user.businessId);
++    res.json({ ok: true, qr: r.qr || null });
++  } catch (e) {
++    res.status(500).json({ error: e.message });
++  }
++});
++
++// GET /api/whatsapp/qr — trae el QR actual
++router.get('/qr', async (req, res) => {
++  try {
++    const r = await evo.getQR(req.user.businessId);
++    if (!r.qr) return res.status(404).json({ error: 'No hay QR disponible' });
++    res.json({ qr: r.qr });
+   } catch (e) {
+     res.status(500).json({ error: e.message });
+   }
+ });
+ 
+-// POST /api/whatsapp/test — mensaje de texto de prueba
++// POST /api/whatsapp/logout
++router.post('/logout', async (req, res) => {
++  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede desconectar' });
++  try { await evo.logout(req.user.businessId); res.json({ ok: true }); }
++  catch (e) { res.status(500).json({ error: e.message }); }
++});
++
++// POST /api/whatsapp/test
+ router.post('/test', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+-  const biz = await getBiz(req.user.businessId);
+-  if (!biz?.waPhoneId) return res.status(400).json({ error: 'Tu negocio todavía no tiene WhatsApp conectado.' });
+-
+   const { phone, message } = req.body;
+   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
+   try {
+-    await meta.sendText(biz.waPhoneId, phone, message, biz.waToken);
++    const { state } = await evo.getState(req.user.businessId);
++    if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado. Escaneá el QR primero.' });
++    await evo.sendText(req.user.businessId, phone, message);
+     res.json({ ok: true });
+-  } catch (err) {
+-    res.status(500).json({ error: err.message });
+-  }
++  } catch (err) { res.status(500).json({ error: err.message }); }
+ });
+ 
+-// POST /api/whatsapp/send — texto libre (ventana 24hs)
++// POST /api/whatsapp/send
+ router.post('/send', async (req, res) => {
+   const { phone, message } = req.body;
+   if (!phone || !message) return res.status(400).json({ error: 'phone y message son requeridos' });
+-  const biz = await getBiz(req.user.businessId);
+-  if (!biz?.waPhoneId) return res.status(409).json({ error: 'WhatsApp no configurado para este negocio', code: 'NOT_CONNECTED' });
+   try {
+-    await meta.sendText(biz.waPhoneId, phone, message, biz.waToken);
++    const { state } = await evo.getState(req.user.businessId);
++    if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
++    await evo.sendText(req.user.businessId, phone, message);
+     res.json({ ok: true });
+-  } catch (err) {
+-    res.status(500).json({ error: err.message });
+-  }
++  } catch (err) { res.status(500).json({ error: err.message }); }
+ });
+ 
+ // POST /api/whatsapp/send-receipt — genera el PDF del recibo y lo envía como documento
+ router.post('/send-receipt', async (req, res) => {
+   const { phone, receipt, caption } = req.body;
+   if (!phone || !receipt) return res.status(400).json({ error: 'phone y receipt son requeridos' });
+-  const biz = await getBiz(req.user.businessId);
+-  if (!biz?.waPhoneId) return res.status(409).json({ error: 'WhatsApp no configurado para este negocio', code: 'NOT_CONNECTED' });
+   try {
++    const { state } = await evo.getState(req.user.businessId);
++    if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
+     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+     const pdf = await generateReceiptPdf({ ...receipt, logoPath });
+     const safeNro = String(receipt.nroRecibo || 'pago').replace(/[^\w-]/g, '');
+-    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`, biz.waToken);
++    await evo.sendDocument(req.user.businessId, phone, pdf, `Recibo-${safeNro}.pdf`, caption || `Recibo de pago N° ${receipt.nroRecibo || ''}`);
+     res.json({ ok: true });
+-  } catch (err) {
+-    console.error('[send-receipt]', err.message);
+-    res.status(500).json({ error: err.message });
+-  }
++  } catch (err) { console.error('[send-receipt]', err.message); res.status(500).json({ error: err.message }); }
+ });
+ 
+-// POST /api/whatsapp/send-payroll — genera el PDF del recibo de haberes y lo envía
++// POST /api/whatsapp/send-payroll — genera el recibo de haberes y lo envía
+ router.post('/send-payroll', async (req, res) => {
+   const { phone, payroll, caption } = req.body;
+   if (!phone || !payroll) return res.status(400).json({ error: 'phone y payroll son requeridos' });
+-  const biz = await getBiz(req.user.businessId);
+-  if (!biz?.waPhoneId) return res.status(409).json({ error: 'WhatsApp no configurado para este negocio', code: 'NOT_CONNECTED' });
+   try {
++    const { state } = await evo.getState(req.user.businessId);
++    if (state !== 'connected') return res.status(409).json({ error: 'WhatsApp no conectado', code: 'NOT_CONNECTED' });
+     const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+     const pdf = await generatePayrollPdf({ ...payroll, logoPath });
+     const safe = String(payroll.employeeName || 'empleado').replace(/[^\w-]/g, '').slice(0, 30) || 'haberes';
+-    await meta.sendDocument(biz.waPhoneId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`, biz.waToken);
++    await evo.sendDocument(req.user.businessId, phone, pdf, `Recibo-haberes-${safe}.pdf`, caption || `Recibo de haberes — ${payroll.employeeName || ''}`);
+     res.json({ ok: true });
+-  } catch (err) {
+-    console.error('[send-payroll]', err.message);
+-    res.status(500).json({ error: err.message });
+-  }
++  } catch (err) { console.error('[send-payroll]', err.message); res.status(500).json({ error: err.message }); }
+ });
+ 
+-// POST /api/whatsapp/run-reminders — disparar el barrido manualmente
++// POST /api/whatsapp/run-reminders — dispara el barrido manualmente
+ router.post('/run-reminders', async (req, res) => {
+   if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede usar esta función' });
+-  const biz = await getBiz(req.user.businessId);
+-  if (!biz?.waPhoneId) return res.status(400).json({ error: 'WhatsApp no configurado para este negocio' });
++  try {
++    const { state } = await evo.getState(req.user.businessId);
++    if (state !== 'connected') return res.status(400).json({ error: 'WhatsApp no conectado' });
++  } catch (_) {}
+   res.json({ ok: true, message: 'Barrido iniciado en background' });
+   runReminders(req.user.businessId).catch(e => console.error('[manual-reminder]', e.message));
+ });
+@@ -125,9 +131,7 @@ router.get('/templates', async (req, res) => {
+       overdue:     biz?.waTemplateOverdue     || '',
+       appointment: biz?.waTemplateAppointment || '',
+     });
+-  } catch (e) {
+-    res.status(500).json({ error: e.message });
+-  }
++  } catch (e) { res.status(500).json({ error: e.message }); }
+ });
+ 
+ // PUT /api/whatsapp/templates — guardar plantillas
+@@ -144,63 +148,7 @@ router.put('/templates', async (req, res) => {
+       },
+     });
+     res.json({ ok: true });
+-  } catch (e) {
+-    res.status(500).json({ error: e.message });
+-  }
+-});
+-
+-// GET /api/whatsapp/embedded-config — datos públicos para iniciar el Embedded Signup
+-router.get('/embedded-config', async (req, res) => {
+-  res.json({
+-    appId: process.env.META_APP_ID || null,
+-    configId: process.env.META_CONFIG_ID || null,
+-    graphVersion: process.env.META_WA_VERSION || 'v19.0',
+-    ready: !!(process.env.META_APP_ID && process.env.META_CONFIG_ID && process.env.META_APP_SECRET),
+-  });
+-});
+-
+-// POST /api/whatsapp/embedded-signup — recibe el code + IDs del Embedded Signup
+-// Body: { code, phoneNumberId, wabaId }
+-router.post('/embedded-signup', async (req, res) => {
+-  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede conectar WhatsApp' });
+-  const { code, phoneNumberId, wabaId } = req.body || {};
+-  if (!code || !phoneNumberId || !wabaId) {
+-    return res.status(400).json({ error: 'Faltan datos del registro (code, phoneNumberId, wabaId)' });
+-  }
+-  try {
+-    // 1) Intercambiar el code por un token de acceso del negocio
+-    const accessToken = await meta.exchangeCode(code);
+-    // 2) Suscribir la app a los webhooks de la WABA
+-    try { await meta.subscribeApp(wabaId, accessToken); } catch (e) { console.warn('[es] subscribeApp:', e.message); }
+-    // 3) Registrar el número (coexistence). Best-effort.
+-    try { await meta.registerPhone(phoneNumberId, accessToken); } catch (e) { console.warn('[es] register:', e.message); }
+-    // 4) Leer el número visible
+-    let display = null;
+-    try { const info = await meta.getPhoneInfo(phoneNumberId, accessToken); display = info?.display_phone_number || null; } catch (e) { console.warn('[es] phoneInfo:', e.message); }
+-    // 5) Guardar en el negocio
+-    await prisma.business.update({
+-      where: { id: req.user.businessId },
+-      data: { waPhoneId: phoneNumberId, waWabaId: wabaId, waToken: accessToken, waPhoneNumber: display },
+-    });
+-    res.json({ ok: true, phone: display });
+-  } catch (err) {
+-    console.error('[embedded-signup]', err.message);
+-    res.status(500).json({ error: err.message });
+-  }
+-});
+-
+-// POST /api/whatsapp/disconnect — desvincular el WhatsApp del negocio
+-router.post('/disconnect', async (req, res) => {
+-  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede desconectar' });
+-  try {
+-    await prisma.business.update({
+-      where: { id: req.user.businessId },
+-      data: { waPhoneId: null, waWabaId: null, waToken: null, waPhoneNumber: null },
+-    });
+-    res.json({ ok: true });
+-  } catch (err) {
+-    res.status(500).json({ error: err.message });
+-  }
++  } catch (e) { res.status(500).json({ error: e.message }); }
+ });
+ 
+ module.exports = router;
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index 7b9b16a..f749258 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -490,6 +490,8 @@ export default function Settings() {
+ // ── Automatización WhatsApp vía Meta Cloud API ───────────────────────────────
+ function WhatsAppAuto() {
+   const [status, setStatus] = useState(null);
++  const [qr, setQR] = useState(null);
++  const [connecting, setConnecting] = useState(false);
+   const [testPhone, setTestPhone] = useState('');
+   const [testMsg, setTestMsg] = useState('Hola! Este es un mensaje de prueba desde Gestumio 🌿');
+   const [testing, setTesting] = useState(false);
+@@ -498,106 +500,64 @@ function WhatsAppAuto() {
+   const [templates, setTemplates] = useState({ expiring: '', overdue: '', appointment: '' });
+   const [templatesLoaded, setTemplatesLoaded] = useState(false);
+   const [templatesSaved, setTemplatesSaved] = useState(false);
+-  const [esConfig, setEsConfig] = useState(null);
+-  const [connecting, setConnecting] = useState(false);
+-  const sessionInfoRef = useRef({ phoneNumberId: null, wabaId: null });
+ 
++  const state = status?.state || 'disconnected';
++  const connected = state === 'connected';
++
++  // Polling de estado cada 3s
+   useEffect(() => {
+-    api.get('/whatsapp/status').then(r => setStatus(r.data)).catch(() => {});
+-    api.get('/whatsapp/embedded-config').then(r => setEsConfig(r.data)).catch(() => {});
+-    // Cargar SDK de Facebook (Embedded Signup)
+-    if (!document.getElementById('fb-sdk')) {
+-      const sc = document.createElement('script');
+-      sc.id = 'fb-sdk'; sc.async = true; sc.defer = true; sc.crossOrigin = 'anonymous';
+-      sc.src = 'https://connect.facebook.net/en_US/sdk.js';
+-      document.body.appendChild(sc);
+-    }
+-    // Capturar phone_number_id + waba_id del popup de Embedded Signup
+-    function onMessage(ev) {
+-      let host = '';
+-      try { host = new URL(ev.origin).hostname; } catch (_) { return; }
+-      if (!/(^|\.)facebook\.com$/.test(host)) return;
+-      try {
+-        const data = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+-        if (data && data.type === 'WA_EMBEDDED_SIGNUP' && data.data) {
+-          sessionInfoRef.current = {
+-            phoneNumberId: data.data.phone_number_id || null,
+-            wabaId: data.data.waba_id || null,
+-          };
+-        }
+-      } catch (_) {}
+-    }
+-    window.addEventListener('message', onMessage);
+-    return () => window.removeEventListener('message', onMessage);
++    let stop = false;
++    function poll() { api.get('/whatsapp/status').then(r => { if (!stop) setStatus(r.data); }).catch(() => {}); }
++    poll();
++    const iv = setInterval(poll, 3000);
++    return () => { stop = true; clearInterval(iv); };
+   }, []);
+ 
+-  // Inicializar FB SDK cuando tengamos la config
++  // Cuando conecta, limpiar QR; cargar plantillas
+   useEffect(() => {
+-    if (!esConfig?.appId) return;
+-    const init = () => { try { window.FB.init({ appId: esConfig.appId, cookie: true, xfbml: false, version: esConfig.graphVersion || 'v19.0' }); } catch (_) {} };
+-    if (window.FB) init();
+-    else window.fbAsyncInit = init;
+-  }, [esConfig]);
+-
+-  const connected = status?.connected;
++    if (connected) {
++      setQR(null);
++      if (!templatesLoaded) {
++        api.get('/whatsapp/templates').then(r => { setTemplates(r.data); setTemplatesLoaded(true); }).catch(() => {});
++      }
++    }
++  }, [connected, templatesLoaded]);
+ 
+-  function handleConnect() {
+-    if (!esConfig?.ready || !esConfig?.configId) { setFeedback('❌ La conexión de WhatsApp aún no está disponible. Escribinos.'); return; }
+-    if (!window.FB) { setFeedback('❌ No cargó el conector de Meta. Recargá la página.'); return; }
++  // Mientras esperamos el escaneo, refrescar el QR periódicamente
++  useEffect(() => {
++    if (connected || !qr) return;
++    const iv = setInterval(() => {
++      api.get('/whatsapp/qr').then(r => setQR(r.data.qr)).catch(() => {});
++    }, 20000);
++    return () => clearInterval(iv);
++  }, [qr, connected]);
++
++  async function handleConnect() {
+     setConnecting(true); setFeedback('');
+-    sessionInfoRef.current = { phoneNumberId: null, wabaId: null };
+-    window.FB.login((response) => {
+-      (async () => {
+-        try {
+-          const code = response && response.authResponse && response.authResponse.code;
+-          const { phoneNumberId, wabaId } = sessionInfoRef.current || {};
+-          if (!code) { setFeedback('Conexión cancelada.'); setConnecting(false); return; }
+-          if (!phoneNumberId || !wabaId) { setFeedback('❌ No se recibió el número. Reintentá el registro.'); setConnecting(false); return; }
+-          const r = await api.post('/whatsapp/embedded-signup', { code, phoneNumberId, wabaId });
+-          setFeedback('✅ WhatsApp conectado' + (r.data.phone ? ` (${r.data.phone})` : ''));
+-          const st = await api.get('/whatsapp/status');
+-          setStatus(st.data);
+-        } catch (e) {
+-          setFeedback('❌ ' + (e.response?.data?.error || e.message));
+-        } finally { setConnecting(false); }
+-      })();
+-    }, {
+-      config_id: esConfig.configId,
+-      response_type: 'code',
+-      override_default_response_type: true,
+-      extras: { setup: {}, featureType: 'whatsapp_business_app_onboarding', sessionInfoVersion: '3' },
+-    });
++    try {
++      const r = await api.post('/whatsapp/connect');
++      if (r.data.qr) setQR(r.data.qr);
++      else { const q = await api.get('/whatsapp/qr').catch(() => null); if (q) setQR(q.data.qr); }
++    } catch (e) {
++      setFeedback('❌ ' + (e.response?.data?.error || e.message));
++    } finally { setConnecting(false); }
+   }
+ 
+-  async function handleDisconnect() {
++  async function handleLogout() {
+     if (!confirm('¿Desconectar WhatsApp de este negocio?')) return;
+     try {
+-      await api.post('/whatsapp/disconnect');
+-      const st = await api.get('/whatsapp/status');
+-      setStatus(st.data);
++      await api.post('/whatsapp/logout');
++      setQR(null);
++      const st = await api.get('/whatsapp/status'); setStatus(st.data);
+       setFeedback('WhatsApp desconectado.');
+-    } catch (e) {
+-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+-    }
++    } catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
+   }
+ 
+-  useEffect(() => {
+-    if (connected && !templatesLoaded) {
+-      api.get('/whatsapp/templates').then(r => {
+-        setTemplates(r.data);
+-        setTemplatesLoaded(true);
+-      }).catch(() => {});
+-    }
+-  }, [connected, templatesLoaded]);
+-
+   async function handleSaveTemplates() {
+     try {
+       await api.put('/whatsapp/templates', templates);
+-      setTemplatesSaved(true);
+-      setTimeout(() => setTemplatesSaved(false), 2000);
+-    } catch (e) {
+-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+-    }
++      setTemplatesSaved(true); setTimeout(() => setTemplatesSaved(false), 2000);
++    } catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
+   }
+ 
+   async function handleTest() {
+@@ -606,9 +566,8 @@ function WhatsAppAuto() {
+     try {
+       await api.post('/whatsapp/test', { phone: testPhone, message: testMsg });
+       setFeedback('✅ Mensaje enviado correctamente');
+-    } catch (e) {
+-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+-    } finally { setTesting(false); }
++    } catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
++    finally { setTesting(false); }
+   }
+ 
+   async function handleRunNow() {
+@@ -616,167 +575,115 @@ function WhatsAppAuto() {
+     try {
+       await api.post('/whatsapp/run-reminders');
+       setFeedback('✅ Barrido iniciado en background');
+-    } catch (e) {
+-      setFeedback('❌ ' + (e.response?.data?.error || e.message));
+-    } finally { setRunning(false); }
++    } catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
++    finally { setRunning(false); }
+   }
+ 
+-  const stateColor = connected ? '#22c55e' : '#ef4444';
+-  const stateLabel = connected ? 'Conectado (API oficial)' : 'Sin número asignado';
++  const notConfigured = status && status.configured === false;
++  const stateColor = connected ? '#22c55e' : (state === 'connecting' ? '#f59e0b' : '#ef4444');
++  const stateLabel = connected ? 'Conectado' : (state === 'connecting' ? 'Conectando...' : 'Desconectado');
+ 
+   return (
+     <div className="card" style={{ marginTop: 24 }}>
+       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+         <span style={{ fontSize: 28 }}>🤖</span>
+         <div>
+-          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>WhatsApp (API oficial de Meta)</h2>
++          <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Conexión de WhatsApp</h2>
+           <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
+-            Enviá recordatorios y comprobantes a tus clientes desde tu número oficial de WhatsApp Business.
++            Vinculá tu WhatsApp para enviar recordatorios y comprobantes. Podés seguir usándolo en tu celular.
+           </p>
+         </div>
+         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+-          <span style={{
+-            display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+-            background: stateColor, boxShadow: `0 0 0 2px ${stateColor}33`,
+-          }} />
++          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: stateColor, boxShadow: `0 0 0 2px ${stateColor}33` }} />
+           <span style={{ fontSize: 13, fontWeight: 600 }}>{stateLabel}</span>
+         </div>
+       </div>
+ 
+-      {!connected && (
+-        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+-          <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
+-            Conectá tu WhatsApp Business para enviar recordatorios y comprobantes desde tu propio número.
+-            Vas a poder seguir usándolo normalmente en tu celular.
+-          </p>
+-          <button className="btn btn-primary" onClick={handleConnect} disabled={connecting || !esConfig?.ready}>
+-            {connecting ? 'Conectando...' : '📱 Conectar WhatsApp'}
+-          </button>
+-          {esConfig && !esConfig.ready && (
+-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>
+-              La conexión todavía no está habilitada en el servidor. Escribinos para activarla.
+-            </p>
++      {notConfigured && (
++        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: 14, fontSize: 13, color: '#92400e' }}>
++          La conexión de WhatsApp todavía no está habilitada en el servidor. Escribinos para activarla.
++        </div>
++      )}
++
++      {!notConfigured && !connected && (
++        <div style={{ textAlign: 'center', padding: '16px 0' }}>
++          {!qr && (
++            <>
++              <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginBottom: 16 }}>
++                Conectá tu WhatsApp para enviar recordatorios y comprobantes a tus clientes.
++              </p>
++              <button className="btn btn-primary" onClick={handleConnect} disabled={connecting}>
++                {connecting ? 'Generando QR...' : '📱 Conectar WhatsApp'}
++              </button>
++            </>
++          )}
++          {qr && (
++            <div>
++              <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>📱 Escaneá este código QR</p>
++              <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
++                WhatsApp → Dispositivos vinculados → Vincular dispositivo
++              </p>
++              <img src={qr} alt="QR WhatsApp" style={{ width: 240, height: 240, borderRadius: 12, border: '2px solid var(--border)' }} />
++              <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>El QR se renueva automáticamente.</p>
++            </div>
+           )}
+         </div>
+       )}
+ 
+       {connected && (
+         <>
+-          <div style={{
+-            background: '#f0fdf4', border: '1px solid #bbf7d0',
+-            borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534',
+-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+-          }}>
+-            <span>✅ WhatsApp habilitado{status?.phone ? ` (${status.phone})` : ''} con la API oficial. Listo para enviar recordatorios y comprobantes.</span>
+-            <button onClick={handleDisconnect}
+-              style={{ background: 'none', border: '1px solid #16653444', color: '#166534', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+-              Desconectar
+-            </button>
++          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 13, color: '#166534', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
++            <span>✅ WhatsApp conectado. Listo para enviar recordatorios y comprobantes.</span>
++            <button onClick={handleLogout} style={{ background: 'none', border: '1px solid #16653444', color: '#166534', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>Desconectar</button>
+           </div>
+ 
+           <div style={{ marginBottom: 16 }}>
+             <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Probar envío</p>
+             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+-              <input
+-                value={testPhone}
+-                onChange={e => setTestPhone(e.target.value)}
+-                placeholder="Ej: 1123456789"
+-                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)',
+-                  fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }}
+-              />
++              <input value={testPhone} onChange={e => setTestPhone(e.target.value)} placeholder="Ej: 1123456789"
++                style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }} />
+             </div>
+-            <textarea
+-              value={testMsg}
+-              onChange={e => setTestMsg(e.target.value)}
+-              rows={2}
+-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)',
+-                fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical',
+-                boxSizing: 'border-box', marginBottom: 8 }}
+-            />
++            <textarea value={testMsg} onChange={e => setTestMsg(e.target.value)} rows={2}
++              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)', resize: 'vertical', boxSizing: 'border-box', marginBottom: 8 }} />
+             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+-              <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>
+-                {testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}
+-              </button>
+-              <button className="btn btn-secondary" onClick={handleRunNow} disabled={running}>
+-                {running ? 'Ejecutando...' : '🔔 Enviar recordatorios ahora'}
+-              </button>
++              <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>{testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}</button>
++              <button className="btn btn-secondary" onClick={handleRunNow} disabled={running}>{running ? 'Ejecutando...' : '🔔 Enviar recordatorios ahora'}</button>
+             </div>
+-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 8 }}>
+-              Nota: el texto libre solo llega si el cliente te escribió en las últimas 24hs. Los recordatorios
+-              automáticos usan las plantillas aprobadas por Meta.
+-            </p>
+           </div>
+         </>
+       )}
+ 
+-      {/* Plantillas de texto (para envíos dentro de la ventana de 24hs) */}
++      {/* Textos de los recordatorios automáticos */}
+       <div className="card" style={{ marginTop: 16 }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+-          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Textos de mensajes</h2>
+-          <button className="btn btn-primary btn-sm" onClick={handleSaveTemplates}>
+-            {templatesSaved ? '✓ Guardado' : 'Guardar'}
+-          </button>
++          <h2 style={{ fontSize: 16, margin: 0 }}>📋 Plantillas de mensajes automáticos</h2>
++          <button className="btn btn-primary btn-sm" onClick={handleSaveTemplates}>{templatesSaved ? '✓ Guardado' : 'Guardar'}</button>
+         </div>
+         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+-          Personalizá el texto de cada recordatorio para los envíos dentro de la ventana de 24hs.
+-          Dejá el campo vacío para usar el mensaje por defecto.
++          Personalizá el texto de cada recordatorio. Dejá el campo vacío para usar el mensaje por defecto.
+         </p>
+         {[
+-          {
+-            key: 'expiring',
+-            label: '📅 Cuota próxima a vencer',
+-            hint: 'Se envía 1, 3 y 7 días antes del vencimiento',
+-            vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}',
+-            def: 'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}',
+-          },
+-          {
+-            key: 'overdue',
+-            label: '⚠️ Cuota vencida',
+-            hint: 'Se envía el día después del vencimiento',
+-            vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}',
+-            def: 'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}',
+-          },
+-          {
+-            key: 'appointment',
+-            label: '📆 Recordatorio de turno',
+-            hint: 'Se envía un día antes del turno agendado',
+-            vars: '{nombre} {servicio} {hora} {fecha} {negocio}',
+-            def: 'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}',
+-          },
++          { key: 'expiring', label: '📅 Cuota próxima a vencer', hint: 'Se envía 1, 3 y 7 días antes del vencimiento', vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}', def: 'Hola {nombre}, te recordamos que tu cuota de {actividad} vence el {vencimiento}. ¡Muchas gracias! {negocio}' },
++          { key: 'overdue', label: '⚠️ Cuota vencida', hint: 'Se envía el día después del vencimiento', vars: '{nombre} {actividad} {vencimiento} {monto} {negocio}', def: 'Hola {nombre}, tu cuota de {actividad} venció el {vencimiento}. Por favor regularizá tu situación. {negocio}' },
++          { key: 'appointment', label: '📆 Recordatorio de turno', hint: 'Se envía un día antes del turno', vars: '{nombre} {servicio} {hora} {fecha} {negocio}', def: 'Hola {nombre}, te recordamos que tenés un turno de {servicio} mañana a las {hora}. ¡Te esperamos! {negocio}' },
+         ].map(({ key, label, hint, vars, def }) => (
+           <div key={key} style={{ marginBottom: 16 }}>
+             <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{label}</p>
+-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>
+-              {hint} · Variables: <code style={{ fontSize: 11 }}>{vars}</code>
+-            </p>
+-            <textarea
+-              rows={2}
+-              value={templates[key] || ''}
+-              onChange={e => setTemplates(t => ({ ...t, [key]: e.target.value }))}
+-              placeholder={def}
+-              style={{
+-                width: '100%', padding: '8px 10px', borderRadius: 8,
+-                border: '1px solid var(--border)', fontSize: 13, lineHeight: 1.5,
+-                resize: 'vertical', background: 'var(--surface)', color: 'var(--ink)',
+-                boxSizing: 'border-box',
+-              }}
+-            />
++            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 4 }}>{hint} · Variables: <code style={{ fontSize: 11 }}>{vars}</code></p>
++            <textarea rows={2} value={templates[key] || ''} onChange={e => setTemplates(t => ({ ...t, [key]: e.target.value }))} placeholder={def}
++              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, lineHeight: 1.5, resize: 'vertical', background: 'var(--surface)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+           </div>
+         ))}
+       </div>
+ 
+       {feedback && (
+-        <div style={{
+-          marginTop: 14, padding: '10px 14px', borderRadius: 8,
+-          background: feedback.startsWith('✅') ? '#f0fdf4' : '#fef2f2',
+-          color: feedback.startsWith('✅') ? '#166534' : '#991b1b',
+-          fontSize: 13, fontWeight: 500,
+-        }}>{feedback}</div>
++        <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: feedback.startsWith('✅') ? '#f0fdf4' : '#fef2f2', color: feedback.startsWith('✅') ? '#166534' : '#991b1b', fontSize: 13, fontWeight: 500 }}>{feedback}</div>
+       )}
+     </div>
+   );
+ }
+ 
++
+ function WhatsAppTemplates() {
+   const [templates, setTemplates] = useState(getTemplates);
+   const [editing, setEditing] = useState(null); // index being edited
