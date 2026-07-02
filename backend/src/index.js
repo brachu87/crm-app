@@ -111,6 +111,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 const PUBLIC_API_PATHS = [
   '/api/auth/',
   '/api/admin/',
+  '/api/portal/',
   '/api/billing/webhook',
   '/api/google-calendar/callback',
 ];
@@ -125,6 +126,7 @@ app.use('/api/', (req, res, next) => {
 const SUBSCRIPTION_EXEMPT = [
   '/api/auth/',
   '/api/admin/',
+  '/api/portal/',
   '/api/billing/',
   '/api/google-calendar/',
 ];
