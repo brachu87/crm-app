@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const prisma = require('../prisma');
-const { sendPasswordResetEmail } = require('../lib/mailer');
+const { sendPasswordResetEmail, sendWelcomeEmail } = require('../lib/mailer');
 
 const router = express.Router();
 
@@ -83,6 +83,9 @@ router.post('/register', async (req, res) => {
     const user = await prisma.user.create({
       data: { email: sEmail, password: hashedPassword, name: sName, role: 'owner', businessId: business.id },
     });
+
+    // Mail de bienvenida (no bloqueante)
+    sendWelcomeEmail({ toEmail: sEmail, toName: sName, businessName: sBusinessName }).catch(() => {});
 
     res.status(201).json({
       token: makeToken(user),
@@ -201,6 +204,10 @@ router.post('/google-register', async (req, res) => {
     } catch (_) { /* ignore */ }
 
     const newUser = await prisma.user.findUnique({ where: { email }, include: { business: true } });
+
+    // Mail de bienvenida (no bloqueante)
+    sendWelcomeEmail({ toEmail: email, toName: name || '', businessName }).catch(() => {});
+
     res.status(201).json({
       token: makeToken(newUser),
       user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, permissions: null },
