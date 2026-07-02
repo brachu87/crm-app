@@ -7,6 +7,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../prisma');
+let gcal = null; try { gcal = require('../lib/googleCalendar'); } catch (_) {}
 
 const router = express.Router();
 
@@ -114,6 +115,87 @@ router.post('/change-password', portalAuth, async (req, res) => {
     await prisma.client.update({ where: { id: req.socioId }, data: { portalPassword: await bcrypt.hash(newPassword, 10) } });
     res.json({ ok: true });
   } catch (e) { console.error('[portal-pass]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// Helper: businessId del socio
+async function socioBusinessId(clientId) {
+  const c = await prisma.client.findUnique({ where: { id: clientId }, select: { businessId: true } });
+  return c?.businessId || null;
+}
+
+// Suma minutos a "HH:MM" y devuelve "HH:MM"
+function addMinutes(hhmm, mins) {
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return hhmm;
+  const total = h * 60 + m + (mins || 0);
+  const nh = Math.floor((total % 1440) / 60);
+  const nm = total % 60;
+  return String(nh).padStart(2, '0') + ':' + String(nm).padStart(2, '0');
+}
+
+// GET /api/portal/services — servicios que el socio puede reservar
+router.get('/services', portalAuth, async (req, res) => {
+  try {
+    const businessId = await socioBusinessId(req.socioId);
+    if (!businessId) return res.status(404).json({ error: 'No encontrado' });
+    const services = await prisma.service.findMany({
+      where: { businessId, active: true },
+      select: { id: true, name: true, duration: true, price: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json(services);
+  } catch (e) { console.error('[portal-services]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// GET /api/portal/appointments — próximos turnos del socio
+router.get('/appointments', portalAuth, async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const appts = await prisma.appointment.findMany({
+      where: { clientId: req.socioId, date: { gte: today }, status: { in: ['scheduled'] } },
+      include: { service: { select: { name: true } } },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    });
+    res.json(appts.map(a => ({
+      id: a.id, date: a.date, startTime: a.startTime, endTime: a.endTime,
+      service: a.service?.name || 'Turno', status: a.status, price: a.price,
+    })));
+  } catch (e) { console.error('[portal-appts]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// POST /api/portal/appointments — reservar un turno de un servicio
+router.post('/appointments', portalAuth, async (req, res) => {
+  try {
+    const { serviceId, date, startTime } = req.body || {};
+    if (!serviceId || !date || !startTime) return res.status(400).json({ error: 'Elegí servicio, fecha y horario' });
+    const businessId = await socioBusinessId(req.socioId);
+    if (!businessId) return res.status(404).json({ error: 'No encontrado' });
+    const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true, price: true } });
+    if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
+    const endTime = addMinutes(startTime, service.duration || 60);
+    const appt = await prisma.appointment.create({
+      data: {
+        businessId, serviceId, clientId: req.socioId,
+        date, startTime, endTime,
+        price: service.price || 0,
+        status: 'scheduled', paymentStatus: 'pending',
+        notes: 'Reservado por el socio desde el portal',
+      },
+    });
+    if (gcal && gcal.syncAppointment) { try { gcal.syncAppointment(businessId, appt); } catch (_) {} }
+    res.status(201).json({ ok: true, id: appt.id });
+  } catch (e) { console.error('[portal-appt-create]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// POST /api/portal/appointments/:id/cancel — cancelar un turno propio
+router.post('/appointments/:id/cancel', portalAuth, async (req, res) => {
+  try {
+    const appt = await prisma.appointment.findFirst({ where: { id: req.params.id, clientId: req.socioId } });
+    if (!appt) return res.status(404).json({ error: 'Turno no encontrado' });
+    await prisma.appointment.update({ where: { id: appt.id }, data: { status: 'cancelled' } });
+    if (gcal && gcal.removeEvent && appt.gcalEventId) { try { gcal.removeEvent(appt.businessId, appt.gcalEventId); } catch (_) {} }
+    res.json({ ok: true });
+  } catch (e) { console.error('[portal-appt-cancel]', e.message); res.status(500).json({ error: 'Error' }); }
 });
 
 module.exports = router;

@@ -72,8 +72,18 @@ function PortalLogin({ onLogin }) {
 
 function PortalDashboard({ me, onLogout, onReload }) {
   const [showPass, setShowPass] = useState(false);
+  const [showReserva, setShowReserva] = useState(false);
+  const [appts, setAppts] = useState([]);
   const statusColor = { paid: '#16a34a', pending: '#d97706', overdue: '#dc2626' };
   const statusLabel = { paid: 'Al día', pending: 'Pendiente', overdue: 'Vencida' };
+
+  function loadAppts() { portalFetch('/appointments').then(setAppts).catch(() => {}); }
+  useEffect(() => { loadAppts(); }, []);
+
+  async function cancelAppt(id) {
+    if (!confirm('¿Cancelar este turno?')) return;
+    try { await portalFetch('/appointments/' + id + '/cancel', { method: 'POST' }); loadAppts(); } catch (_) {}
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#F1F5F9', fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif" }}>
@@ -115,12 +125,32 @@ function PortalDashboard({ me, onLogout, onReload }) {
           )}
         </div>
 
+        <div style={cardS}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h2 style={{ margin: 0, fontSize: 16 }}>Mis turnos</h2>
+            <button onClick={() => setShowReserva(true)} style={{ ...btn, padding: '8px 14px', fontSize: 13 }}>+ Reservar turno</button>
+          </div>
+          {appts.length === 0 ? (
+            <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>No tenés turnos reservados.</p>
+          ) : (
+            appts.map((a, i) => (
+              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < appts.length - 1 ? '1px solid #eef2f7' : 'none' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{a.service}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{fmtDate(a.date)} · {a.startTime}{a.endTime ? '–' + a.endTime : ''}{a.price ? ' · ' + fmtMoney(a.price) : ''}</div>
+                </div>
+                <button onClick={() => cancelAppt(a.id)} style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+              </div>
+            ))
+          )}
+        </div>
+
         <div style={{ textAlign: 'center', marginTop: 8 }}>
           <button onClick={() => setShowPass(true)} style={{ background: 'none', border: 'none', color: '#1BA84C', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Cambiar contraseña</button>
         </div>
-        <p style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 16 }}>Próximamente vas a poder reservar turnos desde acá.</p>
       </div>
 
+      {showReserva && <ReservarTurnoModal onClose={() => setShowReserva(false)} onDone={() => { setShowReserva(false); loadAppts(); }} />}
       {showPass && <ChangePasswordModal onClose={() => setShowPass(false)} onDone={() => { setShowPass(false); onReload(); }} />}
     </div>
   );
@@ -154,6 +184,50 @@ function ChangePasswordModal({ onClose, onDone }) {
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button type="button" onClick={onClose} style={{ ...btn, background: '#e2e8f0', color: '#334155', flex: 1 }}>Cancelar</button>
             <button type="submit" disabled={saving} style={{ ...btn, flex: 1 }}>{saving ? 'Guardando...' : 'Guardar'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ReservarTurnoModal({ onClose, onDone }) {
+  const [services, setServices] = useState([]);
+  const [form, setForm] = useState({ serviceId: '', date: new Date().toISOString().slice(0, 10), startTime: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { portalFetch('/services').then(setServices).catch(() => {}); }, []);
+
+  async function submit(e) {
+    e.preventDefault(); setError('');
+    if (!form.serviceId || !form.date || !form.startTime) return setError('Elegí servicio, fecha y horario');
+    setSaving(true);
+    try {
+      await portalFetch('/appointments', { method: 'POST', body: JSON.stringify(form) });
+      onDone();
+    } catch (err) { setError(err.message); } finally { setSaving(false); }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 100 }}>
+      <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: '100%', maxWidth: 380 }}>
+        <h2 style={{ margin: '0 0 12px', fontSize: 18 }}>Reservar turno</h2>
+        {error && <div style={{ background: '#fef2f2', color: '#991b1b', borderRadius: 8, padding: '8px 12px', fontSize: 13, marginBottom: 12 }}>{error}</div>}
+        {services.length === 0 && <p style={{ fontSize: 13, color: '#64748b' }}>El negocio todavía no cargó servicios para reservar.</p>}
+        <form onSubmit={submit}>
+          <label style={lbl}>Servicio</label>
+          <select style={inp} value={form.serviceId} onChange={(e) => setForm(f => ({ ...f, serviceId: e.target.value }))}>
+            <option value="">Elegí un servicio...</option>
+            {services.map(s => (<option key={s.id} value={s.id}>{s.name}{s.price ? ' — ' + fmtMoney(s.price) : ''}</option>))}
+          </select>
+          <label style={lbl}>Fecha</label>
+          <input style={inp} type="date" value={form.date} onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))} />
+          <label style={lbl}>Horario</label>
+          <input style={inp} type="time" value={form.startTime} onChange={(e) => setForm(f => ({ ...f, startTime: e.target.value }))} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button type="button" onClick={onClose} style={{ ...btn, background: '#e2e8f0', color: '#334155', flex: 1 }}>Cancelar</button>
+            <button type="submit" disabled={saving} style={{ ...btn, flex: 1 }}>{saving ? 'Reservando...' : 'Reservar'}</button>
           </div>
         </form>
       </div>

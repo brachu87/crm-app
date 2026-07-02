@@ -1,0 +1,207 @@
+diff --git a/backend/src/routes/portal.js b/backend/src/routes/portal.js
+index a8ed198..f3b89c6 100644
+--- a/backend/src/routes/portal.js
++++ b/backend/src/routes/portal.js
+@@ -7,6 +7,7 @@ const express = require('express');
+ const bcrypt = require('bcryptjs');
+ const jwt = require('jsonwebtoken');
+ const prisma = require('../prisma');
++let gcal = null; try { gcal = require('../lib/googleCalendar'); } catch (_) {}
+ 
+ const router = express.Router();
+ 
+@@ -116,4 +117,85 @@ router.post('/change-password', portalAuth, async (req, res) => {
+   } catch (e) { console.error('[portal-pass]', e.message); res.status(500).json({ error: 'Error' }); }
+ });
+ 
++// Helper: businessId del socio
++async function socioBusinessId(clientId) {
++  const c = await prisma.client.findUnique({ where: { id: clientId }, select: { businessId: true } });
++  return c?.businessId || null;
++}
++
++// Suma minutos a "HH:MM" y devuelve "HH:MM"
++function addMinutes(hhmm, mins) {
++  const [h, m] = String(hhmm || '').split(':').map(Number);
++  if (isNaN(h) || isNaN(m)) return hhmm;
++  const total = h * 60 + m + (mins || 0);
++  const nh = Math.floor((total % 1440) / 60);
++  const nm = total % 60;
++  return String(nh).padStart(2, '0') + ':' + String(nm).padStart(2, '0');
++}
++
++// GET /api/portal/services — servicios que el socio puede reservar
++router.get('/services', portalAuth, async (req, res) => {
++  try {
++    const businessId = await socioBusinessId(req.socioId);
++    if (!businessId) return res.status(404).json({ error: 'No encontrado' });
++    const services = await prisma.service.findMany({
++      where: { businessId, active: true },
++      select: { id: true, name: true, duration: true, price: true },
++      orderBy: { name: 'asc' },
++    });
++    res.json(services);
++  } catch (e) { console.error('[portal-services]', e.message); res.status(500).json({ error: 'Error' }); }
++});
++
++// GET /api/portal/appointments — próximos turnos del socio
++router.get('/appointments', portalAuth, async (req, res) => {
++  try {
++    const today = new Date().toISOString().slice(0, 10);
++    const appts = await prisma.appointment.findMany({
++      where: { clientId: req.socioId, date: { gte: today }, status: { in: ['scheduled'] } },
++      include: { service: { select: { name: true } } },
++      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
++    });
++    res.json(appts.map(a => ({
++      id: a.id, date: a.date, startTime: a.startTime, endTime: a.endTime,
++      service: a.service?.name || 'Turno', status: a.status, price: a.price,
++    })));
++  } catch (e) { console.error('[portal-appts]', e.message); res.status(500).json({ error: 'Error' }); }
++});
++
++// POST /api/portal/appointments — reservar un turno de un servicio
++router.post('/appointments', portalAuth, async (req, res) => {
++  try {
++    const { serviceId, date, startTime } = req.body || {};
++    if (!serviceId || !date || !startTime) return res.status(400).json({ error: 'Elegí servicio, fecha y horario' });
++    const businessId = await socioBusinessId(req.socioId);
++    if (!businessId) return res.status(404).json({ error: 'No encontrado' });
++    const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true, price: true } });
++    if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
++    const endTime = addMinutes(startTime, service.duration || 60);
++    const appt = await prisma.appointment.create({
++      data: {
++        businessId, serviceId, clientId: req.socioId,
++        date, startTime, endTime,
++        price: service.price || 0,
++        status: 'scheduled', paymentStatus: 'pending',
++        notes: 'Reservado por el socio desde el portal',
++      },
++    });
++    if (gcal && gcal.syncAppointment) { try { gcal.syncAppointment(businessId, appt); } catch (_) {} }
++    res.status(201).json({ ok: true, id: appt.id });
++  } catch (e) { console.error('[portal-appt-create]', e.message); res.status(500).json({ error: 'Error' }); }
++});
++
++// POST /api/portal/appointments/:id/cancel — cancelar un turno propio
++router.post('/appointments/:id/cancel', portalAuth, async (req, res) => {
++  try {
++    const appt = await prisma.appointment.findFirst({ where: { id: req.params.id, clientId: req.socioId } });
++    if (!appt) return res.status(404).json({ error: 'Turno no encontrado' });
++    await prisma.appointment.update({ where: { id: appt.id }, data: { status: 'cancelled' } });
++    if (gcal && gcal.removeEvent && appt.gcalEventId) { try { gcal.removeEvent(appt.businessId, appt.gcalEventId); } catch (_) {} }
++    res.json({ ok: true });
++  } catch (e) { console.error('[portal-appt-cancel]', e.message); res.status(500).json({ error: 'Error' }); }
++});
++
+ module.exports = router;
+diff --git a/frontend/src/portal/PortalApp.jsx b/frontend/src/portal/PortalApp.jsx
+index 909a885..52ec635 100644
+--- a/frontend/src/portal/PortalApp.jsx
++++ b/frontend/src/portal/PortalApp.jsx
+@@ -72,9 +72,19 @@ function PortalLogin({ onLogin }) {
+ 
+ function PortalDashboard({ me, onLogout, onReload }) {
+   const [showPass, setShowPass] = useState(false);
++  const [showReserva, setShowReserva] = useState(false);
++  const [appts, setAppts] = useState([]);
+   const statusColor = { paid: '#16a34a', pending: '#d97706', overdue: '#dc2626' };
+   const statusLabel = { paid: 'Al día', pending: 'Pendiente', overdue: 'Vencida' };
+ 
++  function loadAppts() { portalFetch('/appointments').then(setAppts).catch(() => {}); }
++  useEffect(() => { loadAppts(); }, []);
++
++  async function cancelAppt(id) {
++    if (!confirm('¿Cancelar este turno?')) return;
++    try { await portalFetch('/appointments/' + id + '/cancel', { method: 'POST' }); loadAppts(); } catch (_) {}
++  }
++
+   return (
+     <div style={{ minHeight: '100vh', background: '#F1F5F9', fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif" }}>
+       <div style={{ background: '#1E2A38', padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+@@ -115,12 +125,32 @@ function PortalDashboard({ me, onLogout, onReload }) {
+           )}
+         </div>
+ 
++        <div style={cardS}>
++          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
++            <h2 style={{ margin: 0, fontSize: 16 }}>Mis turnos</h2>
++            <button onClick={() => setShowReserva(true)} style={{ ...btn, padding: '8px 14px', fontSize: 13 }}>+ Reservar turno</button>
++          </div>
++          {appts.length === 0 ? (
++            <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>No tenés turnos reservados.</p>
++          ) : (
++            appts.map((a, i) => (
++              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < appts.length - 1 ? '1px solid #eef2f7' : 'none' }}>
++                <div>
++                  <div style={{ fontWeight: 600, fontSize: 14 }}>{a.service}</div>
++                  <div style={{ fontSize: 12, color: '#64748b' }}>{fmtDate(a.date)} · {a.startTime}{a.endTime ? '–' + a.endTime : ''}{a.price ? ' · ' + fmtMoney(a.price) : ''}</div>
++                </div>
++                <button onClick={() => cancelAppt(a.id)} style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
++              </div>
++            ))
++          )}
++        </div>
++
+         <div style={{ textAlign: 'center', marginTop: 8 }}>
+           <button onClick={() => setShowPass(true)} style={{ background: 'none', border: 'none', color: '#1BA84C', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>Cambiar contraseña</button>
+         </div>
+-        <p style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 16 }}>Próximamente vas a poder reservar turnos desde acá.</p>
+       </div>
+ 
++      {showReserva && <ReservarTurnoModal onClose={() => setShowReserva(false)} onDone={() => { setShowReserva(false); loadAppts(); }} />}
+       {showPass && <ChangePasswordModal onClose={() => setShowPass(false)} onDone={() => { setShowPass(false); onReload(); }} />}
+     </div>
+   );
+@@ -161,6 +191,50 @@ function ChangePasswordModal({ onClose, onDone }) {
+   );
+ }
+ 
++function ReservarTurnoModal({ onClose, onDone }) {
++  const [services, setServices] = useState([]);
++  const [form, setForm] = useState({ serviceId: '', date: new Date().toISOString().slice(0, 10), startTime: '' });
++  const [error, setError] = useState('');
++  const [saving, setSaving] = useState(false);
++
++  useEffect(() => { portalFetch('/services').then(setServices).catch(() => {}); }, []);
++
++  async function submit(e) {
++    e.preventDefault(); setError('');
++    if (!form.serviceId || !form.date || !form.startTime) return setError('Elegí servicio, fecha y horario');
++    setSaving(true);
++    try {
++      await portalFetch('/appointments', { method: 'POST', body: JSON.stringify(form) });
++      onDone();
++    } catch (err) { setError(err.message); } finally { setSaving(false); }
++  }
++
++  return (
++    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 100 }}>
++      <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: '100%', maxWidth: 380 }}>
++        <h2 style={{ margin: '0 0 12px', fontSize: 18 }}>Reservar turno</h2>
++        {error && <div style={{ background: '#fef2f2', color: '#991b1b', borderRadius: 8, padding: '8px 12px', fontSize: 13, marginBottom: 12 }}>{error}</div>}
++        {services.length === 0 && <p style={{ fontSize: 13, color: '#64748b' }}>El negocio todavía no cargó servicios para reservar.</p>}
++        <form onSubmit={submit}>
++          <label style={lbl}>Servicio</label>
++          <select style={inp} value={form.serviceId} onChange={(e) => setForm(f => ({ ...f, serviceId: e.target.value }))}>
++            <option value="">Elegí un servicio...</option>
++            {services.map(s => (<option key={s.id} value={s.id}>{s.name}{s.price ? ' — ' + fmtMoney(s.price) : ''}</option>))}
++          </select>
++          <label style={lbl}>Fecha</label>
++          <input style={inp} type="date" value={form.date} onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))} />
++          <label style={lbl}>Horario</label>
++          <input style={inp} type="time" value={form.startTime} onChange={(e) => setForm(f => ({ ...f, startTime: e.target.value }))} />
++          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
++            <button type="button" onClick={onClose} style={{ ...btn, background: '#e2e8f0', color: '#334155', flex: 1 }}>Cancelar</button>
++            <button type="submit" disabled={saving} style={{ ...btn, flex: 1 }}>{saving ? 'Reservando...' : 'Reservar'}</button>
++          </div>
++        </form>
++      </div>
++    </div>
++  );
++}
++
+ const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', margin: '10px 0 4px' };
+ const inp = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' };
+ const btn = { background: '#1BA84C', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 16px', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
