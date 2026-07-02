@@ -26,6 +26,7 @@ import Settings from './pages/Settings';
 import Sedes from './pages/Sedes';
 import Horarios from './pages/Horarios';
 import SocioPortal from './pages/SocioPortal';
+import PortalApp from './portal/PortalApp';
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -38,6 +39,10 @@ function PublicRoute({ children }) {
 }
 
 export default function App() {
+  // Subdominio del portal del socio (portal.gestumio.com) → app del portal
+  if (typeof window !== 'undefined' && window.location.hostname.startsWith('portal.')) {
+    return <PortalApp />;
+  }
   return (
     <ToastProvider>
     <BrowserRouter>
@@ -48,6 +53,7 @@ export default function App() {
           <Route path="/recuperar" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/restablecer" element={<ResetPassword />} />
           <Route path="/portal/:token" element={<SocioPortal />} />
+          <Route path="/socio" element={<PortalApp />} />
 
           <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
             <Route index element={<Dashboard />} />

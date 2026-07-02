@@ -7,6 +7,17 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+// Genera un número de socio único global (6 dígitos), reintentando ante colisión.
+async function generateMemberNumber() {
+  for (let i = 0; i < 12; i++) {
+    const n = String(Math.floor(100000 + Math.random() * 900000));
+    const exists = await prisma.client.findUnique({ where: { memberNumber: n }, select: { id: true } });
+    if (!exists) return n;
+  }
+  // fallback muy improbable
+  return String(Date.now()).slice(-8);
+}
+
 // GET /api/clients - lista todos los clientes del negocio
 router.get('/', async (req, res) => {
   try {
@@ -69,6 +80,15 @@ router.get('/:id', async (req, res) => {
 
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
 
+    // Asignar número de socio si todavía no tiene (para clientes viejos)
+    if (!client.memberNumber) {
+      try {
+        const mn = await generateMemberNumber();
+        await prisma.client.update({ where: { id: client.id }, data: { memberNumber: mn } });
+        client.memberNumber = mn;
+      } catch (_) {}
+    }
+
     // Exponer pagos aplanados y el estado/vencimiento de la última cuota,
     // manteniendo la forma que consume la ficha de cliente.
     client.enrollments = client.enrollments.map((e) => {
@@ -96,9 +116,11 @@ router.post('/', async (req, res) => {
   try {
     const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, cuit, responsableName, responsablePhone, globalDiscount } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    const memberNumber = await generateMemberNumber();
     const client = await prisma.client.create({
       data: {
         name,
+        memberNumber,
         phone: phone || null,
         email: email || null,
         notes: notes || null,

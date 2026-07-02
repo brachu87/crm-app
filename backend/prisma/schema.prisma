@@ -85,6 +85,8 @@ model Client {
   responsableName  String?
   responsablePhone String?
   globalDiscount   Float        @default(0)
+  memberNumber     String?      @unique   // número de socio (usuario del portal), único global
+  portalPassword   String?                // hash de la contraseña del portal (si no, usa el DNI)
   businessId       String
   business         Business     @relation(fields: [businessId], references: [id])
   enrollments      Enrollment[]

@@ -109,6 +109,14 @@ export default function ClientDetail() {
             <p className="page-subtitle">
               {client.phone || 'Sin teléfono'} {client.email ? `· ${client.email}` : ''}
             </p>
+            {client.memberNumber && (
+              <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 8, padding: '4px 10px' }}>
+                <span style={{ fontSize: 12, color: '#4338ca' }}>Socio N°</span>
+                <strong style={{ fontSize: 14, color: '#312e81', letterSpacing: '0.02em' }}>{client.memberNumber}</strong>
+                <button onClick={() => { navigator.clipboard?.writeText(client.memberNumber); }} title="Copiar" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#4338ca' }}>📋</button>
+                <span style={{ fontSize: 11, color: '#6366f1' }}>· para el portal (usuario = N° socio, contraseña = DNI)</span>
+              </div>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
