@@ -35,6 +35,9 @@ export default function ClientDetail() {
   const [savingNote, setSavingNote] = useState(false);
   const [account, setAccount] = useState(null);
   const [movModal, setMovModal] = useState(false);
+  const [showEnroll, setShowEnroll] = useState(false);
+  const [showAppt, setShowAppt] = useState(false);
+  const [showQuick, setShowQuick] = useState(false);
   const [editMontoEnrollment, setEditMontoEnrollment] = useState(null);
 
   function load() {
@@ -108,7 +111,10 @@ export default function ClientDetail() {
             </p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn-primary" onClick={() => setShowEnroll(true)}>+ Inscribir a actividad</button>
+          <button className="btn btn-secondary" onClick={() => setShowAppt(true)}>+ Agendar turno</button>
+          <button className="btn btn-secondary" onClick={() => setShowQuick(true)}>+ Ofrecer servicio</button>
           {can.cuenta && <button className="btn btn-secondary" onClick={() => setShowStatement(true)}>📄 Estado de cuenta</button>}
           <button className="btn btn-secondary" onClick={() => setShowEdit(true)}>Editar</button>
           <Link to="/clientes" className="btn btn-secondary">Volver</Link>
@@ -362,6 +368,15 @@ export default function ClientDetail() {
           onClose={() => setBonModal(null)}
           onSaved={() => { setBonModal(null); load(); }}
         />
+      )}
+      {showEnroll && (
+        <EnrollClientModal clientId={id} onClose={() => setShowEnroll(false)} onSaved={() => { setShowEnroll(false); load(); loadAccount(); }} />
+      )}
+      {showAppt && (
+        <AppointmentClientModal clientId={id} onClose={() => setShowAppt(false)} onSaved={() => { setShowAppt(false); load(); loadAccount(); }} />
+      )}
+      {showQuick && (
+        <QuickServiceModal clientId={id} onClose={() => setShowQuick(false)} onSaved={() => { setShowQuick(false); load(); loadAccount(); }} />
       )}
       {movModal && (
         <MovimientoModal
@@ -766,6 +781,188 @@ function MovimientoModal({ clientId, onClose, onSaved }) {
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Inscribir a una actividad ─────────────────────────────────────────────
+function EnrollClientModal({ clientId, onClose, onSaved }) {
+  const [activities, setActivities] = useState([]);
+  const [form, setForm] = useState({ activityId: '', amountDue: '', startDate: new Date().toISOString().slice(0, 10) });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => { api.get('/activities').then((r) => setActivities(r.data)).catch(() => {}); }, []);
+
+  function pickActivity(aid) {
+    const a = activities.find((x) => x.id === aid);
+    setForm((f) => ({ ...f, activityId: aid, amountDue: a ? String(a.price) : f.amountDue }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.activityId) return setError('Elegí una actividad');
+    setSaving(true); setError('');
+    try {
+      await api.post('/enrollments', {
+        clientId,
+        activityId: form.activityId,
+        amountDue: Number(form.amountDue) || 0,
+        startDate: form.startDate,
+      });
+      onSaved();
+    } catch (err) { setError(err.response?.data?.error || 'No se pudo inscribir'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <h2>Inscribir a una actividad</h2>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Actividad</label>
+            <select value={form.activityId} onChange={(e) => pickActivity(e.target.value)} required>
+              <option value="">Elegí una actividad...</option>
+              {activities.map((a) => (<option key={a.id} value={a.id}>{a.name} — ${Number(a.price).toLocaleString('es-AR')}</option>))}
+            </select>
+          </div>
+          <div className="two-col-grid">
+            <div className="field">
+              <label>Cuota mensual ($)</label>
+              <input type="number" min="0" step="0.01" value={form.amountDue} onChange={(e) => setForm((f) => ({ ...f, amountDue: e.target.value }))} required />
+            </div>
+            <div className="field">
+              <label>Fecha de inicio</label>
+              <input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
+            </div>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Inscribiendo...' : 'Inscribir'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Agendar un turno ──────────────────────────────────────────────────────
+function AppointmentClientModal({ clientId, onClose, onSaved }) {
+  const [services, setServices] = useState([]);
+  const [form, setForm] = useState({ serviceId: '', date: new Date().toISOString().slice(0, 10), startTime: '', endTime: '', price: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => { api.get('/services').then((r) => setServices(r.data)).catch(() => {}); }, []);
+
+  function pickService(sid) {
+    const s = services.find((x) => x.id === sid);
+    setForm((f) => ({ ...f, serviceId: sid, price: s ? String(s.price) : f.price }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.serviceId || !form.date || !form.startTime || !form.endTime) return setError('Completá servicio, fecha y horarios');
+    setSaving(true); setError('');
+    try {
+      await api.post('/appointments', {
+        serviceId: form.serviceId, clientId, date: form.date,
+        startTime: form.startTime, endTime: form.endTime, price: Number(form.price) || 0,
+      });
+      onSaved();
+    } catch (err) { setError(err.response?.data?.error || 'No se pudo agendar el turno'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <h2>Agendar turno</h2>
+        {error && <div className="error-banner">{error}</div>}
+        {services.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No tenés servicios cargados. Creá uno en la sección Servicios.</p>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Servicio</label>
+            <select value={form.serviceId} onChange={(e) => pickService(e.target.value)} required>
+              <option value="">Elegí un servicio...</option>
+              {services.map((s) => (<option key={s.id} value={s.id}>{s.name} — ${Number(s.price).toLocaleString('es-AR')}</option>))}
+            </select>
+          </div>
+          <div className="two-col-grid">
+            <div className="field"><label>Fecha</label><input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} required /></div>
+            <div className="field"><label>Precio ($)</label><input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} /></div>
+          </div>
+          <div className="two-col-grid">
+            <div className="field"><label>Desde</label><input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} required /></div>
+            <div className="field"><label>Hasta</label><input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} required /></div>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Agendando...' : 'Agendar turno'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Ofrecer un servicio (trabajo puntual, se cobra ahora) ──────────────────
+function QuickServiceModal({ clientId, onClose, onSaved }) {
+  const [services, setServices] = useState([]);
+  const [form, setForm] = useState({ serviceId: '', description: '', price: '', date: new Date().toISOString().slice(0, 10) });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => { api.get('/services').then((r) => setServices(r.data)).catch(() => {}); }, []);
+
+  function pickService(sid) {
+    const s = services.find((x) => x.id === sid);
+    setForm((f) => ({ ...f, serviceId: sid, description: s ? s.name : f.description, price: s ? String(s.price) : f.price }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.description || !form.price) return setError('Completá el servicio/descripción y el precio');
+    setSaving(true); setError('');
+    try {
+      await api.post('/appointments', {
+        isQuickWork: true, clientId,
+        description: form.description, price: Number(form.price) || 0, date: form.date,
+      });
+      onSaved();
+    } catch (err) { setError(err.response?.data?.error || 'No se pudo registrar el servicio'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+        <h2>Ofrecer servicio</h2>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>Servicio</label>
+            <select value={form.serviceId} onChange={(e) => pickService(e.target.value)}>
+              <option value="">Elegí un servicio (o escribí abajo)...</option>
+              {services.map((s) => (<option key={s.id} value={s.id}>{s.name} — ${Number(s.price).toLocaleString('es-AR')}</option>))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Descripción</label>
+            <input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Ej: Sesión, corte, consulta..." required />
+          </div>
+          <div className="two-col-grid">
+            <div className="field"><label>Precio ($)</label><input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} required /></div>
+            <div className="field"><label>Fecha</label><input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} /></div>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Registrar servicio'}</button>
           </div>
         </form>
       </div>

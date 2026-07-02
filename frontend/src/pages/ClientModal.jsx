@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 
@@ -35,6 +35,12 @@ export default function ClientModal({ client, onClose, onSaved }) {
   const [showExtra, setShowExtra] = useState(
     !!(client?.emergencyContact || client?.emergencyPhone || client?.medicalNotes)
   );
+  const [activities, setActivities] = useState([]);
+  const [assignActivityId, setAssignActivityId] = useState('');
+
+  useEffect(() => {
+    if (!isEdit) api.get('/activities').then((r) => setActivities(r.data)).catch(() => {});
+  }, [isEdit]);
 
   const age = getAge(form.birthday);
   const isMinor = age !== null && age < 18;
@@ -66,7 +72,19 @@ export default function ClientModal({ client, onClose, onSaved }) {
       if (isEdit) {
         await api.put(`/clients/${client.id}`, payload);
       } else {
-        await api.post('/clients', payload);
+        const res = await api.post('/clients', payload);
+        // Inscripción inmediata a una actividad (opcional)
+        if (assignActivityId && res?.data?.id) {
+          const act = activities.find((a) => a.id === assignActivityId);
+          try {
+            await api.post('/enrollments', {
+              clientId: res.data.id,
+              activityId: assignActivityId,
+              amountDue: act ? Number(act.price) || 0 : 0,
+              startDate: new Date().toISOString().slice(0, 10),
+            });
+          } catch (_) { /* si falla la inscripción, el cliente igual quedó creado */ }
+        }
       }
       toast(isEdit ? 'Cliente actualizado' : 'Cliente creado', 'success');
       onSaved();
@@ -174,6 +192,15 @@ export default function ClientModal({ client, onClose, onSaved }) {
                 <textarea rows="2" value={form.medicalNotes} onChange={(e) => update('medicalNotes', e.target.value)} placeholder="Alergias, condiciones, medicación..." />
               </div>
             </>
+          )}
+          {!isEdit && activities.length > 0 && (
+            <div className="field">
+              <label>Inscribir a una actividad (opcional)</label>
+              <select value={assignActivityId} onChange={(e) => setAssignActivityId(e.target.value)}>
+                <option value="">No inscribir por ahora</option>
+                {activities.map((a) => (<option key={a.id} value={a.id}>{a.name} — ${Number(a.price).toLocaleString('es-AR')}</option>))}
+              </select>
+            </div>
           )}
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
