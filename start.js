@@ -29,7 +29,7 @@ if (isPostgres) {
   // PostgreSQL: el esquema se crea/sincroniza desde schema.prisma (sin historial de migraciones).
   console.log('PostgreSQL detectado: sincronizando esquema con prisma db push...');
   try {
-    execSync('npx prisma db push --skip-generate', { cwd: backendDir, stdio: 'inherit' });
+    execSync('npx prisma db push --skip-generate --accept-data-loss', { cwd: backendDir, stdio: 'inherit' });
     console.log('Esquema PostgreSQL sincronizado.');
   } catch (e) {
     console.error('db push falló:', e.message);
