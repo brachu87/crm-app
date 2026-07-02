@@ -92,6 +92,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:16px">
       <span id="lastUpdated" style="color:#a8c5b5;font-size:12px"></span>
+      <button class="logout" onclick="testEmail()">✉ Probar mail</button>
       <button class="logout" onclick="loadAccounts()">↺ Actualizar</button>
       <button class="logout" onclick="doLogout()">Cerrar sesión</button>
     </div>
@@ -349,6 +350,21 @@ async function setExtra(id, n) {
   });
   if (r.ok) { loadAccounts(); }
   else { const e = await r.json().catch(()=>({})); alert('Error: ' + (e.error || 'no se pudo actualizar')); }
+}
+
+async function testEmail() {
+  const email = prompt('Enviar mail de prueba a:');
+  if (!email) return;
+  try {
+    const r = await fetch(API + '/admin/test-email', {
+      method: 'POST',
+      headers: { 'X-Admin-Secret': secret, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() })
+    });
+    const d = await r.json().catch(()=>({}));
+    if (r.ok) alert('✅ Mail enviado (desde ' + (d.from||'') + '). Revisá la bandeja y spam.');
+    else alert('❌ No se pudo enviar:\n\n' + (d.error || 'error desconocido'));
+  } catch (e) { alert('❌ Error de red: ' + e.message); }
 }
 
 async function deleteAccount(id, name) {

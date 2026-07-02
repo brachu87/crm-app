@@ -1,0 +1,90 @@
+diff --git a/backend/src/admin-panel.html b/backend/src/admin-panel.html
+index 919c168..f71fa0d 100644
+--- a/backend/src/admin-panel.html
++++ b/backend/src/admin-panel.html
+@@ -92,6 +92,7 @@
+     </div>
+     <div style="display:flex;align-items:center;gap:16px">
+       <span id="lastUpdated" style="color:#a8c5b5;font-size:12px"></span>
++      <button class="logout" onclick="testEmail()">✉ Probar mail</button>
+       <button class="logout" onclick="loadAccounts()">↺ Actualizar</button>
+       <button class="logout" onclick="doLogout()">Cerrar sesión</button>
+     </div>
+@@ -351,6 +352,21 @@ async function setExtra(id, n) {
+   else { const e = await r.json().catch(()=>({})); alert('Error: ' + (e.error || 'no se pudo actualizar')); }
+ }
+ 
++async function testEmail() {
++  const email = prompt('Enviar mail de prueba a:');
++  if (!email) return;
++  try {
++    const r = await fetch(API + '/admin/test-email', {
++      method: 'POST',
++      headers: { 'X-Admin-Secret': secret, 'Content-Type': 'application/json' },
++      body: JSON.stringify({ email: email.trim() })
++    });
++    const d = await r.json().catch(()=>({}));
++    if (r.ok) alert('✅ Mail enviado (desde ' + (d.from||'') + '). Revisá la bandeja y spam.');
++    else alert('❌ No se pudo enviar:\n\n' + (d.error || 'error desconocido'));
++  } catch (e) { alert('❌ Error de red: ' + e.message); }
++}
++
+ async function deleteAccount(id, name) {
+   if (!confirm(`¿Eliminar la cuenta "${name}" y todos sus datos? Esta acción no se puede deshacer.`)) return;
+   const r = await fetch(API + `/admin/accounts/${id}`, { method:'DELETE', headers:{'X-Admin-Secret':secret} });
+diff --git a/backend/src/lib/mailer.js b/backend/src/lib/mailer.js
+index 90b189e..dfe5954 100644
+--- a/backend/src/lib/mailer.js
++++ b/backend/src/lib/mailer.js
+@@ -184,4 +184,23 @@ async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
+   }
+ }
+ 
+-module.exports = { sendWelcomeEmail, sendPasswordResetEmail };
++// Envía un mail de prueba y devuelve el resultado (para diagnóstico desde el admin).
++async function sendTest(toEmail) {
++  const transporter = getTransporter();
++  if (!transporter) {
++    return { ok: false, reason: 'SMTP no configurado (faltan SMTP_HOST / SMTP_USER / SMTP_PASS, o GMAIL_*).' };
++  }
++  try {
++    await transporter.sendMail({
++      from: mailFrom(),
++      to: toEmail,
++      subject: 'Prueba de correo — Gestumio',
++      html: '<p>Este es un mail de prueba de Gestumio. Si lo recibís, el envío está funcionando ✅</p>',
++    });
++    return { ok: true, from: mailFrom() };
++  } catch (err) {
++    return { ok: false, reason: err.message };
++  }
++}
++
++module.exports = { sendWelcomeEmail, sendPasswordResetEmail, sendTest };
+diff --git a/backend/src/routes/admin.js b/backend/src/routes/admin.js
+index 7395ec8..ac9907f 100644
+--- a/backend/src/routes/admin.js
++++ b/backend/src/routes/admin.js
+@@ -1,5 +1,6 @@
+ const express = require('express');
+ const prisma = require('../prisma');
++const { sendTest } = require('../lib/mailer');
+ const router = express.Router();
+ 
+ const TRIAL_DAYS = 15;
+@@ -201,6 +202,15 @@ router.delete('/accounts/:id', adminAuth, async (req, res) => {
+   }
+ });
+ 
++// POST /api/admin/test-email — envía un mail de prueba (diagnóstico SMTP)
++router.post('/test-email', adminAuth, async (req, res) => {
++  const email = (req.body.email || '').toString().trim();
++  if (!email) return res.status(400).json({ error: 'Falta el email' });
++  const r = await sendTest(email);
++  if (r.ok) res.json({ ok: true, from: r.from });
++  else res.status(500).json({ error: r.reason });
++});
++
+ // ─── Migración de datos (SQLite -> PostgreSQL) ───────────────────────────────
+ // Orden de tablas respetando dependencias (padres antes que hijos).
+ const MIGRATION_MODELS = [

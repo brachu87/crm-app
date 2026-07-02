@@ -1,5 +1,6 @@
 const express = require('express');
 const prisma = require('../prisma');
+const { sendTest } = require('../lib/mailer');
 const router = express.Router();
 
 const TRIAL_DAYS = 15;
@@ -199,6 +200,15 @@ router.delete('/accounts/:id', adminAuth, async (req, res) => {
     console.error('Delete account error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// POST /api/admin/test-email — envía un mail de prueba (diagnóstico SMTP)
+router.post('/test-email', adminAuth, async (req, res) => {
+  const email = (req.body.email || '').toString().trim();
+  if (!email) return res.status(400).json({ error: 'Falta el email' });
+  const r = await sendTest(email);
+  if (r.ok) res.json({ ok: true, from: r.from });
+  else res.status(500).json({ error: r.reason });
 });
 
 // ─── Migración de datos (SQLite -> PostgreSQL) ───────────────────────────────

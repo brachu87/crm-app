@@ -184,4 +184,23 @@ async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
   }
 }
 
-module.exports = { sendWelcomeEmail, sendPasswordResetEmail };
+// Envía un mail de prueba y devuelve el resultado (para diagnóstico desde el admin).
+async function sendTest(toEmail) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    return { ok: false, reason: 'SMTP no configurado (faltan SMTP_HOST / SMTP_USER / SMTP_PASS, o GMAIL_*).' };
+  }
+  try {
+    await transporter.sendMail({
+      from: mailFrom(),
+      to: toEmail,
+      subject: 'Prueba de correo — Gestumio',
+      html: '<p>Este es un mail de prueba de Gestumio. Si lo recibís, el envío está funcionando ✅</p>',
+    });
+    return { ok: true, from: mailFrom() };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+}
+
+module.exports = { sendWelcomeEmail, sendPasswordResetEmail, sendTest };
