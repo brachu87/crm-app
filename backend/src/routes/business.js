@@ -87,11 +87,20 @@ router.get('/info', async (req, res) => {
 // PUT /api/business
 router.put('/', async (req, res) => {
   try {
-    const { name, category } = req.body;
+    const { name, category, phone, cuit, address, email, website, instagram } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'El nombre es requerido' });
+    const clean = (v) => (v == null || String(v).trim() === '' ? null : String(v).trim());
+    const data = { name: name.trim() };
+    if (category) data.category = category;
+    if (phone !== undefined)     data.phone = clean(phone);
+    if (cuit !== undefined)      data.cuit = clean(cuit);
+    if (address !== undefined)   data.address = clean(address);
+    if (email !== undefined)     data.email = clean(email);
+    if (website !== undefined)   data.website = clean(website);
+    if (instagram !== undefined) data.instagram = clean(instagram);
     const biz = await prisma.business.update({
       where: { id: req.user.businessId },
-      data: { name: name.trim(), ...(category ? { category } : {}) },
+      data,
     });
     res.json({
       id: biz.id,

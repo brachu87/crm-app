@@ -12,6 +12,11 @@ model Business {
   name      String
   category  String
   phone     String?
+  cuit      String?
+  address   String?
+  email     String?
+  website   String?
+  instagram String?
   createdAt DateTime @default(now())
 
   subscriptionStatus   String   @default("trial")
