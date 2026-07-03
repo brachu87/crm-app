@@ -57,5 +57,14 @@ if (isPostgres) {
   }
 }
 
-console.log('Iniciando servidor...');
-require('./backend/src/index.js');
+// Índices únicos (email/DNI por negocio) — defensa en profundidad, no bloqueante.
+(async () => {
+  try {
+    const ensureUniqueIndexes = require('./backend/scripts/ensure-unique-indexes');
+    await ensureUniqueIndexes();
+  } catch (e) {
+    console.error('ensure-unique-indexes falló (se continúa):', e.message);
+  }
+  console.log('Iniciando servidor...');
+  require('./backend/src/index.js');
+})();
