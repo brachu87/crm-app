@@ -208,6 +208,7 @@ function PortalDashboard({ me, onLogout, onReload }) {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{a.service}</div>
                     <div style={{ fontSize: 12, color: '#64748b' }}>{fmtDate(a.date)} · {a.startTime}{a.endTime ? '–' + a.endTime : ''}{a.price ? ' · ' + fmtMoney(a.price) : ''}</div>
+                    {a.status === 'pending' && <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginTop: 3 }}>⏳ Pendiente de confirmación</div>}
                   </div>
                   <button onClick={() => cancelAppt(a.id)} style={btnCancel}>Cancelar</button>
                 </div>

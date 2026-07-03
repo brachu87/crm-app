@@ -204,9 +204,29 @@ function ServiceModal({ service, employees, onClose, onSaved }) {
     if (isEdit) api.get(`/services/${service.id}/schedules`).then(r => setSchedules(r.data || [])).catch(() => {});
   }, [isEdit, service?.id]);
 
-  const addFranja = () => setSchedules(s => [...s, { dayOfWeek: 1, startTime: '09:00', endTime: '13:00' }]);
+  const [nuevaFranja, setNuevaFranja] = useState({ mode: 'LV', startTime: '09:00', endTime: '13:00' });
   const updFranja = (i, k, v) => setSchedules(s => s.map((f, idx) => idx === i ? { ...f, [k]: v } : f));
   const delFranja = (i) => setSchedules(s => s.filter((_, idx) => idx !== i));
+  function daysForMode(mode) {
+    if (mode === 'LV') return [1, 2, 3, 4, 5];
+    if (mode === 'LS') return [1, 2, 3, 4, 5, 6];
+    if (mode === 'ALL') return [0, 1, 2, 3, 4, 5, 6];
+    return [Number(mode)];
+  }
+  function addRango() {
+    if (!(nuevaFranja.startTime < nuevaFranja.endTime)) { setError('En los horarios, la hora de inicio debe ser menor a la de fin.'); return; }
+    setError('');
+    const dias = daysForMode(nuevaFranja.mode);
+    setSchedules(s => {
+      const next = [...s];
+      for (const d of dias) {
+        if (!next.some(f => Number(f.dayOfWeek) === d && f.startTime === nuevaFranja.startTime && f.endTime === nuevaFranja.endTime)) {
+          next.push({ dayOfWeek: d, startTime: nuevaFranja.startTime, endTime: nuevaFranja.endTime });
+        }
+      }
+      return next.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
+    });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -274,7 +294,25 @@ function ServiceModal({ service, employees, onClose, onSaved }) {
                 <button type="button" className="btn-danger-text" onClick={() => delFranja(i)} title="Quitar" style={{ flex: '0 0 auto' }}>✕</button>
               </div>
             ))}
-            <button type="button" className="btn btn-secondary btn-sm" onClick={addFranja} style={{ marginTop: 4 }}>+ Agregar franja</button>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--border)' }}>
+              <select value={nuevaFranja.mode} onChange={e => setNuevaFranja(n => ({ ...n, mode: e.target.value }))} style={{ flex: '1 1 150px' }}>
+                <option value="LV">Lunes a Viernes</option>
+                <option value="LS">Lunes a Sábado</option>
+                <option value="ALL">Todos los días</option>
+                <option disabled>──────────</option>
+                <option value="1">Lunes</option>
+                <option value="2">Martes</option>
+                <option value="3">Miércoles</option>
+                <option value="4">Jueves</option>
+                <option value="5">Viernes</option>
+                <option value="6">Sábado</option>
+                <option value="0">Domingo</option>
+              </select>
+              <input type="time" value={nuevaFranja.startTime} onChange={e => setNuevaFranja(n => ({ ...n, startTime: e.target.value }))} style={{ flex: '0 0 auto' }} />
+              <span style={{ color: 'var(--ink-soft)' }}>a</span>
+              <input type="time" value={nuevaFranja.endTime} onChange={e => setNuevaFranja(n => ({ ...n, endTime: e.target.value }))} style={{ flex: '0 0 auto' }} />
+              <button type="button" className="btn btn-secondary btn-sm" onClick={addRango} style={{ flex: '0 0 auto' }}>+ Agregar</button>
+            </div>
           </div>
 
           <div className="modal-actions">

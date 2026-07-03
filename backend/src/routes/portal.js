@@ -159,7 +159,7 @@ router.get('/appointments', portalAuth, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
     const appts = await prisma.appointment.findMany({
-      where: { clientId: req.socioId, date: { gte: today }, status: { in: ['scheduled'] } },
+      where: { clientId: req.socioId, date: { gte: today }, status: { in: ['scheduled', 'pending'] } },
       include: { service: { select: { name: true } } },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
@@ -307,12 +307,18 @@ router.post('/appointments', portalAuth, async (req, res) => {
         prisma.client.findUnique({ where: { id: req.socioId }, select: { name: true } }),
         prisma.service.findUnique({ where: { id: serviceId }, select: { name: true } }),
       ]);
-      if (biz && biz.phone && evo && evo.isConfigured && evo.isConfigured()) {
+      if (!evo || !evo.isConfigured || !evo.isConfigured()) {
+        console.log('[portal-appt] Aviso WA omitido: Evolution no configurada');
+      } else if (!biz || !biz.phone) {
+        console.log('[portal-appt] Aviso WA omitido: el negocio no tiene teléfono cargado (Ajustes → Datos del negocio)');
+      } else {
         const msg =
           `🔔 *Nuevo turno reservado*\n` +
           `${socio?.name || 'Un socio'} reservó *${svc?.name || 'un servicio'}* para el ${fmtDMY(date)} a las ${startTime}.\n\n` +
           `Respondé *SI ${confirmCode}* para confirmar o *NO ${confirmCode}* para rechazar.`;
-        evo.sendText(businessId, biz.phone, msg).catch(() => {});
+        evo.sendText(businessId, biz.phone, msg)
+          .then(() => console.log(`[portal-appt] Aviso WA enviado a ${biz.phone}`))
+          .catch((err) => console.error('[portal-appt] Error enviando aviso WA:', err.message));
       }
     } catch (_) { /* no bloquear la reserva por el aviso */ }
 
