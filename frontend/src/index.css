@@ -2116,3 +2116,21 @@ h2 { font-weight: 600; }
   .support-chat-launcher,
   .support-chat-panel { display: none !important; }
 }
+
+/* ── Responsive: reglas defensivas globales ──────────────────────
+   Aditivas y seguras: max-width nunca agranda, solo evita desbordes
+   de imágenes e inputs con ancho fijo en celulares chicos. */
+img { max-width: 100%; }
+
+@media (max-width: 600px) {
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  select,
+  textarea { max-width: 100%; }
+
+}
