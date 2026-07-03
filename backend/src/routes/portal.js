@@ -333,6 +333,28 @@ router.post('/appointments/:id/cancel', portalAuth, async (req, res) => {
     if (!appt) return res.status(404).json({ error: 'Turno no encontrado' });
     await prisma.appointment.update({ where: { id: appt.id }, data: { status: 'cancelled' } });
     if (gcal && gcal.removeEvent && appt.gcalEventId) { try { gcal.removeEvent(appt.businessId, appt.gcalEventId); } catch (_) {} }
+
+    // Aviso por WhatsApp al negocio: el socio canceló su turno. No bloquea.
+    try {
+      const [biz, socio, svc] = await Promise.all([
+        prisma.business.findUnique({ where: { id: appt.businessId }, select: { phone: true } }),
+        prisma.client.findUnique({ where: { id: req.socioId }, select: { name: true } }),
+        appt.serviceId ? prisma.service.findUnique({ where: { id: appt.serviceId }, select: { name: true } }) : Promise.resolve(null),
+      ]);
+      if (!evo || !evo.isConfigured || !evo.isConfigured()) {
+        console.log('[portal-appt-cancel] Aviso WA omitido: Evolution no configurada');
+      } else if (!biz || !biz.phone) {
+        console.log('[portal-appt-cancel] Aviso WA omitido: el negocio no tiene teléfono cargado');
+      } else {
+        const msg =
+          `🚫 *Turno cancelado por el socio*\n` +
+          `${socio?.name || 'Un socio'} canceló su turno de *${svc?.name || 'un servicio'}* del ${fmtDMY(appt.date)} a las ${appt.startTime}.`;
+        evo.sendText(appt.businessId, biz.phone, msg)
+          .then(() => console.log(`[portal-appt-cancel] Aviso WA enviado a ${biz.phone}`))
+          .catch((err) => console.error('[portal-appt-cancel] Error enviando aviso WA:', err.message));
+      }
+    } catch (_) { /* no bloquear la cancelación por el aviso */ }
+
     res.json({ ok: true });
   } catch (e) { console.error('[portal-appt-cancel]', e.message); res.status(500).json({ error: 'Error' }); }
 });
