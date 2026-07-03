@@ -281,43 +281,144 @@ function Field({ label, value }) {
   );
 }
 
+function ymd(dt) {
+  return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+}
+const DOW_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
 function ReservarTurnoModal({ onClose, onDone }) {
   const [services, setServices] = useState([]);
-  const [form, setForm] = useState({ serviceId: '', date: new Date().toISOString().slice(0, 10), startTime: '' });
+  const [serviceId, setServiceId] = useState('');
+  const [date, setDate] = useState('');
+  const [slots, setSlots] = useState(null);      // null = aún no cargó
+  const [selected, setSelected] = useState('');  // startTime elegido
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { portalFetch('/services').then(setServices).catch(() => {}); }, []);
 
-  async function submit(e) {
-    e.preventDefault(); setError('');
-    if (!form.serviceId || !form.date || !form.startTime) return setError('Elegí servicio, fecha y horario');
-    setSaving(true);
-    try { await portalFetch('/appointments', { method: 'POST', body: JSON.stringify(form) }); onDone(); }
-    catch (err) { setError(err.message); } finally { setSaving(false); }
+  const service = services.find(s => s.id === serviceId);
+  const serviceDays = service?.days || [];
+
+  // Próximos 21 días; habilitados solo los que el servicio atiende
+  const days = [];
+  { const base = new Date(); base.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 21; i++) {
+      const dt = new Date(base); dt.setDate(base.getDate() + i);
+      days.push({ str: ymd(dt), dow: dt.getDay(), dayNum: dt.getDate(), month: dt.getMonth(), enabled: serviceDays.includes(dt.getDay()) });
+    }
+  }
+
+  // Al elegir servicio, seleccionar el primer día disponible
+  useEffect(() => {
+    setSelected(''); setSlots(null);
+    if (!service) { setDate(''); return; }
+    const first = days.find(d => d.enabled);
+    setDate(first ? first.str : '');
+  }, [serviceId]); // eslint-disable-line
+
+  // Cargar disponibilidad al cambiar servicio o fecha
+  useEffect(() => {
+    if (!serviceId || !date) { setSlots(null); return; }
+    setLoadingSlots(true); setSelected('');
+    portalFetch('/availability?serviceId=' + encodeURIComponent(serviceId) + '&date=' + encodeURIComponent(date))
+      .then(r => setSlots(r.slots || []))
+      .catch(() => setSlots([]))
+      .finally(() => setLoadingSlots(false));
+  }, [serviceId, date]);
+
+  async function reservar() {
+    if (!serviceId || !date || !selected) return;
+    setSaving(true); setError('');
+    try {
+      await portalFetch('/appointments', { method: 'POST', body: JSON.stringify({ serviceId, date, startTime: selected }) });
+      onDone();
+    } catch (err) { setError(err.message); setSaving(false); }
   }
 
   return (
     <div style={overlay}>
-      <div style={modalBox}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 18 }}>Reservar turno</h2>
+      <div style={{ ...modalBox, maxWidth: 460 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>Reservar turno</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, lineHeight: 1, color: '#94a3b8', cursor: 'pointer' }}>×</button>
+        </div>
         {error && <div style={errBox}>{error}</div>}
         {services.length === 0 && <p style={{ fontSize: 13, color: '#64748b' }}>El negocio todavía no cargó servicios para reservar.</p>}
-        <form onSubmit={submit}>
-          <label style={lbl}>Servicio</label>
-          <select style={inp} value={form.serviceId} onChange={(e) => setForm(f => ({ ...f, serviceId: e.target.value }))}>
-            <option value="">Elegí un servicio...</option>
-            {services.map(s => (<option key={s.id} value={s.id}>{s.name}{s.price ? ' — ' + fmtMoney(s.price) : ''}</option>))}
-          </select>
-          <label style={lbl}>Fecha</label>
-          <input style={inp} type="date" value={form.date} onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))} />
-          <label style={lbl}>Horario</label>
-          <input style={inp} type="time" value={form.startTime} onChange={(e) => setForm(f => ({ ...f, startTime: e.target.value }))} />
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <button type="button" onClick={onClose} style={{ ...btn, background: '#e2e8f0', color: '#334155', flex: 1 }}>Cancelar</button>
-            <button type="submit" disabled={saving} style={{ ...btn, flex: 1 }}>{saving ? 'Reservando...' : 'Reservar'}</button>
-          </div>
-        </form>
+
+        <label style={lbl}>Servicio</label>
+        <select style={inp} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+          <option value="">Elegí un servicio...</option>
+          {services.map(s => (<option key={s.id} value={s.id}>{s.name}{s.price ? ' — ' + fmtMoney(s.price) : ''}</option>))}
+        </select>
+
+        {service && serviceDays.length === 0 && (
+          <p style={{ fontSize: 13, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', marginTop: 12 }}>
+            Este servicio todavía no tiene horarios de atención cargados. Pedile al negocio que los configure.
+          </p>
+        )}
+
+        {service && serviceDays.length > 0 && (
+          <>
+            <label style={lbl}>Día</label>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, WebkitOverflowScrolling: 'touch' }}>
+              {days.map(d => {
+                const active = d.str === date;
+                return (
+                  <button key={d.str} type="button" disabled={!d.enabled} onClick={() => setDate(d.str)}
+                    style={{
+                      flex: '0 0 auto', width: 54, padding: '8px 0', borderRadius: 10, cursor: d.enabled ? 'pointer' : 'not-allowed',
+                      border: active ? '2px solid #159B57' : '1px solid #e2e8f0',
+                      background: active ? '#ecfdf5' : (d.enabled ? '#fff' : '#f8fafc'),
+                      color: d.enabled ? '#1E2A38' : '#cbd5e1', textAlign: 'center',
+                    }}>
+                    <div style={{ fontSize: 11, fontWeight: 600 }}>{DOW_SHORT[d.dow]}</div>
+                    <div style={{ fontSize: 17, fontWeight: 800, lineHeight: 1.1 }}>{d.dayNum}</div>
+                    <div style={{ fontSize: 10, color: '#94a3b8' }}>{MONTH_SHORT[d.month]}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <label style={lbl}>Horario</label>
+            {loadingSlots ? (
+              <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0' }}>Cargando horarios...</p>
+            ) : !slots || slots.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0' }}>No hay turnos para este día.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 8, marginTop: 4 }}>
+                {slots.map(sl => {
+                  const isSel = selected === sl.startTime;
+                  return (
+                    <button key={sl.startTime} type="button" disabled={sl.occupied}
+                      onClick={() => setSelected(sl.startTime)}
+                      title={sl.occupied ? 'Ocupado' : sl.startTime + '–' + sl.endTime}
+                      style={{
+                        padding: '10px 4px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                        cursor: sl.occupied ? 'not-allowed' : 'pointer',
+                        border: isSel ? '2px solid #159B57' : '1px solid #e2e8f0',
+                        background: sl.occupied ? '#f1f5f9' : (isSel ? '#159B57' : '#fff'),
+                        color: sl.occupied ? '#94a3b8' : (isSel ? '#fff' : '#1E2A38'),
+                        textDecoration: sl.occupied ? 'line-through' : 'none',
+                      }}>
+                      {sl.startTime}
+                      {sl.occupied && <div style={{ fontSize: 9, fontWeight: 600, textDecoration: 'none' }}>ocupado</div>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+              <button type="button" onClick={onClose} style={{ ...btn, background: '#e2e8f0', color: '#334155', flex: 1 }}>Cancelar</button>
+              <button type="button" onClick={reservar} disabled={!selected || saving} style={{ ...btn, flex: 1, opacity: (!selected || saving) ? 0.6 : 1 }}>
+                {saving ? 'Reservando...' : selected ? ('Reservar ' + selected) : 'Elegí un horario'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

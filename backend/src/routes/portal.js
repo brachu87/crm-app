@@ -140,10 +140,16 @@ router.get('/services', portalAuth, async (req, res) => {
     if (!businessId) return res.status(404).json({ error: 'No encontrado' });
     const services = await prisma.service.findMany({
       where: { businessId, active: true },
-      select: { id: true, name: true, duration: true, price: true },
+      select: {
+        id: true, name: true, duration: true, price: true,
+        schedules: { where: { active: true }, select: { dayOfWeek: true } },
+      },
       orderBy: { name: 'asc' },
     });
-    res.json(services);
+    res.json(services.map(s => ({
+      id: s.id, name: s.name, duration: s.duration, price: s.price,
+      days: [...new Set((s.schedules || []).map(sc => sc.dayOfWeek))].sort((a, b) => a - b),
+    })));
   } catch (e) { console.error('[portal-services]', e.message); res.status(500).json({ error: 'Error' }); }
 });
 
@@ -163,6 +169,66 @@ router.get('/appointments', portalAuth, async (req, res) => {
   } catch (e) { console.error('[portal-appts]', e.message); res.status(500).json({ error: 'Error' }); }
 });
 
+// Día de semana (0=Dom..6=Sáb) de "YYYY-MM-DD" sin problemas de zona horaria
+function weekdayOf(dateStr) {
+  const [y, m, d] = String(dateStr || '').split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+function timesOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+// GET /api/portal/availability?serviceId=..&date=YYYY-MM-DD
+// Devuelve los turnos (slots) del servicio para esa fecha, marcando los ocupados.
+router.get('/availability', portalAuth, async (req, res) => {
+  try {
+    const { serviceId, date } = req.query || {};
+    if (!serviceId || !date) return res.status(400).json({ error: 'Faltan serviceId o date' });
+    const businessId = await socioBusinessId(req.socioId);
+    if (!businessId) return res.status(404).json({ error: 'No encontrado' });
+    const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true } });
+    if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
+
+    const dow = weekdayOf(date);
+    if (dow === null) return res.status(400).json({ error: 'Fecha inválida' });
+    const dur = service.duration || 60;
+
+    const schedules = await prisma.serviceSchedule.findMany({
+      where: { serviceId, businessId, active: true, dayOfWeek: dow },
+      orderBy: { startTime: 'asc' },
+    });
+
+    // Generar slots según cada franja y la duración del servicio
+    const slots = [];
+    const seen = new Set();
+    for (const sc of schedules) {
+      let start = sc.startTime;
+      while (true) {
+        const end = addMinutes(start, dur);
+        if (end > sc.endTime || end === start) break; // no entra un turno completo
+        if (!seen.has(start)) { seen.add(start); slots.push({ startTime: start, endTime: end }); }
+        start = end;
+      }
+    }
+    slots.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    // Turnos ya reservados de ese servicio en esa fecha
+    const taken = await prisma.appointment.findMany({
+      where: { businessId, serviceId, date, isQuickWork: false, status: { not: 'cancelled' } },
+      select: { startTime: true, endTime: true },
+    });
+
+    const result = slots.map(sl => ({
+      startTime: sl.startTime,
+      endTime: sl.endTime,
+      occupied: taken.some(t => timesOverlap(sl.startTime, sl.endTime, t.startTime, t.endTime)),
+    }));
+
+    res.json({ date, dayOfWeek: dow, duration: dur, slots: result });
+  } catch (e) { console.error('[portal-availability]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
 // POST /api/portal/appointments — reservar un turno de un servicio
 router.post('/appointments', portalAuth, async (req, res) => {
   try {
@@ -173,6 +239,27 @@ router.post('/appointments', portalAuth, async (req, res) => {
     const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true, price: true } });
     if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
     const endTime = addMinutes(startTime, service.duration || 60);
+
+    // Validar que el horario esté dentro de la agenda del servicio para ese día
+    const dow = weekdayOf(date);
+    const daySchedules = await prisma.serviceSchedule.findMany({
+      where: { serviceId, businessId, active: true, dayOfWeek: dow },
+      select: { startTime: true, endTime: true },
+    });
+    const dentroDeAgenda = daySchedules.some(sc => startTime >= sc.startTime && endTime <= sc.endTime);
+    if (!dentroDeAgenda)
+      return res.status(409).json({ error: 'Ese horario no está disponible para este servicio.' });
+
+    // Validar que no esté ya ocupado por otro turno del mismo servicio (uno por horario)
+    const yaOcupado = await prisma.appointment.findFirst({
+      where: {
+        businessId, serviceId, date, isQuickWork: false,
+        status: { not: 'cancelled' },
+        startTime: { lt: endTime }, endTime: { gt: startTime },
+      },
+    });
+    if (yaOcupado)
+      return res.status(409).json({ error: 'Ese horario ya fue reservado. Elegí otro.' });
 
     // Evitar turnos superpuestos del mismo socio
     const overlap = await prisma.appointment.findFirst({

@@ -196,15 +196,34 @@ function ServiceModal({ service, employees, onClose, onSaved }) {
   const [form, setForm] = useState({ name: service?.name || '', description: service?.description || '', duration: service?.duration || 60, price: service?.price || '', employeeId: service?.employeeId || '', active: service?.active ?? true });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [schedules, setSchedules] = useState([]);
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (isEdit) api.get(`/services/${service.id}/schedules`).then(r => setSchedules(r.data || [])).catch(() => {});
+  }, [isEdit, service?.id]);
+
+  const addFranja = () => setSchedules(s => [...s, { dayOfWeek: 1, startTime: '09:00', endTime: '13:00' }]);
+  const updFranja = (i, k, v) => setSchedules(s => s.map((f, idx) => idx === i ? { ...f, [k]: v } : f));
+  const delFranja = (i) => setSchedules(s => s.filter((_, idx) => idx !== i));
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true); setError('');
     try {
+      // Validar franjas
+      for (const f of schedules) {
+        if (!(f.startTime < f.endTime)) { setError('En los horarios, la hora de inicio debe ser menor a la de fin.'); setSaving(false); return; }
+      }
       const payload = { name: form.name, description: form.description || null, duration: parseInt(form.duration), price: parseFloat(form.price) || 0, employeeId: form.employeeId || null, ...(isEdit ? { active: form.active } : {}) };
+      let svcId = service?.id;
       if (isEdit) await api.put(`/services/${service.id}`, payload);
-      else await api.post('/services', payload);
+      else { const r = await api.post('/services', payload); svcId = r.data?.id; }
+      if (svcId) {
+        await api.put(`/services/${svcId}/schedules`, {
+          schedules: schedules.map(f => ({ dayOfWeek: Number(f.dayOfWeek), startTime: f.startTime, endTime: f.endTime })),
+        });
+      }
       onSaved();
     } catch (err) { setError(err.response?.data?.error || 'Error al guardar'); }
     finally { setSaving(false); }
@@ -236,6 +255,27 @@ function ServiceModal({ service, employees, onClose, onSaved }) {
           </div>
           {employees.length > 0 && <div className="field"><label>Prestador por defecto</label><select value={form.employeeId} onChange={e => update('employeeId', e.target.value)}><option value="">Sin asignar</option>{employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>}
           {isEdit && <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><label>Activo</label><input type="checkbox" checked={form.active} onChange={e => update('active', e.target.checked)} /></div>}
+
+          <div className="field">
+            <label>Horarios de atención (para reservas online)</label>
+            <span style={{ fontSize: 12, color: 'var(--ink-soft)', display: 'block', marginBottom: 8 }}>
+              Definí los días y la franja en que se ofrece este servicio. El portal del socio arma los turnos con la duración de arriba y marca los ocupados.
+            </span>
+            {schedules.length === 0 && <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 8 }}>Sin horarios: no se puede reservar online.</div>}
+            {schedules.map((f, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+                <select value={f.dayOfWeek} onChange={e => updFranja(i, 'dayOfWeek', Number(e.target.value))} style={{ flex: '1 1 120px' }}>
+                  {['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].map((d, idx) => <option key={idx} value={idx}>{d}</option>)}
+                </select>
+                <input type="time" value={f.startTime} onChange={e => updFranja(i, 'startTime', e.target.value)} style={{ flex: '0 0 auto' }} />
+                <span style={{ color: 'var(--ink-soft)' }}>a</span>
+                <input type="time" value={f.endTime} onChange={e => updFranja(i, 'endTime', e.target.value)} style={{ flex: '0 0 auto' }} />
+                <button type="button" className="btn-danger-text" onClick={() => delFranja(i)} title="Quitar" style={{ flex: '0 0 auto' }}>✕</button>
+              </div>
+            ))}
+            <button type="button" className="btn btn-secondary btn-sm" onClick={addFranja} style={{ marginTop: 4 }}>+ Agregar franja</button>
+          </div>
+
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear servicio'}</button>
