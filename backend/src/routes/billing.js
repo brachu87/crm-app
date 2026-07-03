@@ -7,8 +7,8 @@ const prisma = require('../prisma');
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
 const APP_URL = process.env.APP_URL || 'https://crm-app-production-0669.up.railway.app';
-const BASE_PRICE = 50000;       // plan base (incluye 3 usuarios)
-const EXTRA_USER_PRICE = 20000; // por cada usuario adicional
+const BASE_PRICE = 1;           // TEMPORAL (prueba MercadoPago): antes 50000. Restaurar a 50000 después de testear.
+const EXTRA_USER_PRICE = 0;     // TEMPORAL (prueba): antes 20000. Restaurar a 20000.
 const INCLUDED_USERS = 3;
 const PRICE = BASE_PRICE;        // compatibilidad
 const PLAN_DAYS = 30;
