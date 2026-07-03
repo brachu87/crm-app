@@ -461,6 +461,16 @@ runOverdueSweep();
 setInterval(runOverdueSweep, 1000 * 60 * 60); // cada hora
 setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada hora
 
+// ── Backups automáticos (snapshot lógico JSON al volumen, con rotación) ──
+const { runBackup, backupExistsToday } = require('./lib/backup');
+try {
+  const cron = require('node-cron');
+  cron.schedule('0 3 * * *', () => runBackup('cron-diario'), { timezone: 'UTC' });
+  console.log('[backup] Backup diario programado (03:00 UTC).');
+} catch (e) { console.warn('[backup] cron no disponible:', e.message); }
+// Backup al arrancar si todavía no hay uno de hoy (protege ante el db push --accept-data-loss del deploy).
+setTimeout(() => { try { if (!backupExistsToday()) runBackup('startup'); } catch (_) {} }, 20000);
+
 // Recordatorios por WhatsApp (Meta Cloud API) — envío manual desde la app.
 // startReminderCron(); // Barrido automático diario (desactivado; se dispara manualmente)
 
