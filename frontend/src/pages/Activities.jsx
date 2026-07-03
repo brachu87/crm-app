@@ -22,6 +22,7 @@ function calcEnd(startTime, duration) {
 
 // ── STATUS configs ────────────────────────────────────────────────────────────
 const STATUS_CFG = {
+  pending:   { label: 'Pendiente', color: '#d97706' },
   scheduled: { label: 'Agendado', color: '#6366f1' },
   completed:  { label: 'Completado', color: '#10b981' },
   cancelled:  { label: 'Cancelado', color: '#6b7280' },
@@ -358,7 +359,7 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [filter, setFilter] = useState('upcoming'); // upcoming | all | completed
+  const [filter, setFilter] = useState('upcoming'); // upcoming | pending | all | completed
 
   function load() {
     setLoading(true);
@@ -400,8 +401,10 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
   }
 
   const today = new Date().toISOString().split('T')[0];
+  const pendingCount = appointments.filter(a => a.status === 'pending').length;
   const filtered = appointments.filter(a => {
     if (filter === 'upcoming') return a.status === 'scheduled' && a.date >= today;
+    if (filter === 'pending') return a.status === 'pending';
     if (filter === 'completed') return a.status === 'completed';
     return true;
   });
@@ -421,7 +424,7 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
 
         {/* Filter tabs */}
         <div style={{ display: 'flex', gap: 2, padding: '12px 24px 0', borderBottom: '1px solid var(--border)' }}>
-          {[['upcoming','Próximos'],['all','Todos'],['completed','Completados']].map(([v, l]) => (
+          {[['upcoming','Próximos'],['pending', pendingCount ? `Pendientes (${pendingCount})` : 'Pendientes'],['all','Todos'],['completed','Completados']].map(([v, l]) => (
             <button key={v} onClick={() => setFilter(v)} style={{ padding: '6px 14px', borderRadius: '8px 8px 0 0', border: '1px solid', borderBottom: 'none', cursor: 'pointer', fontSize: 13, fontWeight: filter === v ? 700 : 400, background: filter === v ? 'var(--surface)' : 'var(--bg)', borderColor: filter === v ? 'var(--border)' : 'transparent', color: filter === v ? 'var(--primary)' : 'var(--muted)' }}>{l}</button>
           ))}
         </div>
@@ -446,6 +449,10 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
                 <span style={{ background: STATUS_CFG[a.status]?.color + '22', color: STATUS_CFG[a.status]?.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>{STATUS_CFG[a.status]?.label}</span>
                 <span style={{ background: PAY_CFG[a.paymentStatus]?.color + '22', color: PAY_CFG[a.paymentStatus]?.color, padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>{PAY_CFG[a.paymentStatus]?.label}</span>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {a.status === 'pending' && (<>
+                    <button className="btn btn-sm" style={{ background: '#16a34a', color: '#fff', borderColor: '#16a34a' }} onClick={() => updateAppt(a.id, { status: 'scheduled' })}>✓ Confirmar</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => updateAppt(a.id, { status: 'cancelled' })}>✗ Rechazar</button>
+                  </>)}
                   {a.status === 'scheduled' && (<>
                     <button className="btn btn-secondary btn-sm" onClick={() => updateAppt(a.id, { status: 'completed' })}>✅ Completar</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => updateAppt(a.id, { status: 'cancelled' })}>✗ Cancelar</button>

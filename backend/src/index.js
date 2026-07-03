@@ -115,6 +115,7 @@ const PUBLIC_API_PATHS = [
   '/api/portal/',
   '/api/billing/webhook',
   '/api/google-calendar/callback',
+  '/api/whatsapp/webhook',
 ];
 app.use('/api/', (req, res, next) => {
   const fullPath = '/api' + req.path;
@@ -130,6 +131,7 @@ const SUBSCRIPTION_EXEMPT = [
   '/api/portal/',
   '/api/billing/',
   '/api/google-calendar/',
+  '/api/whatsapp/webhook',
 ];
 app.use('/api/', (req, res, next) => {
   const fullPath = '/api' + req.path;

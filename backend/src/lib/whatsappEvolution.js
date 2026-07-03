@@ -42,6 +42,28 @@ async function req(method, path, body) {
   return data;
 }
 
+function webhookUrl() {
+  const base = (process.env.APP_URL || 'https://app.gestumio.com').replace(/\/$/, '');
+  return `${base}/api/whatsapp/webhook`;
+}
+
+// Configura el webhook de mensajes entrantes de la instancia (para confirmar turnos por respuesta).
+async function setWebhook(businessId) {
+  const name = instanceName(businessId);
+  const url = webhookUrl();
+  // Evolution v2
+  try {
+    return await req('POST', `/webhook/set/${name}`, {
+      webhook: { enabled: true, url, byEvents: false, base64: false, events: ['MESSAGES_UPSERT'] },
+    });
+  } catch (_) {
+    // Evolution v1 (formato anterior)
+    return req('POST', `/webhook/set/${name}`, {
+      url, webhook_by_events: false, events: ['MESSAGES_UPSERT'],
+    });
+  }
+}
+
 // Crea la instancia si no existe y devuelve el QR (base64) si aparece.
 async function connect(businessId) {
   const name = instanceName(businessId);
@@ -51,10 +73,12 @@ async function connect(businessId) {
       qrcode: true,
       integration: 'WHATSAPP-BAILEYS',
     });
+    try { await setWebhook(businessId); } catch (_) {}
     return { qr: r?.qrcode?.base64 || null };
   } catch (e) {
     // Si ya existe, pedimos el connect para traer el QR
     if (/already|exists|in use|already in use/i.test(e.message)) {
+      try { await setWebhook(businessId); } catch (_) {}
       return getQR(businessId);
     }
     throw e;
@@ -112,5 +136,5 @@ async function logout(businessId) {
 
 module.exports = {
   isConfigured, instanceName, normalizePhone,
-  connect, getQR, getState, sendText, sendDocument, logout,
+  connect, getQR, getState, sendText, sendDocument, logout, setWebhook, webhookUrl,
 };

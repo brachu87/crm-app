@@ -10,6 +10,88 @@ const PHOTOS_DIR = process.env.PHOTOS_DIR
 const prisma = require('../prisma');
 const { runReminders } = require('../lib/reminderCron');
 
+// ── Webhook de Evolution (mensajes entrantes) — PÚBLICO, sin auth ──────────
+// Confirma/rechaza turnos pendientes cuando el negocio responde "SI <code>" / "NO <code>".
+const gcal = require('../lib/googleCalendar');
+
+function stripAccents(x) { return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+
+function extractText(msg) {
+  if (!msg) return '';
+  return msg.conversation
+    || msg.extendedTextMessage?.text
+    || msg.ephemeralMessage?.message?.extendedTextMessage?.text
+    || msg.ephemeralMessage?.message?.conversation
+    || '';
+}
+
+router.post('/webhook', async (req, res) => {
+  // Siempre responder 200 para que Evolution no reintente.
+  try {
+    const body = req.body || {};
+    const instance = body.instance || body.instanceName || body.sender || '';
+    const businessId = String(instance).replace(/^gestumio_/, '');
+    if (!businessId) return res.json({ ok: true });
+
+    // data puede ser objeto o array
+    const items = Array.isArray(body.data) ? body.data : [body.data].filter(Boolean);
+    for (const it of items) {
+      const text = extractText(it?.message);
+      if (!text) continue;
+      const norm = stripAccents(text).trim().toUpperCase();
+      const m = norm.match(/^(SI|NO)\b\s*#?\s*(\d{3,6})?/);
+      if (!m) continue;
+      const decision = m[1];
+      const code = m[2] || null;
+
+      const where = { businessId, status: 'pending', isQuickWork: false };
+      if (code) where.confirmCode = code;
+      const appt = await prisma.appointment.findFirst({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: { service: { select: { name: true } }, client: { select: { phone: true, name: true } } },
+      });
+      if (!appt) continue;
+
+      const nuevoEstado = decision === 'SI' ? 'scheduled' : 'cancelled';
+      const updated = await prisma.appointment.update({
+        where: { id: appt.id },
+        data: { status: nuevoEstado, confirmCode: null },
+      });
+
+      // Sincronizar con Google Calendar si se confirmó
+      if (nuevoEstado === 'scheduled' && gcal && gcal.syncAppointment) {
+        try { gcal.syncAppointment(businessId, updated); } catch (_) {}
+      }
+
+      // Avisar al socio
+      try {
+        const svc = appt.service?.name || 'tu turno';
+        const fecha = (() => { const [y, mo, d] = String(appt.date).split('-'); return d ? `${d}/${mo}` : appt.date; })();
+        if (appt.client?.phone && evo.isConfigured()) {
+          const txt = nuevoEstado === 'scheduled'
+            ? `✅ Tu turno de ${svc} para el ${fecha} a las ${appt.startTime} fue *confirmado*. ¡Te esperamos!`
+            : `❌ Lamentablemente tu turno de ${svc} para el ${fecha} a las ${appt.startTime} no pudo confirmarse. Escribinos para reprogramar.`;
+          evo.sendText(businessId, appt.client.phone, txt).catch(() => {});
+        }
+      } catch (_) {}
+
+      // Confirmación al negocio (mismo chat)
+      try {
+        const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { phone: true } });
+        if (biz?.phone && evo.isConfigured()) {
+          const ack = nuevoEstado === 'scheduled' ? 'Turno confirmado ✅' : 'Turno rechazado ❌';
+          evo.sendText(businessId, biz.phone, ack).catch(() => {});
+        }
+      } catch (_) {}
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[wa-webhook]', e.message);
+    res.json({ ok: true });
+  }
+});
+
 router.use(authMiddleware);
 
 // GET /api/whatsapp/status

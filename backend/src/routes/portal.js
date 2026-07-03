@@ -7,6 +7,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../prisma');
+const evo = require('../lib/whatsappEvolution');
 let gcal = null; try { gcal = require('../lib/googleCalendar'); } catch (_) {}
 
 const router = express.Router();
@@ -229,6 +230,19 @@ router.get('/availability', portalAuth, async (req, res) => {
   } catch (e) { console.error('[portal-availability]', e.message); res.status(500).json({ error: 'Error' }); }
 });
 
+function fmtDMY(dateStr) {
+  const [y, m, d] = String(dateStr || '').split('-');
+  return d && m ? `${d}/${m}` : dateStr;
+}
+async function genConfirmCode(businessId) {
+  for (let i = 0; i < 8; i++) {
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    const dup = await prisma.appointment.findFirst({ where: { businessId, confirmCode: code, status: 'pending' } });
+    if (!dup) return code;
+  }
+  return String(Date.now()).slice(-4);
+}
+
 // POST /api/portal/appointments — reservar un turno de un servicio
 router.post('/appointments', portalAuth, async (req, res) => {
   try {
@@ -274,17 +288,35 @@ router.post('/appointments', portalAuth, async (req, res) => {
     if (overlap)
       return res.status(409).json({ error: `Ya tenés un turno de ${overlap.startTime} a ${overlap.endTime} ese día.` });
 
+    const confirmCode = await genConfirmCode(businessId);
     const appt = await prisma.appointment.create({
       data: {
         businessId, serviceId, clientId: req.socioId,
         date, startTime, endTime,
         price: service.price || 0,
-        status: 'scheduled', paymentStatus: 'pending',
-        notes: 'Reservado por el socio desde el portal',
+        status: 'pending', paymentStatus: 'pending',
+        confirmCode,
+        notes: 'Reservado por el socio desde el portal (pendiente de confirmación)',
       },
     });
-    if (gcal && gcal.syncAppointment) { try { gcal.syncAppointment(businessId, appt); } catch (_) {} }
-    res.status(201).json({ ok: true, id: appt.id });
+
+    // Aviso por WhatsApp al negocio (mismo número conectado). No bloquea la reserva.
+    try {
+      const [biz, socio, svc] = await Promise.all([
+        prisma.business.findUnique({ where: { id: businessId }, select: { phone: true } }),
+        prisma.client.findUnique({ where: { id: req.socioId }, select: { name: true } }),
+        prisma.service.findUnique({ where: { id: serviceId }, select: { name: true } }),
+      ]);
+      if (biz && biz.phone && evo && evo.isConfigured && evo.isConfigured()) {
+        const msg =
+          `🔔 *Nuevo turno reservado*\n` +
+          `${socio?.name || 'Un socio'} reservó *${svc?.name || 'un servicio'}* para el ${fmtDMY(date)} a las ${startTime}.\n\n` +
+          `Respondé *SI ${confirmCode}* para confirmar o *NO ${confirmCode}* para rechazar.`;
+        evo.sendText(businessId, biz.phone, msg).catch(() => {});
+      }
+    } catch (_) { /* no bloquear la reserva por el aviso */ }
+
+    res.status(201).json({ ok: true, id: appt.id, status: 'pending' });
   } catch (e) { console.error('[portal-appt-create]', e.message); res.status(500).json({ error: 'Error' }); }
 });
 

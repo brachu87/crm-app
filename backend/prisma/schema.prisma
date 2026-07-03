@@ -424,6 +424,7 @@ model Appointment {
   endTime       String    @default("")
   price         Float     @default(0)
   status        String    @default("scheduled")
+  confirmCode   String?   // código corto para confirmar/rechazar por WhatsApp
   paymentStatus String    @default("pending")
   paidAt        DateTime?
   notes         String?
