@@ -190,6 +190,7 @@ export default function Settings() {
     { id: 'usuarios',    label: '👥 Usuarios' },
     { id: 'whatsapp',    label: '💬 WhatsApp' },
     { id: 'calendar',    label: '📅 Calendar' },
+    ...(isOwner ? [{ id: 'reservas', label: '🗓️ Reservas online' }] : []),
     { id: 'facturacion', label: '💳 Facturación' },
   ];
 
@@ -450,6 +451,8 @@ export default function Settings() {
       )}
 
       {activeTab === 'calendar' && <GoogleCalendarCard />}
+
+      {activeTab === 'reservas' && isOwner && <ReservasOnlineCard />}
 
       {/* ── FACTURACIÓN ── */}
       {activeTab === 'facturacion' && (
@@ -1221,6 +1224,81 @@ function GoogleCalendarCard() {
           </div>
           <button className="btn btn-secondary" onClick={disconnect}>Desconectar</button>
         </>
+      )}
+    </div>
+  );
+}
+
+
+// ── Reservas online: qué servicios puede reservar el socio desde el portal ──
+function ReservasOnlineCard() {
+  const [services, setServices] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [savingId, setSavingId] = React.useState(null);
+
+  function load() {
+    setLoading(true);
+    api.get('/services').then(r => setServices(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+  }
+  React.useEffect(() => { load(); }, []);
+
+  async function toggle(svc) {
+    setSavingId(svc.id);
+    const next = !svc.onlineBooking;
+    // update optimista
+    setServices(list => list.map(s => s.id === svc.id ? { ...s, onlineBooking: next } : s));
+    try {
+      await api.put(`/services/${svc.id}`, { onlineBooking: next });
+    } catch (_) {
+      setServices(list => list.map(s => s.id === svc.id ? { ...s, onlineBooking: !next } : s));
+    } finally { setSavingId(null); }
+  }
+
+  const activos = services.filter(s => s.active !== false);
+
+  return (
+    <div className="card" style={{ padding: 20 }}>
+      <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Reservas online del socio</h2>
+      <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>
+        Elegí qué servicios pueden reservar tus clientes desde el portal. El socio solo verá los que actives acá
+        <strong> y</strong> que tengan horarios de atención cargados.
+      </p>
+
+      {loading ? (
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)' }}>Cargando servicios...</p>
+      ) : activos.length === 0 ? (
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)' }}>No hay servicios activos. Creá servicios en la sección Actividades/Servicios.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {activos.map(svc => {
+            const nFranjas = (svc.schedules || []).length;
+            const on = !!svc.onlineBooking;
+            return (
+              <div key={svc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', border: '1px solid var(--border)', borderRadius: 10, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{svc.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                    {svc.duration} min
+                    {on && nFranjas === 0 && <span style={{ color: '#b45309' }}> · ⚠ sin horarios cargados (no aparece)</span>}
+                    {on && nFranjas > 0 && <span style={{ color: '#15803d' }}> · {nFranjas} franja{nFranjas > 1 ? 's' : ''} horaria{nFranjas > 1 ? 's' : ''}</span>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => toggle(svc)}
+                  disabled={savingId === svc.id}
+                  aria-label={on ? 'Desactivar reserva online' : 'Activar reserva online'}
+                  style={{
+                    flexShrink: 0, background: on ? 'var(--primary)' : '#cbd5e1', border: 'none',
+                    borderRadius: 999, width: 46, height: 26, cursor: 'pointer', position: 'relative',
+                    padding: 0, transition: 'background .2s',
+                  }}
+                >
+                  <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 20, height: 20, background: '#fff', borderRadius: '50%', transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

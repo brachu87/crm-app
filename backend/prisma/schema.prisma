@@ -398,6 +398,7 @@ model Service {
   employeeId  String?
   employee    Employee? @relation(fields: [employeeId], references: [id])
   active      Boolean   @default(true)
+  onlineBooking Boolean @default(false)  // el socio puede reservar este servicio online
   createdAt   DateTime  @default(now())
   appointments Appointment[]
   schedules   ServiceSchedule[]

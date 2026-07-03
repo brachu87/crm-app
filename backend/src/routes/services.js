@@ -42,7 +42,7 @@ router.post('/', async (req, res) => {
 // PUT /api/services/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { name, description, duration, price, employeeId, active } = req.body;
+    const { name, description, duration, price, employeeId, active, onlineBooking } = req.body;
     const s = await prisma.service.update({
       where: { id: req.params.id },
       data: {
@@ -52,6 +52,7 @@ router.put('/:id', async (req, res) => {
         ...(price !== undefined && { price: parseFloat(price) }),
         ...(employeeId !== undefined && { employeeId: employeeId || null }),
         ...(active !== undefined && { active }),
+        ...(onlineBooking !== undefined && { onlineBooking: !!onlineBooking }),
       },
       include: { employee: { select: { id: true, name: true } } },
     });

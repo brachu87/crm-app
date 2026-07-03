@@ -139,7 +139,7 @@ router.get('/services', portalAuth, async (req, res) => {
     const businessId = await socioBusinessId(req.socioId);
     if (!businessId) return res.status(404).json({ error: 'No encontrado' });
     const services = await prisma.service.findMany({
-      where: { businessId, active: true },
+      where: { businessId, active: true, onlineBooking: true },
       select: {
         id: true, name: true, duration: true, price: true,
         schedules: { where: { active: true }, select: { dayOfWeek: true } },
@@ -187,8 +187,8 @@ router.get('/availability', portalAuth, async (req, res) => {
     if (!serviceId || !date) return res.status(400).json({ error: 'Faltan serviceId o date' });
     const businessId = await socioBusinessId(req.socioId);
     if (!businessId) return res.status(404).json({ error: 'No encontrado' });
-    const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true } });
-    if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
+    const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true, onlineBooking: true, active: true } });
+    if (!service || !service.active || !service.onlineBooking) return res.status(404).json({ error: 'Servicio no disponible' });
 
     const dow = weekdayOf(date);
     if (dow === null) return res.status(400).json({ error: 'Fecha inválida' });
@@ -236,8 +236,8 @@ router.post('/appointments', portalAuth, async (req, res) => {
     if (!serviceId || !date || !startTime) return res.status(400).json({ error: 'Elegí servicio, fecha y horario' });
     const businessId = await socioBusinessId(req.socioId);
     if (!businessId) return res.status(404).json({ error: 'No encontrado' });
-    const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true, price: true } });
-    if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
+    const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true, price: true, onlineBooking: true, active: true } });
+    if (!service || !service.active || !service.onlineBooking) return res.status(404).json({ error: 'Servicio no disponible para reserva online' });
     const endTime = addMinutes(startTime, service.duration || 60);
 
     // Validar que el horario esté dentro de la agenda del servicio para ese día
