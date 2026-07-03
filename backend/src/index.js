@@ -1,4 +1,5 @@
 require('dotenv').config();
+const Sentry = require('./instrument');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -462,6 +463,11 @@ setInterval(sweepExpiredTrials, 1000 * 60 * 60); // revisar trials vencidos cada
 
 // Recordatorios por WhatsApp (Meta Cloud API) — envío manual desde la app.
 // startReminderCron(); // Barrido automático diario (desactivado; se dispara manualmente)
+
+// Sentry: capturar errores de request que se propaguen a Express (después de las rutas).
+if (Sentry && process.env.SENTRY_DSN && typeof Sentry.setupExpressErrorHandler === 'function') {
+  try { Sentry.setupExpressErrorHandler(app); } catch (e) { console.warn('[sentry] error handler:', e.message); }
+}
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
