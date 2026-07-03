@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import confirmDialog from '../utils/confirm';
 import api from '../api/client';
 import AuthImage from '../components/AuthImage';
 import { useAuth } from '../context/AuthContext';
@@ -131,7 +132,7 @@ export default function Settings() {
   }
 
   async function deleteLogo() {
-    if (!window.confirm('¿Eliminar el logo del negocio?')) return;
+    if (!await confirmDialog('¿Eliminar el logo del negocio?')) return;
     try {
       await api.delete('/business/logo');
       setLogoTs(Date.now());
@@ -172,7 +173,7 @@ export default function Settings() {
   useEffect(load, []);
 
   async function deleteUser(id) {
-    if (!window.confirm('¿Eliminar este usuario?')) return;
+    if (!await confirmDialog('¿Eliminar este usuario?')) return;
     try {
       await api.delete(`/users/${id}`);
       setSuccess('Usuario eliminado');
@@ -544,7 +545,7 @@ function WhatsAppAuto() {
   }
 
   async function handleLogout() {
-    if (!confirm('¿Desconectar WhatsApp de este negocio?')) return;
+    if (!await confirmDialog('¿Desconectar WhatsApp de este negocio?')) return;
     try {
       await api.post('/whatsapp/logout');
       setQR(null);
@@ -700,8 +701,8 @@ function WhatsAppTemplates() {
     setEditing(null);
   }
 
-  function handleReset() {
-    if (!confirm('¿Restaurar todas las plantillas a los valores originales?')) return;
+  async function handleReset() {
+    if (!await confirmDialog('¿Restaurar todas las plantillas a los valores originales?')) return;
     setTemplates(DEFAULT_TEMPLATES);
     localStorage.removeItem('wa_templates');
     setSaved(true);
@@ -1179,7 +1180,7 @@ function GoogleCalendarCard() {
     }
   }
   async function disconnect() {
-    if (!confirm('¿Desconectar Google Calendar? Los eventos ya creados quedan en Google.')) return;
+    if (!await confirmDialog('¿Desconectar Google Calendar? Los eventos ya creados quedan en Google.')) return;
     try { await api.post('/google-calendar/disconnect'); } finally { load(); }
   }
   async function toggle(key, val) {

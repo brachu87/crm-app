@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import confirmDialog from '../utils/confirm';
 import api from '../api/client'
 import { useSectionPerms } from '../config/permissions'
 
@@ -62,7 +63,7 @@ export default function Horarios() {
   }
 
   const del = async s => {
-    if (!window.confirm('¿Eliminar este horario?')) return
+    if (!await confirmDialog('¿Eliminar este horario?')) return
     await api.delete(`/schedules/${s.id}`)
     load()
   }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 import ImportModal from '../components/ImportModal';
 import { ExportMenu, ImportMenu } from '../lib/dataIO';
 import { useToast } from '../context/ToastContext';
@@ -27,7 +28,7 @@ export default function Suppliers() {
   useEffect(load, []);
 
   async function handleDelete(id) {
-    if (!confirm('¿Eliminar este proveedor?')) return;
+    if (!await confirmDialog('¿Eliminar este proveedor?')) return;
     await api.delete(`/suppliers/${id}`);
     load();
   }

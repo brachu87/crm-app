@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 
 const TOKEN_KEY = 'portal_token';
 function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
@@ -116,7 +117,7 @@ function PortalDashboard({ me, onLogout, onReload }) {
   useEffect(() => { loadAppts(); loadClasses(); }, []);
 
   async function cancelAppt(id) {
-    if (!confirm('¿Cancelar este turno?')) return;
+    if (!await confirmDialog('¿Cancelar este turno?')) return;
     try { await portalFetch('/appointments/' + id + '/cancel', { method: 'POST' }); loadAppts(); } catch (_) {}
   }
   async function reserveClass(id) {
@@ -125,7 +126,7 @@ function PortalDashboard({ me, onLogout, onReload }) {
     catch (e) { alert(e.message); } finally { setReserving(null); }
   }
   async function cancelClass(id) {
-    if (!confirm('¿Cancelar tu reserva de clase?')) return;
+    if (!await confirmDialog('¿Cancelar tu reserva de clase?')) return;
     try { await portalFetch('/class-reservations/' + id + '/cancel', { method: 'POST' }); loadClasses(); } catch (_) {}
   }
 

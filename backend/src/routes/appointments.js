@@ -73,6 +73,21 @@ router.post('/', async (req, res) => {
     // Regular appointment
     if (!serviceId || !clientId || !date || !startTime || !endTime)
       return res.status(400).json({ error: 'Faltan campos requeridos' });
+
+    // Evitar que el cliente quede con turnos superpuestos el mismo día
+    const overlap = await prisma.appointment.findFirst({
+      where: {
+        businessId: req.user.businessId,
+        clientId, date,
+        isQuickWork: false,
+        status: { not: 'cancelled' },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+    });
+    if (overlap)
+      return res.status(409).json({ error: `El cliente ya tiene un turno de ${overlap.startTime} a ${overlap.endTime} ese día. Elegí otro horario.` });
+
     const a = await prisma.appointment.create({
       data: {
         businessId: req.user.businessId,

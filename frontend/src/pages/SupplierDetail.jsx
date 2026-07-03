@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 
@@ -47,7 +48,7 @@ export default function SupplierDetail() {
   useEffect(() => { load(); }, [id]);
 
   async function handleDelete() {
-    if (!confirm('¿Eliminar este proveedor?')) return;
+    if (!await confirmDialog('¿Eliminar este proveedor?')) return;
     await api.delete(`/suppliers/${id}`);
     navigate('/proveedores');
   }

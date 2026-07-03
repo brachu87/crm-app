@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
@@ -35,7 +36,7 @@ export default function ActivityDetail() {
   useEffect(load, [id]);
 
   async function removeEnrollment(enrollmentId) {
-    if (!confirm('¿Quitar a este cliente de la actividad?')) return;
+    if (!await confirmDialog('¿Quitar a este cliente de la actividad?')) return;
     try {
       await api.delete(`/enrollments/${enrollmentId}`);
       load();

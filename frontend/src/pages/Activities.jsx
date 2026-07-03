@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { sendWA } from '../lib/waSend';
@@ -330,7 +331,7 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
     setAppointments(prev => prev.map(a => a.id === id ? res.data : a));
   }
   async function deleteAppt(id) {
-    if (!confirm('¿Eliminar este turno?')) return;
+    if (!await confirmDialog('¿Eliminar este turno?')) return;
     await api.delete(`/appointments/${id}`);
     setAppointments(prev => prev.filter(a => a.id !== id));
   }
@@ -576,7 +577,7 @@ export default function Activities() {
     setServices(prev => prev.map(s => s.id === svc.id ? { ...s, active: !s.active } : s));
   }
   async function deleteQuickWork(id) {
-    if (!window.confirm('¿Eliminar este trabajo registrado?')) return;
+    if (!await confirmDialog('¿Eliminar este trabajo registrado?')) return;
     await api.delete(`/appointments/${id}`);
     setQuickWorks(prev => prev.filter(w => w.id !== id));
   }

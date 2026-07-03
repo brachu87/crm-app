@@ -173,6 +173,20 @@ router.post('/appointments', portalAuth, async (req, res) => {
     const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true, price: true } });
     if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
     const endTime = addMinutes(startTime, service.duration || 60);
+
+    // Evitar turnos superpuestos del mismo socio
+    const overlap = await prisma.appointment.findFirst({
+      where: {
+        businessId, clientId: req.socioId, date,
+        isQuickWork: false,
+        status: { not: 'cancelled' },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+    });
+    if (overlap)
+      return res.status(409).json({ error: `Ya tenés un turno de ${overlap.startTime} a ${overlap.endTime} ese día.` });
+
     const appt = await prisma.appointment.create({
       data: {
         businessId, serviceId, clientId: req.socioId,

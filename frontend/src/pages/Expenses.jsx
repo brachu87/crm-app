@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
@@ -53,7 +54,7 @@ export default function Expenses() {
   useEffect(load, []);
 
   async function handleDelete(id) {
-    if (!confirm('¿Eliminar este gasto?')) return;
+    if (!await confirmDialog('¿Eliminar este gasto?')) return;
     await api.delete(`/expenses/${id}`);
     load();
   }
@@ -240,10 +241,10 @@ function ExpenseModal({ expense, suppliers = [], onClose, onSaved }) {
     setError('');
     setSaving(true);
     try {
-      const rawAmount = String(form.amount).replace(',', '.').replace(/[^0-9.]/g, '');
+      const rawAmount = String(form.amount).replace(',', '.').replace(/[^0-9.-]/g, '');
       const parsedAmount = parseFloat(rawAmount);
-      if (isNaN(parsedAmount) || parsedAmount < 0) {
-        setError('El monto ingresado no es válido');
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        setError('El monto debe ser un número mayor a 0');
         setSaving(false);
         return;
       }

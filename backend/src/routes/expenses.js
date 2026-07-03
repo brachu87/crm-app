@@ -77,6 +77,8 @@ router.post('/', async (req, res) => {
   try {
     const { amount, date, category, description, paymentMethod, supplierId } = req.body;
     if (!amount) return res.status(400).json({ error: 'El monto es obligatorio' });
+    const _amt = parseFloat(amount);
+    if (isNaN(_amt) || _amt <= 0) return res.status(400).json({ error: 'El monto debe ser un número mayor a 0' });
     if (!category) return res.status(400).json({ error: 'La categoría es obligatoria' });
 
     // Verify supplier belongs to this business
@@ -87,7 +89,7 @@ router.post('/', async (req, res) => {
 
     const expense = await prisma.expense.create({
       data: {
-        amount: parseFloat(amount),
+        amount: _amt,
         date: date ? new Date(date) : new Date(),
         category,
         description: description || null,
@@ -110,6 +112,11 @@ router.put('/:id', async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Gasto no encontrado' });
 
     const { amount, date, category, description, paymentMethod, supplierId } = req.body;
+
+    if (amount !== undefined) {
+      const _amt = parseFloat(amount);
+      if (isNaN(_amt) || _amt <= 0) return res.status(400).json({ error: 'El monto debe ser un número mayor a 0' });
+    }
 
     if (supplierId) {
       const sup = await prisma.supplier.findFirst({ where: { id: supplierId, businessId: req.user.businessId } });

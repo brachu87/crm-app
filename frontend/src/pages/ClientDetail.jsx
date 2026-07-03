@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
@@ -68,7 +69,7 @@ export default function ClientDetail() {
   }
 
   async function deleteNote(noteId) {
-    if (!window.confirm('¿Eliminar esta nota?')) return;
+    if (!await confirmDialog('¿Eliminar esta nota?')) return;
     await api.delete(`/clients/${id}/notes/${noteId}`);
     loadNotes();
   }

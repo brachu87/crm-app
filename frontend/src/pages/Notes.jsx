@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import confirmDialog from '../utils/confirm';
 import api from '../api/client';
 import { sendWA } from '../lib/waSend';
 import { useSectionPerms } from '../config/permissions';
@@ -1018,7 +1019,7 @@ function ApptDetailModal({ appt, onClose, onUpdated }) {
   }
 
   async function handleCancel() {
-    if (!confirm('¿Cancelar este turno?')) return;
+    if (!await confirmDialog('¿Cancelar este turno?')) return;
     setSaving(true);
     try {
       await api.put(`/appointments/${appt.id}`, { status: 'cancelled' });

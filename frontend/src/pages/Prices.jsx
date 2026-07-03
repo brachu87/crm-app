@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import confirmDialog from '../utils/confirm';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
 
@@ -73,7 +74,7 @@ export default function Prices() {
     if (!pct) return setError('Ingresá un porcentaje');
     if (selected.size === 0) return setError('Seleccioná al menos un elemento');
     if (pct <= -100) return setError('El porcentaje no puede ser -100% o menor');
-    if (!window.confirm(`¿Aplicar ${pct > 0 ? '+' : ''}${pct}% a ${selected.size} elemento(s)?`)) return;
+    if (!await confirmDialog(`¿Aplicar ${pct > 0 ? '+' : ''}${pct}% a ${selected.size} elemento(s)?`)) return;
 
     setSaving(true);
     setError('');

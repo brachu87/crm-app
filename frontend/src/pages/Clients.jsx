@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 import { Link } from 'react-router-dom';
 import { useSectionPerms } from '../config/permissions';
 import api from '../api/client';
@@ -51,7 +52,7 @@ export default function Clients() {
   }
 
   async function handleDeactivate(client) {
-    if (!window.confirm(`¿Dar de baja a ${client.name}? Va a dejar de aparecer en la lista de clientes activos.`)) return;
+    if (!await confirmDialog(`¿Dar de baja a ${client.name}? Va a dejar de aparecer en la lista de clientes activos.`)) return;
     try {
       await api.put(`/clients/${client.id}`, { ...client, active: false });
       load();

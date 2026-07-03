@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import confirmDialog from '../utils/confirm';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { sendWA } from '../lib/waSend';
@@ -950,7 +951,7 @@ function OtrosIngresos() {
   useEffect(load, []);
 
   async function handleDelete(id) {
-    if (!confirm('¿Eliminar este ingreso?')) return;
+    if (!await confirmDialog('¿Eliminar este ingreso?')) return;
     await api.delete(`/manual-income/${id}`);
     load();
   }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import confirmDialog from '../utils/confirm';
 import ImportModal from '../components/ImportModal';
 import { ExportMenu, ImportMenu } from '../lib/dataIO';
 import api from '../api/client';
@@ -38,7 +39,7 @@ export default function Employees() {
   useEffect(load, []);
 
   async function handleDelete(id) {
-    if (!confirm('¿Eliminar este empleado?')) return;
+    if (!await confirmDialog('¿Eliminar este empleado?')) return;
     await api.delete(`/employees/${id}`);
     load();
   }

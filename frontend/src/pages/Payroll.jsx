@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import confirmDialog from '../utils/confirm';
 import api from '../api/client';
 import { sendWA, flash } from '../lib/waSend';
 import { useAuth } from '../context/AuthContext';
@@ -213,7 +214,7 @@ export default function Payroll() {
   }
 
   async function deleteRecord(id) {
-    if (!confirm('¿Eliminar liquidación?')) return;
+    if (!await confirmDialog('¿Eliminar liquidación?')) return;
     await api.delete(`/payroll/${id}`);
     setRecords(prev => prev.filter(r => r.id !== id));
     if (newRecord?.id === id) setNewRecord(null);

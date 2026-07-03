@@ -1,0 +1,592 @@
+diff --git a/backend/src/routes/appointments.js b/backend/src/routes/appointments.js
+index 39f4f92..ea10d1d 100644
+--- a/backend/src/routes/appointments.js
++++ b/backend/src/routes/appointments.js
+@@ -73,6 +73,21 @@ router.post('/', async (req, res) => {
+     // Regular appointment
+     if (!serviceId || !clientId || !date || !startTime || !endTime)
+       return res.status(400).json({ error: 'Faltan campos requeridos' });
++
++    // Evitar que el cliente quede con turnos superpuestos el mismo día
++    const overlap = await prisma.appointment.findFirst({
++      where: {
++        businessId: req.user.businessId,
++        clientId, date,
++        isQuickWork: false,
++        status: { not: 'cancelled' },
++        startTime: { lt: endTime },
++        endTime: { gt: startTime },
++      },
++    });
++    if (overlap)
++      return res.status(409).json({ error: `El cliente ya tiene un turno de ${overlap.startTime} a ${overlap.endTime} ese día. Elegí otro horario.` });
++
+     const a = await prisma.appointment.create({
+       data: {
+         businessId: req.user.businessId,
+diff --git a/backend/src/routes/clients.js b/backend/src/routes/clients.js
+index c7d2b69..31db618 100644
+--- a/backend/src/routes/clients.js
++++ b/backend/src/routes/clients.js
+@@ -116,6 +116,21 @@ router.post('/', async (req, res) => {
+   try {
+     const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, cuit, responsableName, responsablePhone, globalDiscount } = req.body;
+     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
++
++    // Evitar clientes duplicados en el mismo negocio (mismo DNI o email)
++    const dup = [];
++    if (dni && String(dni).trim()) dup.push({ dni: String(dni).trim() });
++    if (email && String(email).trim()) dup.push({ email: String(email).trim() });
++    if (dup.length) {
++      const existing = await prisma.client.findFirst({
++        where: { businessId: req.user.businessId, OR: dup },
++      });
++      if (existing) {
++        const campo = (dni && existing.dni === String(dni).trim()) ? `el DNI ${dni}` : `el email ${email}`;
++        return res.status(409).json({ error: `Ya existe un cliente (${existing.name}) con ${campo}.` });
++      }
++    }
++
+     const memberNumber = await generateMemberNumber();
+     const client = await prisma.client.create({
+       data: {
+diff --git a/backend/src/routes/expenses.js b/backend/src/routes/expenses.js
+index c4d1293..3e31f24 100644
+--- a/backend/src/routes/expenses.js
++++ b/backend/src/routes/expenses.js
+@@ -77,6 +77,8 @@ router.post('/', async (req, res) => {
+   try {
+     const { amount, date, category, description, paymentMethod, supplierId } = req.body;
+     if (!amount) return res.status(400).json({ error: 'El monto es obligatorio' });
++    const _amt = parseFloat(amount);
++    if (isNaN(_amt) || _amt <= 0) return res.status(400).json({ error: 'El monto debe ser un número mayor a 0' });
+     if (!category) return res.status(400).json({ error: 'La categoría es obligatoria' });
+ 
+     // Verify supplier belongs to this business
+@@ -87,7 +89,7 @@ router.post('/', async (req, res) => {
+ 
+     const expense = await prisma.expense.create({
+       data: {
+-        amount: parseFloat(amount),
++        amount: _amt,
+         date: date ? new Date(date) : new Date(),
+         category,
+         description: description || null,
+@@ -111,6 +113,11 @@ router.put('/:id', async (req, res) => {
+ 
+     const { amount, date, category, description, paymentMethod, supplierId } = req.body;
+ 
++    if (amount !== undefined) {
++      const _amt = parseFloat(amount);
++      if (isNaN(_amt) || _amt <= 0) return res.status(400).json({ error: 'El monto debe ser un número mayor a 0' });
++    }
++
+     if (supplierId) {
+       const sup = await prisma.supplier.findFirst({ where: { id: supplierId, businessId: req.user.businessId } });
+       if (!sup) return res.status(400).json({ error: 'Proveedor no encontrado' });
+diff --git a/backend/src/routes/portal.js b/backend/src/routes/portal.js
+index 6b3a647..4a14e99 100644
+--- a/backend/src/routes/portal.js
++++ b/backend/src/routes/portal.js
+@@ -173,6 +173,20 @@ router.post('/appointments', portalAuth, async (req, res) => {
+     const service = await prisma.service.findFirst({ where: { id: serviceId, businessId }, select: { duration: true, price: true } });
+     if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
+     const endTime = addMinutes(startTime, service.duration || 60);
++
++    // Evitar turnos superpuestos del mismo socio
++    const overlap = await prisma.appointment.findFirst({
++      where: {
++        businessId, clientId: req.socioId, date,
++        isQuickWork: false,
++        status: { not: 'cancelled' },
++        startTime: { lt: endTime },
++        endTime: { gt: startTime },
++      },
++    });
++    if (overlap)
++      return res.status(409).json({ error: `Ya tenés un turno de ${overlap.startTime} a ${overlap.endTime} ese día.` });
++
+     const appt = await prisma.appointment.create({
+       data: {
+         businessId, serviceId, clientId: req.socioId,
+diff --git a/frontend/src/pages/Activities.jsx b/frontend/src/pages/Activities.jsx
+index ee70f95..e77b77d 100644
+--- a/frontend/src/pages/Activities.jsx
++++ b/frontend/src/pages/Activities.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ import { Link } from 'react-router-dom';
+ import api from '../api/client';
+ import { sendWA } from '../lib/waSend';
+@@ -330,7 +331,7 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
+     setAppointments(prev => prev.map(a => a.id === id ? res.data : a));
+   }
+   async function deleteAppt(id) {
+-    if (!confirm('¿Eliminar este turno?')) return;
++    if (!await confirmDialog('¿Eliminar este turno?')) return;
+     await api.delete(`/appointments/${id}`);
+     setAppointments(prev => prev.filter(a => a.id !== id));
+   }
+@@ -576,7 +577,7 @@ export default function Activities() {
+     setServices(prev => prev.map(s => s.id === svc.id ? { ...s, active: !s.active } : s));
+   }
+   async function deleteQuickWork(id) {
+-    if (!window.confirm('¿Eliminar este trabajo registrado?')) return;
++    if (!await confirmDialog('¿Eliminar este trabajo registrado?')) return;
+     await api.delete(`/appointments/${id}`);
+     setQuickWorks(prev => prev.filter(w => w.id !== id));
+   }
+diff --git a/frontend/src/pages/ActivityDetail.jsx b/frontend/src/pages/ActivityDetail.jsx
+index 369c994..9763251 100644
+--- a/frontend/src/pages/ActivityDetail.jsx
++++ b/frontend/src/pages/ActivityDetail.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ import { Link, useParams } from 'react-router-dom';
+ import api from '../api/client';
+ import { useSectionPerms } from '../config/permissions';
+@@ -35,7 +36,7 @@ export default function ActivityDetail() {
+   useEffect(load, [id]);
+ 
+   async function removeEnrollment(enrollmentId) {
+-    if (!confirm('¿Quitar a este cliente de la actividad?')) return;
++    if (!await confirmDialog('¿Quitar a este cliente de la actividad?')) return;
+     try {
+       await api.delete(`/enrollments/${enrollmentId}`);
+       load();
+diff --git a/frontend/src/pages/ClientDetail.jsx b/frontend/src/pages/ClientDetail.jsx
+index 2985112..27455e0 100644
+--- a/frontend/src/pages/ClientDetail.jsx
++++ b/frontend/src/pages/ClientDetail.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ import { Link, useParams } from 'react-router-dom';
+ import api from '../api/client';
+ import { useSectionPerms } from '../config/permissions';
+@@ -68,7 +69,7 @@ export default function ClientDetail() {
+   }
+ 
+   async function deleteNote(noteId) {
+-    if (!window.confirm('¿Eliminar esta nota?')) return;
++    if (!await confirmDialog('¿Eliminar esta nota?')) return;
+     await api.delete(`/clients/${id}/notes/${noteId}`);
+     loadNotes();
+   }
+diff --git a/frontend/src/pages/Clients.jsx b/frontend/src/pages/Clients.jsx
+index cf8fa05..b29e59e 100644
+--- a/frontend/src/pages/Clients.jsx
++++ b/frontend/src/pages/Clients.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ import { Link } from 'react-router-dom';
+ import { useSectionPerms } from '../config/permissions';
+ import api from '../api/client';
+@@ -51,7 +52,7 @@ export default function Clients() {
+   }
+ 
+   async function handleDeactivate(client) {
+-    if (!window.confirm(`¿Dar de baja a ${client.name}? Va a dejar de aparecer en la lista de clientes activos.`)) return;
++    if (!await confirmDialog(`¿Dar de baja a ${client.name}? Va a dejar de aparecer en la lista de clientes activos.`)) return;
+     try {
+       await api.put(`/clients/${client.id}`, { ...client, active: false });
+       load();
+diff --git a/frontend/src/pages/Collections.jsx b/frontend/src/pages/Collections.jsx
+index d94cc5f..817f176 100644
+--- a/frontend/src/pages/Collections.jsx
++++ b/frontend/src/pages/Collections.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState, useMemo } from 'react';
++import confirmDialog from '../utils/confirm';
+ import { Link } from 'react-router-dom';
+ import api from '../api/client';
+ import { sendWA } from '../lib/waSend';
+@@ -950,7 +951,7 @@ function OtrosIngresos() {
+   useEffect(load, []);
+ 
+   async function handleDelete(id) {
+-    if (!confirm('¿Eliminar este ingreso?')) return;
++    if (!await confirmDialog('¿Eliminar este ingreso?')) return;
+     await api.delete(`/manual-income/${id}`);
+     load();
+   }
+diff --git a/frontend/src/pages/Employees.jsx b/frontend/src/pages/Employees.jsx
+index d20822a..d44c5f7 100644
+--- a/frontend/src/pages/Employees.jsx
++++ b/frontend/src/pages/Employees.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ import ImportModal from '../components/ImportModal';
+ import { ExportMenu, ImportMenu } from '../lib/dataIO';
+ import api from '../api/client';
+@@ -38,7 +39,7 @@ export default function Employees() {
+   useEffect(load, []);
+ 
+   async function handleDelete(id) {
+-    if (!confirm('¿Eliminar este empleado?')) return;
++    if (!await confirmDialog('¿Eliminar este empleado?')) return;
+     await api.delete(`/employees/${id}`);
+     load();
+   }
+diff --git a/frontend/src/pages/Expenses.jsx b/frontend/src/pages/Expenses.jsx
+index e102fbe..bf1cf98 100644
+--- a/frontend/src/pages/Expenses.jsx
++++ b/frontend/src/pages/Expenses.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ import { useToast } from '../context/ToastContext';
+ import api from '../api/client';
+ import { useSectionPerms } from '../config/permissions';
+@@ -53,7 +54,7 @@ export default function Expenses() {
+   useEffect(load, []);
+ 
+   async function handleDelete(id) {
+-    if (!confirm('¿Eliminar este gasto?')) return;
++    if (!await confirmDialog('¿Eliminar este gasto?')) return;
+     await api.delete(`/expenses/${id}`);
+     load();
+   }
+@@ -240,10 +241,10 @@ function ExpenseModal({ expense, suppliers = [], onClose, onSaved }) {
+     setError('');
+     setSaving(true);
+     try {
+-      const rawAmount = String(form.amount).replace(',', '.').replace(/[^0-9.]/g, '');
++      const rawAmount = String(form.amount).replace(',', '.').replace(/[^0-9.-]/g, '');
+       const parsedAmount = parseFloat(rawAmount);
+-      if (isNaN(parsedAmount) || parsedAmount < 0) {
+-        setError('El monto ingresado no es válido');
++      if (isNaN(parsedAmount) || parsedAmount <= 0) {
++        setError('El monto debe ser un número mayor a 0');
+         setSaving(false);
+         return;
+       }
+diff --git a/frontend/src/pages/Horarios.jsx b/frontend/src/pages/Horarios.jsx
+index cc77926..2c308c6 100644
+--- a/frontend/src/pages/Horarios.jsx
++++ b/frontend/src/pages/Horarios.jsx
+@@ -1,4 +1,5 @@
+ import { useState, useEffect } from 'react'
++import confirmDialog from '../utils/confirm';
+ import api from '../api/client'
+ import { useSectionPerms } from '../config/permissions'
+ 
+@@ -62,7 +63,7 @@ export default function Horarios() {
+   }
+ 
+   const del = async s => {
+-    if (!window.confirm('¿Eliminar este horario?')) return
++    if (!await confirmDialog('¿Eliminar este horario?')) return
+     await api.delete(`/schedules/${s.id}`)
+     load()
+   }
+diff --git a/frontend/src/pages/Notes.jsx b/frontend/src/pages/Notes.jsx
+index bd8aa18..76e1231 100644
+--- a/frontend/src/pages/Notes.jsx
++++ b/frontend/src/pages/Notes.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState, useRef, useCallback } from 'react';
++import confirmDialog from '../utils/confirm';
+ import api from '../api/client';
+ import { sendWA } from '../lib/waSend';
+ import { useSectionPerms } from '../config/permissions';
+@@ -1018,7 +1019,7 @@ function ApptDetailModal({ appt, onClose, onUpdated }) {
+   }
+ 
+   async function handleCancel() {
+-    if (!confirm('¿Cancelar este turno?')) return;
++    if (!await confirmDialog('¿Cancelar este turno?')) return;
+     setSaving(true);
+     try {
+       await api.put(`/appointments/${appt.id}`, { status: 'cancelled' });
+diff --git a/frontend/src/pages/Payroll.jsx b/frontend/src/pages/Payroll.jsx
+index 90156f9..fa6477f 100644
+--- a/frontend/src/pages/Payroll.jsx
++++ b/frontend/src/pages/Payroll.jsx
+@@ -1,4 +1,5 @@
+ import { useState, useEffect } from 'react';
++import confirmDialog from '../utils/confirm';
+ import api from '../api/client';
+ import { sendWA, flash } from '../lib/waSend';
+ import { useAuth } from '../context/AuthContext';
+@@ -213,7 +214,7 @@ export default function Payroll() {
+   }
+ 
+   async function deleteRecord(id) {
+-    if (!confirm('¿Eliminar liquidación?')) return;
++    if (!await confirmDialog('¿Eliminar liquidación?')) return;
+     await api.delete(`/payroll/${id}`);
+     setRecords(prev => prev.filter(r => r.id !== id));
+     if (newRecord?.id === id) setNewRecord(null);
+diff --git a/frontend/src/pages/Prices.jsx b/frontend/src/pages/Prices.jsx
+index b50dd7e..c9233a4 100644
+--- a/frontend/src/pages/Prices.jsx
++++ b/frontend/src/pages/Prices.jsx
+@@ -1,4 +1,5 @@
+ import { useState, useEffect, useMemo } from 'react';
++import confirmDialog from '../utils/confirm';
+ import api from '../api/client';
+ import { useSectionPerms } from '../config/permissions';
+ 
+@@ -73,7 +74,7 @@ export default function Prices() {
+     if (!pct) return setError('Ingresá un porcentaje');
+     if (selected.size === 0) return setError('Seleccioná al menos un elemento');
+     if (pct <= -100) return setError('El porcentaje no puede ser -100% o menor');
+-    if (!window.confirm(`¿Aplicar ${pct > 0 ? '+' : ''}${pct}% a ${selected.size} elemento(s)?`)) return;
++    if (!await confirmDialog(`¿Aplicar ${pct > 0 ? '+' : ''}${pct}% a ${selected.size} elemento(s)?`)) return;
+ 
+     setSaving(true);
+     setError('');
+diff --git a/frontend/src/pages/Sedes.jsx b/frontend/src/pages/Sedes.jsx
+index f527aee..6687253 100644
+--- a/frontend/src/pages/Sedes.jsx
++++ b/frontend/src/pages/Sedes.jsx
+@@ -1,4 +1,5 @@
+ import { useState, useEffect } from 'react'
++import confirmDialog from '../utils/confirm';
+ import api from '../api/client'
+ import { useSectionPerms } from '../config/permissions'
+ 
+@@ -36,7 +37,7 @@ export default function Sedes() {
+   }
+ 
+   const del = async b => {
+-    if (!window.confirm(`¿Eliminar sede "${b.name}"? Se desvinculan los empleados y actividades asignados.`)) return
++    if (!await confirmDialog(`¿Eliminar sede "${b.name}"? Se desvinculan los empleados y actividades asignados.`)) return
+     setDeleting(b.id)
+     try { await api.delete(`/branches/${b.id}`); load() }
+     finally { setDeleting(null) }
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index f749258..f21e9c5 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -1,4 +1,5 @@
+ import React, { useEffect, useState, useRef } from 'react';
++import confirmDialog from '../utils/confirm';
+ import api from '../api/client';
+ import AuthImage from '../components/AuthImage';
+ import { useAuth } from '../context/AuthContext';
+@@ -131,7 +132,7 @@ export default function Settings() {
+   }
+ 
+   async function deleteLogo() {
+-    if (!window.confirm('¿Eliminar el logo del negocio?')) return;
++    if (!await confirmDialog('¿Eliminar el logo del negocio?')) return;
+     try {
+       await api.delete('/business/logo');
+       setLogoTs(Date.now());
+@@ -172,7 +173,7 @@ export default function Settings() {
+   useEffect(load, []);
+ 
+   async function deleteUser(id) {
+-    if (!window.confirm('¿Eliminar este usuario?')) return;
++    if (!await confirmDialog('¿Eliminar este usuario?')) return;
+     try {
+       await api.delete(`/users/${id}`);
+       setSuccess('Usuario eliminado');
+@@ -544,7 +545,7 @@ function WhatsAppAuto() {
+   }
+ 
+   async function handleLogout() {
+-    if (!confirm('¿Desconectar WhatsApp de este negocio?')) return;
++    if (!await confirmDialog('¿Desconectar WhatsApp de este negocio?')) return;
+     try {
+       await api.post('/whatsapp/logout');
+       setQR(null);
+@@ -700,8 +701,8 @@ function WhatsAppTemplates() {
+     setEditing(null);
+   }
+ 
+-  function handleReset() {
+-    if (!confirm('¿Restaurar todas las plantillas a los valores originales?')) return;
++  async function handleReset() {
++    if (!await confirmDialog('¿Restaurar todas las plantillas a los valores originales?')) return;
+     setTemplates(DEFAULT_TEMPLATES);
+     localStorage.removeItem('wa_templates');
+     setSaved(true);
+@@ -1179,7 +1180,7 @@ function GoogleCalendarCard() {
+     }
+   }
+   async function disconnect() {
+-    if (!confirm('¿Desconectar Google Calendar? Los eventos ya creados quedan en Google.')) return;
++    if (!await confirmDialog('¿Desconectar Google Calendar? Los eventos ya creados quedan en Google.')) return;
+     try { await api.post('/google-calendar/disconnect'); } finally { load(); }
+   }
+   async function toggle(key, val) {
+diff --git a/frontend/src/pages/SupplierDetail.jsx b/frontend/src/pages/SupplierDetail.jsx
+index c603381..b5297c6 100644
+--- a/frontend/src/pages/SupplierDetail.jsx
++++ b/frontend/src/pages/SupplierDetail.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ import { useParams, useNavigate } from 'react-router-dom';
+ import api from '../api/client';
+ 
+@@ -47,7 +48,7 @@ export default function SupplierDetail() {
+   useEffect(() => { load(); }, [id]);
+ 
+   async function handleDelete() {
+-    if (!confirm('¿Eliminar este proveedor?')) return;
++    if (!await confirmDialog('¿Eliminar este proveedor?')) return;
+     await api.delete(`/suppliers/${id}`);
+     navigate('/proveedores');
+   }
+diff --git a/frontend/src/pages/Suppliers.jsx b/frontend/src/pages/Suppliers.jsx
+index 6398d8a..1ec2a37 100644
+--- a/frontend/src/pages/Suppliers.jsx
++++ b/frontend/src/pages/Suppliers.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ import ImportModal from '../components/ImportModal';
+ import { ExportMenu, ImportMenu } from '../lib/dataIO';
+ import { useToast } from '../context/ToastContext';
+@@ -27,7 +28,7 @@ export default function Suppliers() {
+   useEffect(load, []);
+ 
+   async function handleDelete(id) {
+-    if (!confirm('¿Eliminar este proveedor?')) return;
++    if (!await confirmDialog('¿Eliminar este proveedor?')) return;
+     await api.delete(`/suppliers/${id}`);
+     load();
+   }
+diff --git a/frontend/src/portal/PortalApp.jsx b/frontend/src/portal/PortalApp.jsx
+index 0a2a243..a3d6998 100644
+--- a/frontend/src/portal/PortalApp.jsx
++++ b/frontend/src/portal/PortalApp.jsx
+@@ -1,4 +1,5 @@
+ import { useEffect, useState } from 'react';
++import confirmDialog from '../utils/confirm';
+ 
+ const TOKEN_KEY = 'portal_token';
+ function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
+@@ -116,7 +117,7 @@ function PortalDashboard({ me, onLogout, onReload }) {
+   useEffect(() => { loadAppts(); loadClasses(); }, []);
+ 
+   async function cancelAppt(id) {
+-    if (!confirm('¿Cancelar este turno?')) return;
++    if (!await confirmDialog('¿Cancelar este turno?')) return;
+     try { await portalFetch('/appointments/' + id + '/cancel', { method: 'POST' }); loadAppts(); } catch (_) {}
+   }
+   async function reserveClass(id) {
+@@ -125,7 +126,7 @@ function PortalDashboard({ me, onLogout, onReload }) {
+     catch (e) { alert(e.message); } finally { setReserving(null); }
+   }
+   async function cancelClass(id) {
+-    if (!confirm('¿Cancelar tu reserva de clase?')) return;
++    if (!await confirmDialog('¿Cancelar tu reserva de clase?')) return;
+     try { await portalFetch('/class-reservations/' + id + '/cancel', { method: 'POST' }); loadClasses(); } catch (_) {}
+   }
+ 
+diff --git a/frontend/src/utils/confirm.js b/frontend/src/utils/confirm.js
+new file mode 100644
+index 0000000..c0bfeb3
+--- /dev/null
++++ b/frontend/src/utils/confirm.js
+@@ -0,0 +1,101 @@
++// Modal de confirmación estilizado (reemplaza al confirm() nativo del navegador).
++// Uso:  if (!(await confirmDialog('¿Eliminar esto?'))) return;
++// Devuelve una Promise<boolean>.
++export default function confirmDialog(message, opts = {}) {
++  const {
++    title = 'Confirmar',
++    confirmText = 'Confirmar',
++    cancelText = 'Cancelar',
++    danger = true,
++  } = opts;
++
++  return new Promise((resolve) => {
++    const prevOverflow = document.body.style.overflow;
++    document.body.style.overflow = 'hidden';
++
++    const overlay = document.createElement('div');
++    overlay.setAttribute('role', 'dialog');
++    overlay.setAttribute('aria-modal', 'true');
++    Object.assign(overlay.style, {
++      position: 'fixed', inset: '0', zIndex: '99999',
++      background: 'rgba(15,23,42,0.55)',
++      display: 'flex', alignItems: 'center', justifyContent: 'center',
++      padding: '16px',
++      animation: 'gzConfirmFade .12s ease-out',
++    });
++
++    const card = document.createElement('div');
++    Object.assign(card.style, {
++      background: '#ffffff', borderRadius: '14px',
++      boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
++      width: '100%', maxWidth: '400px', overflow: 'hidden',
++      fontFamily: 'inherit',
++      animation: 'gzConfirmPop .14s ease-out',
++    });
++
++    const body = document.createElement('div');
++    Object.assign(body.style, { padding: '22px 22px 8px 22px' });
++    const h = document.createElement('div');
++    h.textContent = title;
++    Object.assign(h.style, { fontSize: '17px', fontWeight: '700', color: '#1E2A38', marginBottom: '8px' });
++    const p = document.createElement('div');
++    p.textContent = message;
++    Object.assign(p.style, { fontSize: '14px', color: '#475569', lineHeight: '1.5' });
++    body.appendChild(h); body.appendChild(p);
++
++    const footer = document.createElement('div');
++    Object.assign(footer.style, {
++      display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px 22px 20px 22px',
++    });
++
++    const btnCancel = document.createElement('button');
++    btnCancel.type = 'button';
++    btnCancel.textContent = cancelText;
++    Object.assign(btnCancel.style, {
++      padding: '9px 16px', borderRadius: '9px', border: '1px solid #d1d5db',
++      background: '#fff', color: '#374151', fontSize: '14px', fontWeight: '600', cursor: 'pointer',
++    });
++
++    const btnOk = document.createElement('button');
++    btnOk.type = 'button';
++    btnOk.textContent = confirmText;
++    Object.assign(btnOk.style, {
++      padding: '9px 16px', borderRadius: '9px', border: 'none',
++      background: danger ? '#dc2626' : '#1E2A38', color: '#fff',
++      fontSize: '14px', fontWeight: '600', cursor: 'pointer',
++    });
++
++    footer.appendChild(btnCancel); footer.appendChild(btnOk);
++    card.appendChild(body); card.appendChild(footer);
++    overlay.appendChild(card);
++
++    let styleEl = document.getElementById('gz-confirm-style');
++    if (!styleEl) {
++      styleEl = document.createElement('style');
++      styleEl.id = 'gz-confirm-style';
++      styleEl.textContent =
++        '@keyframes gzConfirmFade{from{opacity:0}to{opacity:1}}' +
++        '@keyframes gzConfirmPop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}';
++      document.head.appendChild(styleEl);
++    }
++
++    function cleanup(result) {
++      document.removeEventListener('keydown', onKey);
++      document.body.style.overflow = prevOverflow;
++      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
++      resolve(result);
++    }
++    function onKey(e) {
++      if (e.key === 'Escape') { e.preventDefault(); cleanup(false); }
++      else if (e.key === 'Enter') { e.preventDefault(); cleanup(true); }
++    }
++
++    btnCancel.addEventListener('click', () => cleanup(false));
++    btnOk.addEventListener('click', () => cleanup(true));
++    overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
++    document.addEventListener('keydown', onKey);
++
++    document.body.appendChild(overlay);
++    setTimeout(() => btnOk.focus(), 0);
++  });
++}

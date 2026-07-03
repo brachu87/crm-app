@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import confirmDialog from '../utils/confirm';
 import api from '../api/client'
 import { useSectionPerms } from '../config/permissions'
 
@@ -36,7 +37,7 @@ export default function Sedes() {
   }
 
   const del = async b => {
-    if (!window.confirm(`¿Eliminar sede "${b.name}"? Se desvinculan los empleados y actividades asignados.`)) return
+    if (!await confirmDialog(`¿Eliminar sede "${b.name}"? Se desvinculan los empleados y actividades asignados.`)) return
     setDeleting(b.id)
     try { await api.delete(`/branches/${b.id}`); load() }
     finally { setDeleting(null) }
