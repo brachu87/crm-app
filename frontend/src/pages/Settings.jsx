@@ -464,12 +464,12 @@ export default function Settings() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ fontSize: 36 }}>📖</div>
               <div style={{ flex: 1 }}>
-                <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Manual de usuario <span style={{ fontSize: 11, background: 'var(--primary)', color: '#fff', borderRadius: 8, padding: '1px 7px', marginLeft: 6 }}>v2.1</span></h2>
+                <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Manual de usuario <span style={{ fontSize: 11, background: 'var(--primary)', color: '#fff', borderRadius: 8, padding: '1px 7px', marginLeft: 6 }}>v3.1</span></h2>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
-                  Guía completa actualizada: WhatsApp automático, permisos por acción, módulos configurables, agenda de turnos y más.
+                  Guía completa actualizada: portal del socio, reservas de turnos online con calendario, confirmación de turnos por WhatsApp y más.
                 </p>
               </div>
-              <a href="https://brachu87.github.io/-zentric-landing/manual-zentric.pdf" target="_blank" rel="noreferrer"
+              <a href="https://gestumio.com/manual-gestumio.pdf" target="_blank" rel="noreferrer"
                 download="Manual-Gestumio.pdf" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>
                 ⬇ Descargar PDF
               </a>

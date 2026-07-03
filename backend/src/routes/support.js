@@ -28,6 +28,9 @@ MÓDULOS Y CÓMO USARLOS:
 - Grilla de precios, Sedes (varias sedes).
 - Usuarios y permisos: el propietario crea usuarios y les da permisos por módulo y por acción.
 - WhatsApp: se vincula el WhatsApp del negocio (escaneando un QR en Ajustes → WhatsApp). Sirve para enviar recordatorios y comprobantes de forma MANUAL (Cobranza → pestaña Recordatorios, botón "📱 Enviar" por cliente) y recibos en PDF. (El envío masivo/automático está desactivado por ahora.)
+- Portal del socio (portal.gestumio.com): los clientes del negocio entran con su número de socio y DNI. Ven su saldo y actividades, reservan turnos de servicios y cupos en clases, y ven el estado de cada turno (pendiente/confirmado/cancelado). El número de socio y la contraseña (DNI la primera vez) se gestionan desde la ficha del cliente.
+- Reservas de turnos online: para que un servicio se pueda reservar desde el portal hay que (1) activarlo en Ajustes → Reservas online y (2) cargarle Horarios de atención en el servicio (días + franja horaria; se pueden agregar por rango: Lun a Vie, Lun a Sáb o todos los días). El socio ve un calendario con los horarios libres y los ocupados. Cada servicio se reserva de a uno por horario.
+- Confirmación de turnos por WhatsApp: cuando un socio reserva un turno queda PENDIENTE y al WhatsApp del negocio llega un aviso. El dueño confirma o rechaza respondiendo 'SI <código>' / 'NO <código>' por WhatsApp, o desde la app en el panel del servicio → pestaña Pendientes (Confirmar/Rechazar). Si el socio cancela su turno, también llega un aviso por WhatsApp. Esto aplica solo a servicios/turnos, no a las clases (que confirman por cupo).
 - Google Calendar: en Ajustes → Calendar se conecta una cuenta de Google y se sincronizan turnos, agenda y clases a un calendario "Gestumio".
 - Facturación/Suscripción: prueba gratis al registrarse y luego suscripción mensual con MercadoPago. Si vence, la cuenta se bloquea pero los datos se conservan.
 
