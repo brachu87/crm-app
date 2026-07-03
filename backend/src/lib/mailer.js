@@ -70,39 +70,69 @@ async function deliver({ to, subject, html }) {
 async function sendWelcomeEmail({ toEmail, toName, businessName }) {
   if (!isEmailConfigured()) { console.log('[mailer] Email no configurado, bienvenida omitida'); return; }
 
-  const nombre = toName || 'Hola';
+  const nombre = toName || '';
   const negocio = businessName || 'tu negocio';
   const html = `
 <!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;padding:24px 20px;">
-    <tr><td>
-      <p style="margin:0 0 20px;font-size:16px;font-weight:700;color:#1E2A38;">Gestumio</p>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.06);">
 
-      <p style="margin:0 0 14px;font-size:15px;line-height:1.6;">Hola ${nombre},</p>
-      <p style="margin:0 0 14px;font-size:15px;line-height:1.6;">
-        Tu cuenta en Gestumio para <strong>${negocio}</strong> ya quedó activa. Tenés 15 días de prueba
-        para usar todo el sistema: clientes, cobranzas, caja, agenda de turnos, empleados y reportes.
-      </p>
-      <p style="margin:0 0 14px;font-size:15px;line-height:1.6;">
-        Podés entrar cuando quieras desde <a href="https://app.gestumio.com" style="color:#1BA84C;">app.gestumio.com</a>.
-      </p>
-      <p style="margin:0 0 20px;font-size:15px;line-height:1.6;">
-        Si necesitás ayuda, escribinos a soporte@gestumio.com o por WhatsApp al +54 9 11 7823-6708.
-      </p>
+        <!-- Header -->
+        <tr>
+          <td style="background:#1E2A38;padding:30px 40px;text-align:center;">
+            <div style="font-size:26px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">Gestumio</div>
+            <div style="margin-top:5px;font-size:12px;color:#7DD3A0;letter-spacing:0.06em;text-transform:uppercase;">Gestión para tu negocio</div>
+          </td>
+        </tr>
 
-      <p style="margin:24px 0 0;font-size:13px;color:#6b7280;line-height:1.6;border-top:1px solid #e5e7eb;padding-top:14px;">
-        Recibiste este correo porque se creó una cuenta en Gestumio con esta dirección.
-      </p>
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 40px 12px;">
+            <p style="margin:0 0 8px;font-size:21px;font-weight:700;color:#111;">¡Bienvenido${nombre ? ', ' + nombre : ''}! 👋</p>
+            <p style="margin:0 0 18px;font-size:15px;color:#4B5563;line-height:1.7;">
+              Tu cuenta en Gestumio para <strong>${negocio}</strong> ya está activa. Tenés <strong>15 días de prueba</strong>
+              para usar todo el sistema: clientes, cobranzas, caja diaria, agenda de turnos, actividades, empleados y reportes.
+            </p>
+
+            <!-- CTA sobrio (al sistema, no promocional) -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;">
+              <tr><td>
+                <a href="https://app.gestumio.com" style="display:inline-block;background:#1E2A38;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 26px;border-radius:8px;">Ir a mi cuenta</a>
+              </td></tr>
+            </table>
+
+            <!-- Contacto -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;">
+              <tr><td style="padding:16px 18px;">
+                <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1E2A38;">¿Necesitás ayuda?</p>
+                <p style="margin:0 0 4px;font-size:14px;color:#374151;line-height:1.6;">Soporte: soporte@gestumio.com</p>
+                <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">WhatsApp: +54 9 11 7823-6708</p>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 40px 28px;text-align:center;border-top:1px solid #EEF2F7;">
+            <p style="margin:0;font-size:12px;color:#9CA3AF;line-height:1.6;">
+              Recibiste este correo porque se creó una cuenta en Gestumio con esta dirección.
+            </p>
+          </td>
+        </tr>
+
+      </table>
     </td></tr>
   </table>
 </body>
 </html>`;
 
   try {
-    await deliver({ to: toEmail, subject: 'Tu cuenta de Gestumio ya está activa', html });
+    await deliver({ to: toEmail, subject: '¡Bienvenido a Gestumio!', html });
     console.log(`[mailer] Mail de bienvenida enviado a ${toEmail}`);
   } catch (err) {
     console.error('[mailer] Error al enviar mail:', err.message);
