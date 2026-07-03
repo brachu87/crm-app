@@ -6,12 +6,12 @@
 // - Si HAY duplicados -> los detecta, los loguea y NO crea el índice, sin tumbar el deploy.
 //   Una vez que se limpian los duplicados, el próximo arranque crea el índice solo.
 //
-// Unicidad por negocio: (businessId, email) y (businessId, dni), ignorando NULL.
+// Unicidad por negocio: (businessId, dni), ignorando NULL.
+// NOTA: el email NO se hace único a propósito — las familias comparten correo.
 const prisma = require('../src/prisma');
 
 const TARGETS = [
-  { field: 'email', index: 'client_business_email_uniq', label: 'email' },
-  { field: 'dni',   index: 'client_business_dni_uniq',   label: 'DNI'   },
+  { field: 'dni', index: 'client_business_dni_uniq', label: 'DNI' },
 ];
 
 async function findDuplicates(field) {

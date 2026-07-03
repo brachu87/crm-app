@@ -119,17 +119,14 @@ router.post('/', validate(schemas.clientCreate), async (req, res) => {
     const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, cuit, responsableName, responsablePhone, globalDiscount } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
 
-    // Evitar clientes duplicados en el mismo negocio (mismo DNI o email)
-    const dup = [];
-    if (dni && String(dni).trim()) dup.push({ dni: String(dni).trim() });
-    if (email && String(email).trim()) dup.push({ email: String(email).trim() });
-    if (dup.length) {
+    // Evitar clientes duplicados en el mismo negocio por DNI.
+    // (El email NO se bloquea: las familias suelen compartir el mismo correo.)
+    if (dni && String(dni).trim()) {
       const existing = await prisma.client.findFirst({
-        where: { businessId: req.user.businessId, OR: dup },
+        where: { businessId: req.user.businessId, dni: String(dni).trim() },
       });
       if (existing) {
-        const campo = (dni && existing.dni === String(dni).trim()) ? `el DNI ${dni}` : `el email ${email}`;
-        return res.status(409).json({ error: `Ya existe un cliente (${existing.name}) con ${campo}.` });
+        return res.status(409).json({ error: `Ya existe un cliente (${existing.name}) con el DNI ${dni}.` });
       }
     }
 
