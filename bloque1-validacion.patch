@@ -1,0 +1,243 @@
+diff --git a/backend/package.json b/backend/package.json
+index b2271c0..3b426ae 100644
+--- a/backend/package.json
++++ b/backend/package.json
+@@ -31,6 +31,7 @@
+     "pdfkit": "^0.15.0",
+     "prisma": "^6.0.0",
+     "qrcode": "^1.5.4",
+-    "resend": "^6.14.0"
++    "resend": "^6.14.0",
++    "zod": "^3.23.8"
+   }
+ }
+diff --git a/backend/src/lib/validate.js b/backend/src/lib/validate.js
+new file mode 100644
+index 0000000..d09ce56
+--- /dev/null
++++ b/backend/src/lib/validate.js
+@@ -0,0 +1,17 @@
++// Capa de validación sistemática con Zod.
++// Uso en una ruta:  router.post('/', validate(schemas.clientCreate), handler)
++// Valida req.body contra el schema. Si falla, corta con 400 y un mensaje claro.
++// Si pasa, deja el resultado parseado en req.validated (no pisa req.body).
++const validate = (schema) => (req, res, next) => {
++  const result = schema.safeParse(req.body || {});
++  if (!result.success) {
++    const issue = result.error.issues[0];
++    const campo = issue && issue.path && issue.path.length ? issue.path.join('.') : null;
++    const msg = issue ? issue.message : 'Datos inválidos';
++    return res.status(400).json({ error: campo ? `${msg}` : msg, field: campo });
++  }
++  req.validated = result.data;
++  next();
++};
++
++module.exports = validate;
+diff --git a/backend/src/routes/appointments.js b/backend/src/routes/appointments.js
+index ea10d1d..ce013f4 100644
+--- a/backend/src/routes/appointments.js
++++ b/backend/src/routes/appointments.js
+@@ -1,5 +1,7 @@
+ const express = require('express');
+ const router = express.Router();
++const validate = require('../lib/validate');
++const schemas = require('../schemas');
+ const auth = require('../middleware/auth');
+ const prisma = require('../prisma');
+ const gcal = require('../lib/googleCalendar');
+@@ -36,7 +38,7 @@ router.get('/', async (req, res) => {
+ });
+ 
+ // POST /api/appointments
+-router.post('/', async (req, res) => {
++router.post('/', validate(schemas.appointmentCreate), async (req, res) => {
+   try {
+     const {
+       serviceId, clientId, employeeId, branchId,
+diff --git a/backend/src/routes/auth.js b/backend/src/routes/auth.js
+index 3073227..567b0aa 100644
+--- a/backend/src/routes/auth.js
++++ b/backend/src/routes/auth.js
+@@ -6,6 +6,8 @@ const prisma = require('../prisma');
+ const { sendPasswordResetEmail, sendWelcomeEmail } = require('../lib/mailer');
+ 
+ const router = express.Router();
++const validate = require('../lib/validate');
++const schemas = require('../schemas');
+ 
+ // Input sanitization helper
+ function sanitize(val, maxLen = 200) {
+@@ -55,7 +57,7 @@ async function isBusinessApproved(businessId) {
+ }
+ 
+ // POST /api/auth/register
+-router.post('/register', async (req, res) => {
++router.post('/register', validate(schemas.register), async (req, res) => {
+   try {
+     const { businessName, category, name, email, password, businessPhone } = req.body;
+     // Sanitize inputs
+@@ -99,7 +101,7 @@ router.post('/register', async (req, res) => {
+ });
+ 
+ // POST /api/auth/login
+-router.post('/login', async (req, res) => {
++router.post('/login', validate(schemas.login), async (req, res) => {
+   try {
+     const { email, password } = req.body;
+     if (!email || !password) return res.status(400).json({ error: 'Faltan email o password' });
+diff --git a/backend/src/routes/clients.js b/backend/src/routes/clients.js
+index 31db618..66e4d73 100644
+--- a/backend/src/routes/clients.js
++++ b/backend/src/routes/clients.js
+@@ -4,6 +4,8 @@ const authMiddleware = require('../middleware/auth');
+ const { scopedWhere } = require('../middleware/tenant');
+ 
+ const router = express.Router();
++const validate = require('../lib/validate');
++const schemas = require('../schemas');
+ 
+ router.use(authMiddleware);
+ 
+@@ -112,7 +114,7 @@ router.get('/:id', async (req, res) => {
+ });
+ 
+ // POST /api/clients - crear cliente
+-router.post('/', async (req, res) => {
++router.post('/', validate(schemas.clientCreate), async (req, res) => {
+   try {
+     const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, cuit, responsableName, responsablePhone, globalDiscount } = req.body;
+     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
+diff --git a/backend/src/routes/expenses.js b/backend/src/routes/expenses.js
+index 3e31f24..8616f4a 100644
+--- a/backend/src/routes/expenses.js
++++ b/backend/src/routes/expenses.js
+@@ -4,6 +4,8 @@ const authMiddleware = require('../middleware/auth');
+ const { scopedWhere } = require('../middleware/tenant');
+ 
+ const router = express.Router();
++const validate = require('../lib/validate');
++const schemas = require('../schemas');
+ router.use(authMiddleware);
+ 
+ function parseExpDate(s) {
+@@ -73,7 +75,7 @@ router.get('/', async (req, res) => {
+ });
+ 
+ // POST /api/expenses
+-router.post('/', async (req, res) => {
++router.post('/', validate(schemas.expenseCreate), async (req, res) => {
+   try {
+     const { amount, date, category, description, paymentMethod, supplierId } = req.body;
+     if (!amount) return res.status(400).json({ error: 'El monto es obligatorio' });
+@@ -106,7 +108,7 @@ router.post('/', async (req, res) => {
+ });
+ 
+ // PUT /api/expenses/:id
+-router.put('/:id', async (req, res) => {
++router.put('/:id', validate(schemas.expenseUpdate), async (req, res) => {
+   try {
+     const existing = await prisma.expense.findFirst({ where: scopedWhere(req, { id: req.params.id }) });
+     if (!existing) return res.status(404).json({ error: 'Gasto no encontrado' });
+diff --git a/backend/src/schemas.js b/backend/src/schemas.js
+new file mode 100644
+index 0000000..113439e
+--- /dev/null
++++ b/backend/src/schemas.js
+@@ -0,0 +1,96 @@
++// Schemas de validación (Zod) para los endpoints clave.
++// Los mensajes están en español para mostrarse tal cual al usuario.
++const { z } = require('zod');
++
++const str = (max = 255) => z.string().trim().max(max, `Máximo ${max} caracteres`);
++const reqStr = (max, msg) => z.string({ required_error: msg, invalid_type_error: msg }).trim().min(1, msg).max(max, `Máximo ${max} caracteres`);
++const optStr = (max = 255) => z.preprocess(
++  (v) => (v === '' || v === null || v === undefined ? undefined : v),
++  z.string().trim().max(max, `Máximo ${max} caracteres`).optional()
++);
++// Número que puede venir como string ("100", "1.234,50") o number.
++// Se le pasa el ZodNumber ya con sus restricciones (.positive(), .min(), etc.)
++const numLike = (inner) => z.preprocess((v) => {
++  if (v === '' || v === null || v === undefined) return undefined;
++  if (typeof v === 'string') {
++    const cleaned = v.replace(/\./g, '').replace(',', '.').replace(/[^0-9.\-]/g, '');
++    const n = parseFloat(cleaned);
++    return isNaN(n) ? v : n;
++  }
++  return v;
++}, inner);
++
++const email = z.preprocess(
++  (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v),
++  z.string().email('Email inválido').max(200, 'Email demasiado largo')
++);
++const optEmail = z.preprocess(
++  (v) => (v === '' || v == null ? undefined : (typeof v === 'string' ? v.trim().toLowerCase() : v)),
++  z.string().email('Email inválido').max(200, 'Email demasiado largo').optional()
++);
++
++const schemas = {
++  register: z.object({
++    businessName: reqStr(100, 'El nombre del negocio es obligatorio'),
++    name: reqStr(100, 'Tu nombre es obligatorio'),
++    email,
++    password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(200),
++    businessPhone: reqStr(30, 'El teléfono es obligatorio'),
++    category: optStr(50),
++  }).passthrough(),
++
++  login: z.object({
++    email: reqStr(200, 'Ingresá tu email'),
++    password: reqStr(200, 'Ingresá tu contraseña'),
++  }).passthrough(),
++
++  clientCreate: z.object({
++    name: reqStr(120, 'El nombre es obligatorio'),
++    email: optEmail,
++    phone: optStr(40),
++    dni: optStr(20),
++    cuit: optStr(20),
++    notes: optStr(2000),
++    birthday: optStr(40),
++    emergencyContact: optStr(120),
++    emergencyPhone: optStr(40),
++    medicalNotes: optStr(2000),
++    responsableName: optStr(120),
++    responsablePhone: optStr(40),
++    globalDiscount: numLike(z.number().min(0, 'El descuento no puede ser negativo').max(100, 'El descuento no puede superar 100%')).optional(),
++  }).passthrough(),
++
++  expenseCreate: z.object({
++    amount: numLike(z.number({ required_error: 'El monto es obligatorio', invalid_type_error: 'El monto debe ser un número' }).positive('El monto debe ser un número mayor a 0')),
++    category: reqStr(80, 'La categoría es obligatoria'),
++    description: optStr(500),
++    paymentMethod: optStr(60),
++    date: optStr(40),
++    supplierId: optStr(60),
++  }).passthrough(),
++
++  expenseUpdate: z.object({
++    amount: numLike(z.number({ invalid_type_error: 'El monto debe ser un número' }).positive('El monto debe ser un número mayor a 0')).optional(),
++    category: optStr(80),
++    description: optStr(500),
++    paymentMethod: optStr(60),
++    date: optStr(40),
++    supplierId: optStr(60),
++  }).passthrough(),
++
++  appointmentCreate: z.object({
++    clientId: reqStr(60, 'Falta el cliente'),
++    serviceId: optStr(60),
++    employeeId: optStr(60),
++    branchId: optStr(60),
++    date: reqStr(40, 'Falta la fecha'),
++    startTime: optStr(10),
++    endTime: optStr(10),
++    price: numLike(z.number().min(0, 'El precio no puede ser negativo')).optional(),
++    notes: optStr(1000),
++    description: optStr(1000),
++    isQuickWork: z.boolean().optional(),
++  }).passthrough(),
++};
++
++module.exports = schemas;

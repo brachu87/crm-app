@@ -4,6 +4,8 @@ const authMiddleware = require('../middleware/auth');
 const { scopedWhere } = require('../middleware/tenant');
 
 const router = express.Router();
+const validate = require('../lib/validate');
+const schemas = require('../schemas');
 router.use(authMiddleware);
 
 function parseExpDate(s) {
@@ -73,7 +75,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/expenses
-router.post('/', async (req, res) => {
+router.post('/', validate(schemas.expenseCreate), async (req, res) => {
   try {
     const { amount, date, category, description, paymentMethod, supplierId } = req.body;
     if (!amount) return res.status(400).json({ error: 'El monto es obligatorio' });
@@ -106,7 +108,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/expenses/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', validate(schemas.expenseUpdate), async (req, res) => {
   try {
     const existing = await prisma.expense.findFirst({ where: scopedWhere(req, { id: req.params.id }) });
     if (!existing) return res.status(404).json({ error: 'Gasto no encontrado' });

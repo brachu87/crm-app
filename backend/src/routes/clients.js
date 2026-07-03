@@ -4,6 +4,8 @@ const authMiddleware = require('../middleware/auth');
 const { scopedWhere } = require('../middleware/tenant');
 
 const router = express.Router();
+const validate = require('../lib/validate');
+const schemas = require('../schemas');
 
 router.use(authMiddleware);
 
@@ -112,7 +114,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/clients - crear cliente
-router.post('/', async (req, res) => {
+router.post('/', validate(schemas.clientCreate), async (req, res) => {
   try {
     const { name, phone, email, notes, birthday, emergencyContact, emergencyPhone, medicalNotes, active, dni, cuit, responsableName, responsablePhone, globalDiscount } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });

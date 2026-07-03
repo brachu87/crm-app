@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const validate = require('../lib/validate');
+const schemas = require('../schemas');
 const auth = require('../middleware/auth');
 const prisma = require('../prisma');
 const gcal = require('../lib/googleCalendar');
@@ -36,7 +38,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/appointments
-router.post('/', async (req, res) => {
+router.post('/', validate(schemas.appointmentCreate), async (req, res) => {
   try {
     const {
       serviceId, clientId, employeeId, branchId,

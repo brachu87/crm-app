@@ -6,6 +6,8 @@ const prisma = require('../prisma');
 const { sendPasswordResetEmail, sendWelcomeEmail } = require('../lib/mailer');
 
 const router = express.Router();
+const validate = require('../lib/validate');
+const schemas = require('../schemas');
 
 // Input sanitization helper
 function sanitize(val, maxLen = 200) {
@@ -55,7 +57,7 @@ async function isBusinessApproved(businessId) {
 }
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', validate(schemas.register), async (req, res) => {
   try {
     const { businessName, category, name, email, password, businessPhone } = req.body;
     // Sanitize inputs
@@ -99,7 +101,7 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', validate(schemas.login), async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Faltan email o password' });
