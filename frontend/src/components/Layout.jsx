@@ -261,7 +261,7 @@ export default function Layout() {
         {visibleGroups.map((group) => {
           // Owner y admin ven todo; staff solo ve lo que tiene habilitado
           const perms = user?.permissions;
-          const visibleLinks = (perms && user?.role === 'staff')
+          const visibleLinks = (perms)
             ? group.links.filter(l => {
                 const mod = ROUTE_MODULE[l.to];
                 if (!mod) return true; // rutas sin módulo (ej. Ajustes) siempre visibles

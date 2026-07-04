@@ -185,9 +185,8 @@ export function useSectionPerms(section) {
 
   function can(action) {
     if (!user) return false;
-    if (user.role === 'owner' || user.role === 'admin') return true;
     const perms = user.permissions;
-    if (!perms) return true;
+    if (!perms) return true; // sin restricciones (owner/admin/staff con permisos nulos)
     if (perms.includes(`${section}.${action}`)) return true;
     if (perms.includes('/' + section)) return true; // compat formato viejo
     return false;
@@ -205,9 +204,8 @@ export function useSectionPerms(section) {
  */
 export function canViewModule(user, moduleKey) {
   if (!user) return false;
-  if (user.role === 'owner' || user.role === 'admin') return true;
   const perms = user.permissions;
-  if (!perms) return true;
+  if (!perms) return true; // sin restricciones
   if (perms.includes(`${moduleKey}.ver`)) return true;
   if (perms.includes('/' + moduleKey)) return true; // compat
   return false;

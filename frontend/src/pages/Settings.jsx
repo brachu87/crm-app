@@ -30,7 +30,7 @@ const GROUPS_ORDER = ['Negocio', 'Empleados', 'Finanzas', 'Configuración'];
 
 export default function Settings() {
   const toast = useToast();
-  const { user, business, updateBusiness } = useAuth();
+  const { user, business, updateBusiness, updateUser } = useAuth();
   const isOwner = user?.role === 'owner';
   const canManage = user?.role === 'owner' || user?.role === 'admin';
 
@@ -415,19 +415,17 @@ export default function Settings() {
                         <td>{roleLabel[u.role] || u.role}</td>
                         {isOwner && (
                           <td>
-                            {u.id !== user?.id && (
-                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                {isOwner && (
-                                  <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(u); setShowModal(true); }}>Editar</button>
-                                )}
-                                {canManage && u.role !== 'owner' && (
-                                  <button className="btn btn-secondary btn-sm" onClick={() => setPermEditing(permEditing === u.id ? null : u.id)} style={{ color: 'var(--primary)' }}>🔐 Permisos</button>
-                                )}
-                                {isOwner && (
-                                  <button className="btn-danger-text" onClick={() => deleteUser(u.id)}>Eliminar</button>
-                                )}
-                              </div>
-                            )}
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              {isOwner && u.id !== user?.id && (
+                                <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(u); setShowModal(true); }}>Editar</button>
+                              )}
+                              {canManage && (
+                                <button className="btn btn-secondary btn-sm" onClick={() => setPermEditing(permEditing === u.id ? null : u.id)} style={{ color: 'var(--primary)' }}>🔐 Permisos</button>
+                              )}
+                              {isOwner && u.id !== user?.id && (
+                                <button className="btn-danger-text" onClick={() => deleteUser(u.id)}>Eliminar</button>
+                              )}
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -435,7 +433,7 @@ export default function Settings() {
                         <tr>
                           <td colSpan={isOwner ? 4 : 3} style={{ padding: 0, border: 'none' }}>
                             <PermissionsPanel u={u} onClose={() => setPermEditing(null)}
-                              onSaved={(updated) => { setUsers(prev => prev.map(x => x.id === updated.id ? updated : x)); setPermEditing(null); setSuccess('Permisos actualizados'); }} />
+                              onSaved={(updated) => { setUsers(prev => prev.map(x => x.id === updated.id ? updated : x)); if (updated.id === user?.id) updateUser({ permissions: updated.permissions }); setPermEditing(null); setSuccess('Permisos actualizados'); }} />
                           </td>
                         </tr>
                       )}
