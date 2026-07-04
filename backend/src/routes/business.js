@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const authMiddleware = require('../middleware/auth');
 const prisma = require('../prisma');
+const { buildBusinessZip } = require('../lib/exportBusiness');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -151,5 +152,16 @@ router.get('/modules', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/business/export — descarga TODOS los datos del negocio en un ZIP (CSV por tabla)
+router.get('/export', async (req, res) => {
+  try {
+    const buf = await buildBusinessZip(req.user.businessId);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="gestumio-datos.zip"');
+    res.send(buf);
+  } catch (e) { console.error('[business-export]', e.message); res.status(500).json({ error: 'No se pudo exportar' }); }
+});
+
 module.exports = router;
+
 

@@ -96,6 +96,21 @@ export default function Settings() {
     }
   }
 
+  const [exporting, setExporting] = useState(false);
+  async function exportBizData() {
+    setExporting(true); setError('');
+    try {
+      const res = await api.get('/business/export', { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'gestumio-datos.zip';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError('No se pudieron exportar los datos');
+    } finally { setExporting(false); }
+  }
+
   async function saveModules() {
     setSavingModules(true);
     try {
@@ -284,6 +299,15 @@ export default function Settings() {
             <button className="btn btn-primary" onClick={saveBizInfo} disabled={savingBiz || !bizForm.name.trim()}>
               {savingBiz ? 'Guardando...' : 'Guardar cambios'}
             </button>
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <h3 style={{ fontSize: 14, margin: '0 0 4px' }}>Exportar todos mis datos</h3>
+              <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 10px' }}>
+                Descargá un ZIP con todos los datos de tu negocio (clientes, cuotas y pagos, gastos, proveedores, empleados, turnos y más) en archivos Excel/CSV.
+              </p>
+              <button className="btn btn-secondary" onClick={exportBizData} disabled={exporting}>
+                {exporting ? 'Preparando...' : '⬇ Descargar mis datos (ZIP)'}
+              </button>
+            </div>
           </div>
 
           <div className="card">

@@ -299,6 +299,7 @@ function renderTable(accounts) {
           ${approveBtn}
           ${extendBtn}
           <button class="btn-sm" style="background:#dcfce7;color:#166534" onclick="setWhatsApp('${a.id}','${(a.waPhoneId||'').replace(/'/g,"\\'")}','${(a.waPhoneNumber||'').replace(/'/g,"\\'")}')" title="Asignar numero de WhatsApp (Meta)">${a.waPhoneId ? '📱 WA ✓' : '📱 WA'}</button>
+          <button class="btn-sm" style="background:#dbeafe;color:#1e40af" onclick="exportAccount('${a.id}','${a.name.replace(/'/g,"\\'")}')" title="Descargar todos los datos del negocio">Exportar</button>
           <button class="btn-sm btn-delete" onclick="deleteAccount('${a.id}','${a.name.replace(/'/g,"\\'")}')">Eliminar</button>
         </div>
       </td>
@@ -384,6 +385,19 @@ async function testEmail() {
     if (r.ok) alert('✅ Mail enviado (desde ' + (d.from||'') + '). Revisá la bandeja y spam.');
     else alert('❌ No se pudo enviar:\n\n' + (d.error || 'error desconocido'));
   } catch (e) { alert('❌ Error de red: ' + e.message); }
+}
+
+async function exportAccount(id, name) {
+  try {
+    const res = await fetch(API + `/admin/accounts/${id}/export`, { headers: { 'X-Admin-Secret': secret } });
+    if (!res.ok) { alert('No se pudo exportar los datos'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'gestumio-' + (name || id) + '.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) { alert('Error al exportar'); }
 }
 
 async function deleteAccount(id, name) {

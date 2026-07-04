@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../prisma');
 const { sendTest } = require('../lib/mailer');
+const { buildBusinessZip } = require('../lib/exportBusiness');
 const router = express.Router();
 
 const TRIAL_DAYS = 15;
@@ -263,4 +264,15 @@ router.post('/import-db', async (req, res) => {
   res.json({ ok: true, result });
 });
 
+// GET /api/admin/accounts/:id/export — exporta todos los datos de un negocio (funciona aunque esté bloqueado)
+router.get('/accounts/:id/export', adminAuth, async (req, res) => {
+  try {
+    const buf = await buildBusinessZip(req.params.id);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="gestumio-${req.params.id}.zip"`);
+    res.send(buf);
+  } catch (e) { console.error('[admin-export]', e.message); res.status(500).json({ error: 'No se pudo exportar' }); }
+});
+
 module.exports = router;
+
