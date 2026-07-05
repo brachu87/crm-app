@@ -4,7 +4,7 @@ import confirmDialog from '../utils/confirm';
 const TOKEN_KEY = 'portal_token';
 function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
 function fmtMoney(v) { return '$' + Number(v || 0).toLocaleString('es-AR'); }
-function fmtDate(d) { if (!d) return ''; return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+function fmtDate(d) { if (!d) return ''; const s = String(d); return new Date(s.includes('T') ? s : s + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
 
 async function portalFetch(path, options = {}) {
   const res = await fetch('/api/portal' + path, {
