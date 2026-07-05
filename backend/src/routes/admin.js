@@ -5,7 +5,7 @@ const { buildBusinessZip } = require('../lib/exportBusiness');
 const router = express.Router();
 
 const TRIAL_DAYS = 15;
-const BASE_PRICE = 50000;      // precio del plan base (incluye INCLUDED_USERS usuarios)
+const BASE_PRICE = 55000;      // precio del plan base (incluye INCLUDED_USERS usuarios)
 const EXTRA_USER_PRICE = 20000; // costo por cada usuario adicional
 const INCLUDED_USERS = 3;      // usuarios incluidos en el plan base
 
