@@ -421,12 +421,18 @@ input, select, textarea { font-family: var(--font-body); }
 }
 
 .error-banner {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
   padding: 10px 14px;
   border-radius: var(--radius);
   font-size: 14px;
   margin-bottom: 16px;
+}
+[data-theme="dark"] .error-banner {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 /* ── Empty state ─────────────────────────────────────── */
