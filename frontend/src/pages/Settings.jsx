@@ -387,7 +387,7 @@ export default function Settings() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={{ fontSize: 16, margin: 0 }}>Usuarios del negocio</h2>
               <span style={{ fontSize: 12, color: 'var(--ink-soft)', background: 'var(--surface-2)', padding: '3px 10px', borderRadius: 20 }}>
-                {users.length}/3 usuarios
+                {users.length}/{billing?.userLimit || 3} usuarios
               </span>
             </div>
             {loading ? (
