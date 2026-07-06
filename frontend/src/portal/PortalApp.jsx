@@ -90,6 +90,12 @@ function PortalLogin({ onLogin }) {
   );
 }
 
+const APPT_STATUS = {
+  pending:   { label: '⏳ Pendiente de confirmación', color: '#d97706' },
+  scheduled: { label: '✓ Confirmado', color: '#16a34a' },
+  cancelled: { label: '✗ Cancelado', color: '#94a3b8' },
+};
+
 const NAV = [
   { key: 'inicio', label: 'Inicio', icon: '🏠' },
   { key: 'turnos', label: 'Turnos', icon: '📅' },
@@ -208,9 +214,9 @@ function PortalDashboard({ me, onLogout, onReload }) {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{a.service}</div>
                     <div style={{ fontSize: 12, color: '#64748b' }}>{fmtDate(a.date)} · {a.startTime}{a.endTime ? '–' + a.endTime : ''}{a.price ? ' · ' + fmtMoney(a.price) : ''}</div>
-                    {a.status === 'pending' && <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginTop: 3 }}>⏳ Pendiente de confirmación</div>}
+                    {APPT_STATUS[a.status] && <div style={{ fontSize: 11, fontWeight: 700, color: APPT_STATUS[a.status].color, marginTop: 3 }}>{APPT_STATUS[a.status].label}</div>}
                   </div>
-                  <button onClick={() => cancelAppt(a.id)} style={btnCancel}>Cancelar</button>
+                  {a.status !== 'cancelled' && <button onClick={() => cancelAppt(a.id)} style={btnCancel}>Cancelar</button>}
                 </div>
               ))
             )}

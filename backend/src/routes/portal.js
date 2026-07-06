@@ -159,7 +159,7 @@ router.get('/appointments', portalAuth, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
     const appts = await prisma.appointment.findMany({
-      where: { clientId: req.socioId, date: { gte: today }, status: { in: ['scheduled', 'pending'] } },
+      where: { clientId: req.socioId, date: { gte: today }, status: { in: ['scheduled', 'pending', 'cancelled'] } },
       include: { service: { select: { name: true } } },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
