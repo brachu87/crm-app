@@ -134,6 +134,46 @@ function addMinutes(hhmm, mins) {
   return String(nh).padStart(2, '0') + ':' + String(nm).padStart(2, '0');
 }
 
+// GET /api/portal/notifications — avisos para el socio (calculados al vuelo)
+router.get('/notifications', portalAuth, async (req, res) => {
+  try {
+    const now = new Date();
+    const in7 = new Date(now); in7.setDate(in7.getDate() + 7);
+    const ago7 = new Date(now); ago7.setDate(ago7.getDate() - 7);
+    const in2 = new Date(now); in2.setDate(in2.getDate() + 2);
+    const todayStr = now.toISOString().slice(0, 10);
+    const in2Str = in2.toISOString().slice(0, 10);
+    const dstr = (x) => { const [y, m, d] = String(x || '').split('-'); return d ? `${d}/${m}` : (x || ''); };
+
+    const [cuotas, scheduled, cancelled] = await Promise.all([
+      prisma.cuota.findMany({
+        where: { enrollment: { clientId: req.socioId }, OR: [{ paymentStatus: 'overdue' }, { paymentStatus: 'pending', dueDate: { gte: now, lte: in7 } }] },
+        include: { enrollment: { include: { activity: { select: { name: true } } } } }, take: 20,
+      }),
+      prisma.appointment.findMany({ where: { clientId: req.socioId, status: 'scheduled', isQuickWork: false, date: { gte: todayStr } }, include: { service: { select: { name: true } } }, orderBy: { date: 'asc' }, take: 20 }),
+      prisma.appointment.findMany({ where: { clientId: req.socioId, status: 'cancelled', isQuickWork: false, updatedAt: { gte: ago7 } }, include: { service: { select: { name: true } } }, orderBy: { updatedAt: 'desc' }, take: 20 }),
+    ]);
+
+    const items = [];
+    for (const c of cuotas) {
+      const act = c.enrollment?.activity?.name || 'tu cuota';
+      if (c.paymentStatus === 'overdue') items.push({ id: 'cuota-ov-' + c.id, type: 'overdue', title: 'Cuota vencida', detail: `Tu cuota de ${act} está vencida.`, ts: c.dueDate || c.createdAt });
+      else items.push({ id: 'cuota-up-' + c.id, type: 'upcoming', title: 'Cuota por vencer', detail: `Tu cuota de ${act} vence el ${dstr(c.dueDate ? new Date(c.dueDate).toISOString().slice(0,10) : '')}.`, ts: c.dueDate });
+    }
+    for (const a of scheduled) {
+      const svc = a.service?.name || 'tu turno';
+      if (a.date <= in2Str) items.push({ id: 'appt-rem-' + a.id, type: 'reminder', title: 'Recordatorio de turno', detail: `Tenés turno de ${svc} el ${dstr(a.date)} a las ${a.startTime}.`, ts: a.updatedAt });
+      else items.push({ id: 'appt-ok-' + a.id, type: 'confirmed', title: 'Turno confirmado', detail: `Tu turno de ${svc} quedó confirmado para el ${dstr(a.date)} a las ${a.startTime}.`, ts: a.updatedAt });
+    }
+    for (const a of cancelled) {
+      const svc = a.service?.name || 'tu turno';
+      items.push({ id: 'appt-cx-' + a.id, type: 'cancelled', title: 'Turno cancelado', detail: `Tu turno de ${svc} del ${dstr(a.date)} fue cancelado.`, ts: a.updatedAt });
+    }
+    items.sort((x, y) => new Date(y.ts) - new Date(x.ts));
+    res.json({ items });
+  } catch (e) { console.error('[portal-notifications]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
 // GET /api/portal/services — servicios que el socio puede reservar
 router.get('/services', portalAuth, async (req, res) => {
   try {

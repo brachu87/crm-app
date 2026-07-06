@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import ChatBot from './ChatBot';
 import AuthImage from './AuthImage';
+import NotificationsBell from './NotificationsBell';
 import { useAuth } from '../context/AuthContext';
 import { ALL_MODULES } from '../config/modules';
 import { canViewModule, ROUTE_MODULE } from '../config/permissions';
@@ -90,6 +91,7 @@ export default function Layout() {
   const [searchFocus, setSearchFocus] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const fetchNotifs = () => import('../api/client').then(({ default: api }) => api.get('/notifications')).then(r => r.data.items).catch(() => []);
 
   // Which accordion group is open
   const [openGroup, setOpenGroup] = useState(() => activeGroup(location.pathname));
@@ -213,6 +215,7 @@ export default function Layout() {
             <SearchDropdown results={searchResults} onSelect={handleSearchSelect} />
           )}
         </div>
+        <NotificationsBell fetchItems={fetchNotifs} storageKey="gestumio_notif_seen" />
         <button className="mobile-theme-btn" onClick={() => setDark(!dark)} aria-label="Cambiar tema">
           {dark ? 'Oscuro' : 'Claro'}
         </button>
@@ -234,6 +237,7 @@ export default function Layout() {
             )}
             <span>{business?.name || 'Mi Negocio'}</span>
           </div>
+          <NotificationsBell fetchItems={fetchNotifs} storageKey="gestumio_notif_seen" />
           <button className="sidebar-close-btn" onClick={() => setMenuOpen(false)} aria-label="Cerrar menu" style={{ fontSize: 20, lineHeight: 1, color: "var(--ink-soft)" }}>✕</button>
         </div>
 

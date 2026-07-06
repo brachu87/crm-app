@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import confirmDialog from '../utils/confirm';
+import NotificationsBell from '../components/NotificationsBell';
 
 const PORTAL_EYE = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -172,7 +173,10 @@ function PortalDashboard({ me, onLogout, onReload }) {
             <div style={{ fontSize: 11, color: '#7DD3A0' }}>{me.businessName}</div>
           </div>
         </div>
-        <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>Salir</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#fff' }}>
+          <NotificationsBell fetchItems={() => portalFetch('/notifications').then(r => r.items).catch(() => [])} storageKey="gestumio_portal_notif_seen" />
+          <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>Salir</button>
+        </div>
       </div>
 
       {/* Navbar de secciones */}
