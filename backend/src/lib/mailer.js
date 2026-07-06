@@ -196,4 +196,4 @@ async function sendTest(toEmail) {
   }
 }
 
-module.exports = { sendWelcomeEmail, sendPasswordResetEmail, sendTest };
+module.exports = { sendWelcomeEmail, sendPasswordResetEmail, sendTest, sendEmail: deliver };

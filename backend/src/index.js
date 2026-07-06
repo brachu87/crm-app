@@ -12,6 +12,7 @@ const authMiddleware = require('./middleware/auth');
 const { subscriptionCheck } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const legalRoutes = require('./routes/legal');
 const manualIncomeRoutes = require('./routes/manual-income');
 const clientsRoutes = require('./routes/clients');
 const activitiesRoutes = require('./routes/activities');
@@ -62,6 +63,8 @@ const ALLOWED_ORIGINS = [
   ...(process.env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
   'https://gestumio.com',
   'https://www.gestumio.com',
+  'https://gestumio.app',
+  'https://www.gestumio.app',
   'http://localhost:5173',
   'http://localhost:3000',
 ].filter(Boolean);
@@ -74,6 +77,7 @@ function corsAllowed(origin) {
     // Permitir el propio dominio de la app en Railway y gestumio.com (robusto a cambios de URL)
     if (h.endsWith('.up.railway.app')) return true;
     if (h === 'gestumio.com' || h.endsWith('.gestumio.com')) return true;
+    if (h === 'gestumio.app' || h.endsWith('.gestumio.app')) return true;
   } catch (_) {}
   return false;
 }
@@ -117,6 +121,7 @@ const PUBLIC_API_PATHS = [
   '/api/billing/webhook',
   '/api/google-calendar/callback',
   '/api/whatsapp/webhook',
+  '/api/legal',
 ];
 app.use('/api/', (req, res, next) => {
   const fullPath = '/api' + req.path;
@@ -133,6 +138,7 @@ const SUBSCRIPTION_EXEMPT = [
   '/api/billing/',
   '/api/google-calendar/',
   '/api/whatsapp/webhook',
+  '/api/legal',
 ];
 app.use('/api/', (req, res, next) => {
   const fullPath = '/api' + req.path;
@@ -152,6 +158,7 @@ const uploadLimiter = rateLimit({
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/legal', legalRoutes);
 app.use('/api/manual-income', manualIncomeRoutes);
 
 // Panel de administración — solo accesible en /admin
