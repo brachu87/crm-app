@@ -1146,6 +1146,9 @@ function BillingCard({ billing, onRefresh }) {
               ? `Incluye ${userLimit} usuarios (3 base + ${extraUsers} extra)`
               : 'Incluye 3 usuarios'}
           </div>
+          <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>
+            Podés sumar más usuarios por $20.000/mes cada uno.
+          </div>
         </div>
       </div>
 
