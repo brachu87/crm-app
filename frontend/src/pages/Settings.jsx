@@ -1025,6 +1025,7 @@ function PermissionsPanel({ u, onClose, onSaved }) {
 function BillingCard({ billing, onRefresh }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cycle, setCycle] = useState('monthly');
 
   const status = billing?.status || 'trial';
   const expires = billing?.expires ? new Date(billing.expires) : null;
@@ -1038,6 +1039,7 @@ function BillingCard({ billing, onRefresh }) {
   const bonificado = billing?.bonificado || false;
   const extraUsers = billing?.extraUsers || 0;
   const monthlyPrice = billing?.monthlyPrice || 50000;
+  const annualPrice = billing?.annualPrice || Math.round(monthlyPrice * 12 * 0.8);
   const userLimit = billing?.userLimit || 3;
 
   const STATUS_INFO = {
@@ -1055,7 +1057,7 @@ function BillingCard({ billing, onRefresh }) {
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/billing/preference');
+      const res = await api.post('/billing/preference', { cycle });
       window.location.href = res.data.init_point;
     } catch (e) {
       setError(e.response?.data?.error || 'Error al generar el link de pago');
@@ -1139,8 +1141,19 @@ function BillingCard({ billing, onRefresh }) {
         {/* Plan */}
         <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 20px', flex: 1, minWidth: 160 }}>
           <div style={{ fontSize: 11, color: 'var(--ink-soft)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Plan</div>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>Plan Mensual</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>${monthlyPrice.toLocaleString('es-AR')} / mes</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{cycle === 'annual' ? 'Plan Anual' : 'Plan Mensual'}</div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, marginBottom: 6 }}>
+            <button type="button" onClick={() => setCycle('monthly')} style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: cycle === 'monthly' ? 'var(--primary)' : 'transparent', color: cycle === 'monthly' ? '#fff' : 'var(--ink)' }}>Mensual</button>
+            <button type="button" onClick={() => setCycle('annual')} style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: cycle === 'annual' ? 'var(--primary)' : 'transparent', color: cycle === 'annual' ? '#fff' : 'var(--ink)' }}>Anual −20%</button>
+          </div>
+          {cycle === 'annual' ? (
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>
+              ${annualPrice.toLocaleString('es-AR')} / año
+              <span style={{ color: '#10b981', fontWeight: 700 }}> · ahorrás ${(monthlyPrice * 12 - annualPrice).toLocaleString('es-AR')}</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginTop: 4 }}>${monthlyPrice.toLocaleString('es-AR')} / mes</div>
+          )}
           <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>
             {extraUsers > 0
               ? `Incluye ${userLimit} usuarios (3 base + ${extraUsers} extra)`
@@ -1159,7 +1172,7 @@ function BillingCard({ billing, onRefresh }) {
           disabled={loading}
           style={{ minWidth: 180 }}
         >
-          {loading ? 'Generando link...' : status === 'active' ? '🔄 Renovar plan' : '💳 Pagar ahora'}
+          {loading ? 'Generando link...' : (status === 'active' ? '🔄 Renovar' : '💳 Pagar') + (cycle === 'annual' ? ' · plan anual' : ' · plan mensual')}
         </button>
         <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
           Serás redirigido a Mercado Pago para completar el pago de forma segura.

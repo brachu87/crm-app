@@ -12,10 +12,17 @@ const EXTRA_USER_PRICE = 20000; // por cada usuario adicional
 const INCLUDED_USERS = 3;
 const PRICE = BASE_PRICE;        // compatibilidad
 const PLAN_DAYS = 30;
+const ANNUAL_MONTHS = 12;
+const ANNUAL_DISCOUNT = 0.20; // 20% off pagando anual
 
 // Precio mensual del negocio segun sus usuarios extra
 function monthlyPriceFor(biz) {
   return BASE_PRICE + EXTRA_USER_PRICE * (biz?.extraUsers || 0);
+}
+
+// Precio anual (12 meses con 20% de descuento)
+function annualPriceFor(biz) {
+  return Math.round(monthlyPriceFor(biz) * ANNUAL_MONTHS * (1 - ANNUAL_DISCOUNT));
 }
 
 function getMpClient() {
@@ -43,6 +50,8 @@ router.get('/status', authMiddleware, async (req, res) => {
       includedUsers: INCLUDED_USERS,
       userLimit: INCLUDED_USERS + (biz.extraUsers || 0),
       monthlyPrice: monthlyPriceFor(biz),
+      annualPrice: annualPriceFor(biz),
+      annualDiscount: ANNUAL_DISCOUNT,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -57,6 +66,15 @@ router.post('/preference', authMiddleware, async (req, res) => {
     const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
     if (!biz) return res.status(404).json({ error: 'Negocio no encontrado' });
 
+    const cycle = req.body?.cycle === 'annual' ? 'annual' : 'monthly';
+    const isAnnual = cycle === 'annual';
+    const unitPrice = isAnnual ? annualPriceFor(biz) : monthlyPriceFor(biz);
+    const title = isAnnual ? 'Gestumio — Plan Anual (-20%)' : 'Gestumio — Plan Mensual';
+    const extraTxt = (biz.extraUsers || 0) > 0 ? ` (3 usuarios incluidos + ${biz.extraUsers} extra)` : '';
+    const description = isAnnual
+      ? `Suscripción anual para ${biz.name}${extraTxt} — 12 meses con 20% de descuento`
+      : `Suscripción mensual para ${biz.name}${extraTxt}`;
+
     const client = getMpClient();
     const preference = new Preference(client);
 
@@ -65,19 +83,17 @@ router.post('/preference', authMiddleware, async (req, res) => {
         items: [
           {
             id: `gestumio-plan-${biz.id}`,
-            title: 'Gestumio — Plan Mensual',
-            description: (biz.extraUsers || 0) > 0
-              ? `Suscripción mensual para ${biz.name} (3 usuarios incluidos + ${biz.extraUsers} extra)`
-              : `Suscripción mensual para ${biz.name}`,
+            title,
+            description,
             quantity: 1,
             currency_id: 'ARS',
-            unit_price: monthlyPriceFor(biz),
+            unit_price: unitPrice,
           },
         ],
         payer: {
           email: req.user.email,
         },
-        external_reference: biz.id,
+        external_reference: `${biz.id}|${cycle}`,
         back_urls: {
           success: `${APP_URL}/settings?payment=success`,
           failure: `${APP_URL}/settings?payment=failure`,
@@ -179,11 +195,16 @@ router.post('/webhook', express.json(), async (req, res) => {
 
     if (payment.status !== 'approved') return;
 
-    const businessId = payment.external_reference;
+    const ref = payment.external_reference || '';
+    const [businessId, cycleRef] = ref.split('|');
     if (!businessId) return;
 
     const now = new Date();
-    const expires = new Date(now.getTime() + PLAN_DAYS * 24 * 60 * 60 * 1000);
+    const days = cycleRef === 'annual' ? ANNUAL_MONTHS * 30 : PLAN_DAYS;
+    const current = await prisma.business.findUnique({ where: { id: businessId }, select: { subscriptionExpires: true } });
+    const base = (current?.subscriptionExpires && new Date(current.subscriptionExpires) > now)
+      ? new Date(current.subscriptionExpires) : now;
+    const expires = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
 
     await prisma.business.update({
       where: { id: businessId },
@@ -199,7 +220,7 @@ router.post('/webhook', express.json(), async (req, res) => {
       data: { approved: true, approvedAt: new Date() },
     });
 
-    console.log(`[billing] Pago aprobado para negocio ${businessId} — activo hasta ${expires.toISOString()}`);
+    console.log(`[billing] Pago aprobado (${cycleRef||'monthly'}) negocio ${businessId} — activo hasta ${expires.toISOString()}`);
   } catch (e) {
     console.error('[billing] webhook error:', e.message);
   }
