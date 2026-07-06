@@ -39,7 +39,7 @@ export default function PasswordInput({ style, ...props }) {
           color: 'var(--ink-soft, #64748b)',
         }}
       >
-        {show ? EyeOffIcon : EyeIcon}
+        {show ? EyeIcon : EyeOffIcon}
       </button>
     </div>
   );

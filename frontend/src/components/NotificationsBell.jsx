@@ -10,7 +10,7 @@ const ICON = { overdue: '🔴', upcoming: '🟠', 'appt-new': '📅', 'appt-canc
 
 // Campanita de notificaciones reutilizable (app y portal).
 // props: fetchItems() -> Promise<[{id,type,title,detail,ts}]>, storageKey (clave localStorage de "visto")
-export default function NotificationsBell({ fetchItems, storageKey = 'notif_seen' }) {
+export default function NotificationsBell({ fetchItems, storageKey = 'notif_seen', bubble = false }) {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(() => Number(localStorage.getItem(storageKey) || 0));
@@ -36,7 +36,9 @@ export default function NotificationsBell({ fetchItems, storageKey = 'notif_seen
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
       <button onClick={toggle} aria-label="Notificaciones" title="Notificaciones"
-        style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 6, lineHeight: 0, color: 'inherit' }}>
+        style={bubble
+          ? { position: 'relative', width: 46, height: 46, borderRadius: '50%', background: 'var(--surface, #fff)', border: '1px solid var(--border, #e5e7eb)', color: 'var(--ink, #1E2A38)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(0,0,0,0.18)' }
+          : { position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 6, lineHeight: 0, color: 'inherit' }}>
         {BELL}
         {unread > 0 && (
           <span style={{ position: 'absolute', top: -2, right: -2, background: '#dc2626', color: '#fff', fontSize: 10, fontWeight: 800, minWidth: 16, height: 16, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>

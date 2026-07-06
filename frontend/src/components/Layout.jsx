@@ -169,6 +169,9 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
+      <div style={{ position: 'fixed', top: 14, right: 16, zIndex: 1000 }}>
+        <NotificationsBell fetchItems={fetchNotifs} storageKey="gestumio_notif_seen" bubble />
+      </div>
       {showIdleWarning && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
@@ -215,7 +218,6 @@ export default function Layout() {
             <SearchDropdown results={searchResults} onSelect={handleSearchSelect} />
           )}
         </div>
-        <NotificationsBell fetchItems={fetchNotifs} storageKey="gestumio_notif_seen" />
         <button className="mobile-theme-btn" onClick={() => setDark(!dark)} aria-label="Cambiar tema">
           {dark ? 'Oscuro' : 'Claro'}
         </button>
@@ -237,7 +239,6 @@ export default function Layout() {
             )}
             <span>{business?.name || 'Mi Negocio'}</span>
           </div>
-          <NotificationsBell fetchItems={fetchNotifs} storageKey="gestumio_notif_seen" />
           <button className="sidebar-close-btn" onClick={() => setMenuOpen(false)} aria-label="Cerrar menu" style={{ fontSize: 20, lineHeight: 1, color: "var(--ink-soft)" }}>✕</button>
         </div>
 

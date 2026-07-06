@@ -21,7 +21,7 @@ function PwInput(props) {
       <button type="button" onClick={() => setShow((s) => !s)} tabIndex={-1}
         aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}
         style={{ position: 'absolute', right: 6, top: 0, bottom: 0, width: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 0 }}>
-        {show ? PORTAL_EYE_OFF : PORTAL_EYE}
+        {show ? PORTAL_EYE : PORTAL_EYE_OFF}
       </button>
     </div>
   );
