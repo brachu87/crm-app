@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PasswordInput from '../components/PasswordInput';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
@@ -93,7 +94,7 @@ export default function Login() {
           </div>
           <div className="field">
             <label htmlFor="password">Contraseña</label>
-            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
             {loading ? <><div className="spinner" style={{width:16,height:16,borderWidth:'2px',borderTopColor:'rgba(255,255,255,0.8)',borderColor:'rgba(255,255,255,0.3)'}}></div>Ingresando...</> : 'Ingresar'}

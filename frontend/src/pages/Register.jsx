@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PasswordInput from '../components/PasswordInput';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
@@ -138,7 +139,7 @@ export default function Register() {
               </div>
               <div className="field">
                 <label htmlFor="password">Contraseña</label>
-                <input id="password" type="password" value={form.password} onChange={(e) => update('password', e.target.value)} required minLength={6} />
+                <PasswordInput id="password" value={form.password} onChange={(e) => update('password', e.target.value)} required minLength={6} />
               </div>
             </>
           )}

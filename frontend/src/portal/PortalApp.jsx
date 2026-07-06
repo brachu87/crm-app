@@ -1,6 +1,31 @@
 import { useEffect, useState } from 'react';
 import confirmDialog from '../utils/confirm';
 
+const PORTAL_EYE = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
+  </svg>
+);
+const PORTAL_EYE_OFF = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><line x1="2" y1="2" x2="22" y2="22" />
+  </svg>
+);
+function PwInput(props) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input {...props} type={show ? 'text' : 'password'} style={{ ...inp, paddingRight: 42 }} />
+      <button type="button" onClick={() => setShow((s) => !s)} tabIndex={-1}
+        aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        style={{ position: 'absolute', right: 6, top: 0, bottom: 0, width: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 0 }}>
+        {show ? PORTAL_EYE_OFF : PORTAL_EYE}
+      </button>
+    </div>
+  );
+}
+
 const TOKEN_KEY = 'portal_token';
 function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
 function fmtMoney(v) { return '$' + Number(v || 0).toLocaleString('es-AR'); }
@@ -82,7 +107,7 @@ function PortalLogin({ onLogin }) {
           <label style={lbl}>Número de socio</label>
           <input style={inp} value={memberNumber} onChange={(e) => setMemberNumber(e.target.value)} placeholder="Ej: 123456" autoFocus />
           <label style={lbl}>Contraseña (tu DNI la primera vez)</label>
-          <input style={inp} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PwInput value={password} onChange={(e) => setPassword(e.target.value)} />
           <button type="submit" disabled={loading} style={{ ...btn, width: '100%', marginTop: 10 }}>{loading ? 'Ingresando...' : 'Ingresar'}</button>
         </form>
       </div>
@@ -453,9 +478,9 @@ function ChangePasswordModal({ onClose, onDone }) {
         {error && <div style={errBox}>{error}</div>}
         <form onSubmit={submit}>
           <label style={lbl}>Nueva contraseña</label>
-          <input style={inp} type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
+          <PwInput value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
           <label style={lbl}>Repetir contraseña</label>
-          <input style={inp} type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+          <PwInput value={pw2} onChange={(e) => setPw2(e.target.value)} />
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button type="button" onClick={onClose} style={{ ...btn, background: '#e2e8f0', color: '#334155', flex: 1 }}>Cancelar</button>
             <button type="submit" disabled={saving} style={{ ...btn, flex: 1 }}>{saving ? 'Guardando...' : 'Guardar'}</button>

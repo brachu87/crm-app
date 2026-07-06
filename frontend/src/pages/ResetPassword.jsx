@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PasswordInput from '../components/PasswordInput';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 
@@ -46,11 +47,11 @@ export default function ResetPassword() {
           <form onSubmit={submit}>
             <div className="field">
               <label htmlFor="pw">Nueva contraseña</label>
-              <input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <PasswordInput id="pw" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <div className="field">
               <label htmlFor="pw2">Repetir contraseña</label>
-              <input id="pw2" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+              <PasswordInput id="pw2" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
             </div>
             <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
               {loading ? 'Guardando...' : 'Guardar contraseña'}

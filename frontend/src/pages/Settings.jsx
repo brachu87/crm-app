@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import PasswordInput from '../components/PasswordInput';
 import confirmDialog from '../utils/confirm';
 import api from '../api/client';
 import AuthImage from '../components/AuthImage';
@@ -860,7 +861,7 @@ function UserModal({ user, onClose, onSaved }) {
           </div>
           <div className="field">
             <label>{isEdit ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña'}</label>
-            <input type="password" value={form.password} onChange={set('password')} minLength={isEdit ? 0 : 6} />
+            <PasswordInput value={form.password} onChange={set('password')} minLength={isEdit ? 0 : 6} />
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
