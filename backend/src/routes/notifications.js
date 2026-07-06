@@ -20,10 +20,10 @@ router.get('/', async (req, res) => {
     const cuotaInclude = { enrollment: { include: { client: { select: { name: true } }, activity: { select: { name: true } } } } };
 
     const [overdue, upcoming, pendingAppts, cancelledAppts] = await Promise.all([
-      prisma.cuota.findMany({ where: { paymentStatus: 'overdue', enrollment: { activity: { businessId } } }, include: cuotaInclude, orderBy: { dueDate: 'desc' }, take: 40 }),
-      prisma.cuota.findMany({ where: { paymentStatus: 'pending', dueDate: { gte: now, lte: in7 }, enrollment: { activity: { businessId } } }, include: cuotaInclude, orderBy: { dueDate: 'asc' }, take: 40 }),
-      prisma.appointment.findMany({ where: { businessId, status: 'pending', isQuickWork: false }, include: { client: { select: { name: true } }, service: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, take: 40 }),
-      prisma.appointment.findMany({ where: { businessId, status: 'cancelled', isQuickWork: false, updatedAt: { gte: daysFromNow(-7) }, notes: { contains: 'portal' } }, include: { client: { select: { name: true } }, service: { select: { name: true } } }, orderBy: { updatedAt: 'desc' }, take: 40 }),
+      prisma.cuota.findMany({ where: { paymentStatus: 'overdue', enrollment: { active: true, client: { businessId, active: true } } }, include: cuotaInclude, orderBy: { dueDate: 'desc' }, take: 40 }),
+      prisma.cuota.findMany({ where: { paymentStatus: 'pending', dueDate: { gte: now, lte: in7 }, enrollment: { active: true, client: { businessId, active: true } } }, include: cuotaInclude, orderBy: { dueDate: 'asc' }, take: 40 }),
+      prisma.appointment.findMany({ where: { businessId, status: 'pending', isQuickWork: false, client: { active: true } }, include: { client: { select: { name: true } }, service: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, take: 40 }),
+      prisma.appointment.findMany({ where: { businessId, status: 'cancelled', isQuickWork: false, updatedAt: { gte: daysFromNow(-7) }, notes: { contains: 'portal' }, client: { active: true } }, include: { client: { select: { name: true } }, service: { select: { name: true } } }, orderBy: { updatedAt: 'desc' }, take: 40 }),
     ]);
 
     const items = [];

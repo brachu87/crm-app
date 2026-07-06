@@ -147,7 +147,7 @@ router.get('/notifications', portalAuth, async (req, res) => {
 
     const [cuotas, scheduled, cancelled] = await Promise.all([
       prisma.cuota.findMany({
-        where: { enrollment: { clientId: req.socioId }, OR: [{ paymentStatus: 'overdue' }, { paymentStatus: 'pending', dueDate: { gte: now, lte: in7 } }] },
+        where: { enrollment: { active: true, clientId: req.socioId }, OR: [{ paymentStatus: 'overdue' }, { paymentStatus: 'pending', dueDate: { gte: now, lte: in7 } }] },
         include: { enrollment: { include: { activity: { select: { name: true } } } } }, take: 20,
       }),
       prisma.appointment.findMany({ where: { clientId: req.socioId, status: 'scheduled', isQuickWork: false, date: { gte: todayStr } }, include: { service: { select: { name: true } } }, orderBy: { date: 'asc' }, take: 20 }),
