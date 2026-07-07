@@ -54,6 +54,7 @@ app.use(helmet({
   contentSecurityPolicy: false,              // app uses inline scripts/styles
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow logo/photo serving
   crossOriginEmbedderPolicy: false,          // avoid breaking image loads
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // permitir el popup de login con Google
 }));
 app.disable('x-powered-by');
 
