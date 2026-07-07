@@ -7,18 +7,7 @@ import { useAuth } from '../context/AuthContext';
 function GestumioLogo({ size = 52 }) {
   return (
     <div style={{ textAlign: 'center', marginBottom: 20 }}>
-      <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="gGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#46C658"/>
-            <stop offset="1" stopColor="#0F8A3A"/>
-          </linearGradient>
-        </defs>
-        <circle cx="50" cy="50" r="33" fill="none" stroke="url(#gGrad)" strokeWidth="12" strokeLinecap="round"/>
-        <rect x="45" y="38" width="36" height="11.5" rx="5.75" fill="#1E2A38"/>
-        <rect x="45" y="53" width="30" height="11.5" rx="5.75" fill="#1E2A38"/>
-        <circle cx="50" cy="72" r="6" fill="url(#gGrad)"/>
-      </svg>
+      <img src="/logo.png" width={size} height={size} alt="Gestumio" style={{ display: 'block', margin: '0 auto' }} />
       <div style={{ marginTop: 10, fontSize: 30, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>
         <span style={{ color: '#1BA84C' }}>G</span><span style={{ color: 'var(--ink)' }}>estumio</span>
       </div>
