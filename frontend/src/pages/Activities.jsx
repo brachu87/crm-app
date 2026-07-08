@@ -105,7 +105,7 @@ async function saveSchedules(activityId, branchId, slots, existingIds = []) {
 // ── Activity Modal ────────────────────────────────────────────────────────────
 function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
   const isEdit = !!activity;
-  const [form, setForm] = useState({ name: activity?.name || '', description: activity?.description || '', price: activity?.price || '', capacity: activity?.capacity || '', branchId: activity?.branchId || '', active: activity?.active ?? true, billingDueDay: activity?.billingDueDay || '' });
+  const [form, setForm] = useState({ name: activity?.name || '', description: activity?.description || '', price: activity?.price || '', capacity: activity?.capacity || '', branchId: activity?.branchId || '', active: activity?.active ?? true, billingDueDay: activity?.billingDueDay || '', reservationMode: activity?.reservationMode || 'daily' });
   const [selectedEmployees, setSelectedEmployees] = useState(() => activity?.activityEmployees?.map(ae => ae.employeeId) || []);
   const [slots, setSlots] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -130,7 +130,7 @@ function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
     setSaving(true); setError('');
     try {
       let saved;
-      const payload = { name: form.name, description: form.description, price: parseFloat(form.price) || 0, capacity: form.capacity ? parseInt(form.capacity) : null, branchId: form.branchId || null, active: form.active, billingDueDay: form.billingDueDay ? parseInt(form.billingDueDay) : null };
+      const payload = { name: form.name, description: form.description, price: parseFloat(form.price) || 0, capacity: form.capacity ? parseInt(form.capacity) : null, branchId: form.branchId || null, active: form.active, billingDueDay: form.billingDueDay ? parseInt(form.billingDueDay) : null, reservationMode: form.reservationMode };
       if (isEdit) { saved = await api.put(`/activities/${activity.id}`, payload); }
       else { saved = await api.post('/activities', payload); }
       const actId = saved.data.id;
@@ -165,6 +165,14 @@ function ActivityModal({ activity, branches, employees, onClose, onSaved }) {
             {form.billingDueDay && <span style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4, display: 'block' }}>
               Los clientes que se inscriban pagarán siempre el día {form.billingDueDay} de cada mes.
             </span>}
+          </div>
+          <div className="field">
+            <label>Modo de reserva online (portal del socio)</label>
+            <select value={form.reservationMode} onChange={e => update('reservationMode', e.target.value)} style={{ width: '100%' }}>
+              <option value="daily">Día a día — el socio reserva cada clase</option>
+              <option value="weekly">Semanal — reserva su lugar por semana</option>
+              <option value="monthly">Mensual — queda inscripto todo el mes</option>
+            </select>
           </div>
           {branches.length > 0 && <div className="field"><label>Sede</label><select value={form.branchId} onChange={e => update('branchId', e.target.value)}><option value="">Sin sede</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>}
           {employees.length > 0 && (

@@ -124,6 +124,7 @@ model Activity {
   price       Float
   capacity    Int?
   schedule    String?
+  reservationMode String   @default("daily") // daily | weekly | monthly
   active      Boolean      @default(true)
   billingDueDay Int?
   businessId  String

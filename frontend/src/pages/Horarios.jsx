@@ -121,11 +121,16 @@ export default function Horarios() {
                   <div className="sc-activity">{s.activity?.name}</div>
                   {s.employee && <div className="sc-employee">👤 {s.employee.name}</div>}
                   {s.branch && <div className="sc-branch">🏢 {s.branch.name}</div>}
-                  {s.maxCapacity && <div className="sc-capacity">👥 cupo {s.maxCapacity}</div>}
-                  {s.reservations && s.reservations.length > 0 && (
-                    <div className="sc-capacity" style={{ color: '#1d4ed8' }} title={s.reservations.map(r => `${r.clientName} (${r.date})`).join('\n')}>
-                      📋 {s.reservations.length} reservado{s.reservations.length > 1 ? 's' : ''}
+                  {(s.maxCapacity || (s.reservations && s.reservations.length > 0)) && (
+                    <div className="sc-capacity" style={{ color: '#1d4ed8', fontWeight: 700 }}>
+                      👥 {s.reservations ? s.reservations.length : 0}{s.maxCapacity ? `/${s.maxCapacity}` : ''} inscripto{(s.reservations ? s.reservations.length : 0) === 1 ? '' : 's'}
                     </div>
+                  )}
+                  {s.reservations && s.reservations.length > 0 && (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: '2px 0 0', fontSize: 11, color: 'var(--muted)' }}>
+                      {s.reservations.slice(0, 6).map(r => <li key={r.id}>• {r.clientName} <span style={{ opacity: 0.65 }}>({r.date})</span></li>)}
+                      {s.reservations.length > 6 && <li>+{s.reservations.length - 6} más</li>}
+                    </ul>
                   )}
                   <div className="sc-actions">
                     {can.editar && <button onClick={() => openEdit(s)}>✏️</button>}
