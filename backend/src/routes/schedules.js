@@ -11,6 +11,7 @@ router.get('/', auth, async (req, res) => {
     const where = { businessId: req.user.businessId, active: true };
     if (branchId) where.branchId = branchId;
     if (activityId) where.activityId = activityId;
+    else where.activity = { active: true }; // grilla: ocultar horarios de actividades dadas de baja
     if (employeeId) {
       // Horarios del empleado: asignados directamente al horario, o de actividades
       // donde el empleado está asignado (checkbox) y el horario quedó sin asignar.
