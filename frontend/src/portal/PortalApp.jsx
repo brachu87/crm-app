@@ -154,12 +154,20 @@ function PortalDashboard({ me, onLogout, onReload }) {
   }
   async function reserveClass(id) {
     setReserving(id);
-    try { await portalFetch('/classes/' + id + '/reserve', { method: 'POST' }); loadClasses(); }
+    try {
+      const r = await portalFetch('/classes/' + id + '/reserve', { method: 'POST' });
+      if (r && (r.mode === 'monthly' || r.mode === 'weekly')) {
+        const per = r.mode === 'monthly' ? 'este mes' : 'esta semana';
+        if (r.reserved > 0) alert(`¡Listo! Te reservamos el lugar en ${r.reserved} clase${r.reserved === 1 ? '' : 's'} ${per}.` + (r.full > 0 ? ` (${r.full} sin cupo)` : ''));
+        else alert(r.full > 0 ? `No quedaban cupos ${per}.` : `No hay clases ${per} para reservar.`);
+      }
+      loadClasses();
+    }
     catch (e) { alert(e.message); } finally { setReserving(null); }
   }
-  async function cancelClass(id) {
+  async function cancelClass(groupId) {
     if (!await confirmDialog('¿Cancelar tu reserva de clase?')) return;
-    try { await portalFetch('/class-reservations/' + id + '/cancel', { method: 'POST' }); loadClasses(); } catch (_) {}
+    try { await portalFetch('/class-reservations/cancel-group', { method: 'POST', body: JSON.stringify({ groupId }) }); loadClasses(); } catch (_) {}
   }
 
   return (
@@ -264,13 +272,15 @@ function PortalDashboard({ me, onLogout, onReload }) {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{c.activity}</div>
                     <div style={{ fontSize: 12, color: '#64748b' }}>{c.dayLabel} {fmtDate(c.date)} · {c.startTime}–{c.endTime}{c.maxCapacity ? ` · ${c.spotsLeft} cupos libres` : ''}</div>
+                    {c.mode === 'monthly' && <div style={{ fontSize: 11, color: '#159B57' }}>Reservás tu lugar para todo el mes</div>}
+                    {c.mode === 'weekly' && <div style={{ fontSize: 11, color: '#159B57' }}>Reservás tu lugar para toda la semana</div>}
                   </div>
                   {c.alreadyReserved ? (
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>Reservado ✓</span>
-                  ) : (c.maxCapacity && c.spotsLeft <= 0) ? (
+                  ) : (c.maxCapacity && c.spotsLeft <= 0 && c.mode === 'daily') ? (
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626' }}>Sin cupos</span>
                   ) : (
-                    <button onClick={() => reserveClass(c.id)} disabled={reserving === c.id} style={{ ...btn, padding: '6px 12px', fontSize: 12 }}>{reserving === c.id ? '...' : 'Reservar'}</button>
+                    <button onClick={() => reserveClass(c.id)} disabled={reserving === c.id} style={{ ...btn, padding: '6px 12px', fontSize: 12 }}>{reserving === c.id ? '...' : c.mode === 'monthly' ? 'Inscribirme el mes' : c.mode === 'weekly' ? 'Reservar semana' : 'Reservar'}</button>
                   )}
                 </div>
               ))
@@ -279,9 +289,11 @@ function PortalDashboard({ me, onLogout, onReload }) {
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
                 <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>Mis clases reservadas</p>
                 {myClasses.map((r) => (
-                  <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
-                    <div style={{ fontSize: 13 }}>{r.activity} · {fmtDate(r.date)} {r.startTime}</div>
-                    <button onClick={() => cancelClass(r.id)} style={btnCancel}>Cancelar</button>
+                  <div key={r.groupId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+                    <div style={{ fontSize: 13 }}>{r.activity} · {r.startTime}
+                      <div style={{ fontSize: 11, color: '#64748b' }}>{r.periodType === 'monthly' ? `Mes completo · ${r.count} clase${r.count === 1 ? '' : 's'}` : r.periodType === 'weekly' ? `Esta semana · ${r.count} clase${r.count === 1 ? '' : 's'}` : fmtDate(r.nextDate)}</div>
+                    </div>
+                    <button onClick={() => cancelClass(r.groupId)} style={btnCancel}>Cancelar</button>
                   </div>
                 ))}
               </div>

@@ -471,6 +471,8 @@ model ClassReservation {
   client          Client        @relation(fields: [clientId], references: [id])
   date            String        // "YYYY-MM-DD"
   status          String        @default("reserved") // reserved | cancelled
+  periodType      String        @default("daily") // daily | weekly | monthly
+  periodKey       String?       // weekly: lunes YYYY-MM-DD · monthly: YYYY-MM
   createdAt       DateTime      @default(now())
 
   @@index([businessId])
