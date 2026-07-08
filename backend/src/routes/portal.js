@@ -441,7 +441,7 @@ router.get('/classes', portalAuth, async (req, res) => {
     const businessId = await socioBusinessId(req.socioId);
     if (!businessId) return res.status(404).json({ error: 'No encontrado' });
     const schedules = await prisma.classSchedule.findMany({
-      where: { businessId, active: true },
+      where: { businessId, active: true, activity: { active: true } },
       include: { activity: { select: { name: true, reservationMode: true } } },
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
     });
