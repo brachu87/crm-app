@@ -444,10 +444,11 @@ function AppointmentsPanel({ service, clients, employees, onClose }) {
   });
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0008', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
-      <div style={{ background: 'var(--surface)', width: '100%', maxWidth: 600, height: '100%', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 32px #0003' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#0008', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', width: '100%', maxWidth: 600, height: '100%', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 32px #0003' }}>
         {/* Header */}
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={onClose} title="Volver" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: 'var(--primary)', padding: 0, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>← Volver</button>
           <div style={{ flex: 1 }}>
             <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{service.name}</h2>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>{service.duration} min · {fmtMoney(service.price)} base</p>
