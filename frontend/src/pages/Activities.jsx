@@ -260,24 +260,12 @@ function ServiceModal({ service, employees, onClose, onSaved }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
         <h2>{isEdit ? 'Editar servicio' : 'Nuevo servicio'}</h2>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="field"><label>Nombre del servicio</label><input value={form.name} onChange={e => update('name', e.target.value)} placeholder="Ej: Masaje 60 min, Osteopatía inicial" required /></div>
           <div className="field"><label>Descripción (opcional)</label><textarea rows="2" value={form.description} onChange={e => update('description', e.target.value)} /></div>
-          <div className="field">
-            <label>Vencimiento de cuota</label>
-            <select value={form.billingDueDay} onChange={e => update('billingDueDay', e.target.value)} style={{ width: '100%' }}>
-              <option value="">Mes siguiente al alta (ej: alta 23/06 → vence 23/07)</option>
-              {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28].map(d => (
-                <option key={d} value={d}>Día fijo: el {d} de cada mes</option>
-              ))}
-            </select>
-            {form.billingDueDay && <span style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 4, display: 'block' }}>
-              Los clientes que se inscriban pagarán siempre el día {form.billingDueDay} de cada mes.
-            </span>}
-          </div>
           <div className="two-col-grid">
             <div className="field"><label>Duración (minutos)</label><input type="number" min="5" step="5" value={form.duration} onChange={e => update('duration', e.target.value)} required /></div>
             <div className="field"><label>Precio base</label><input type="number" min="0" step="0.01" value={form.price} onChange={e => update('price', e.target.value)} placeholder="0" /></div>
@@ -371,7 +359,7 @@ function AppointmentModal({ service, appointment, clients, employees, onClose, o
 
   return (
     <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460, maxHeight: '90vh', overflowY: 'auto' }}>
         <h2>{isEdit ? 'Editar turno' : `Nuevo turno — ${service?.name}`}</h2>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
@@ -570,7 +558,7 @@ function QuickWorkModal({ work, clients, employees, onClose, onSaved }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
         <h2>{work ? 'Editar trabajo' : 'Registrar trabajo realizado'}</h2>
         <form onSubmit={submit}>
           {!work && (
