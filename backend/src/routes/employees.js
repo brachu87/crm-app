@@ -26,6 +26,17 @@ router.get('/', async (req, res) => {
 
 // POST /api/employees
 
+function parseImportDate(v) {
+  if (v === undefined || v === null) return null;
+  const str = String(v).trim(); if (!str) return null;
+  if (/^\d+(\.\d+)?$/.test(str)) { const n = parseFloat(str); if (n > 20000 && n < 60000) { const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000); return isNaN(d) ? null : d; } }
+  let m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) { let [, d, mo, y] = m; if (y.length === 2) y = String(+y <= 25 ? 2000 + +y : 1900 + +y); const dt = new Date(Date.UTC(+y, +mo - 1, +d, 12)); return isNaN(dt) ? null : dt; }
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) { const dt = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)); return isNaN(dt) ? null : dt; }
+  const dt = new Date(str); return isNaN(dt) ? null : dt;
+}
+
 // POST /api/employees/import
 router.post('/import', async (req, res) => {
   try {
@@ -37,17 +48,18 @@ router.post('/import', async (req, res) => {
     for (const e of employees) {
       if (!e.name) { errors.push({ row: e, error: 'Sin nombre' }); continue; }
       try {
-        const emp = await prisma.employee.create({
-          data: {
-            name: e.name,
-            role: e.role || 'Empleado',
-            phone: e.phone || null,
-            email: e.email || null,
-            salary: e.salary ? parseFloat(e.salary) : null,
-            notes: e.notes || null,
-            businessId: req.user.businessId,
-          },
-        });
+        const data = {
+          name: e.name,
+          role: e.role || 'Empleado',
+          phone: e.phone || null,
+          email: e.email || null,
+          salary: e.salary ? parseFloat(String(e.salary).replace(/[^0-9.,-]/g, '').replace(',', '.')) : null,
+          notes: e.notes || null,
+          businessId: req.user.businessId,
+        };
+        const sd = parseImportDate(e.startDate);
+        if (sd) data.startDate = sd;
+        const emp = await prisma.employee.create({ data });
         created.push(emp);
       } catch (err) {
         errors.push({ row: e, error: err.message });

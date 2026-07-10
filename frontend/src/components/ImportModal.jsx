@@ -82,7 +82,7 @@ export default function ImportModal({ title, columns, apiPath, payloadKey, onClo
   }
 
   function downloadTemplate() {
-    const headers = columns.map(c => c.key);
+    const headers = columns.map(c => c.header || c.key);
     const ws = XLSX.utils.aoa_to_sheet([headers]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
@@ -96,7 +96,7 @@ export default function ImportModal({ title, columns, apiPath, payloadKey, onClo
       <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
         <h2>{title}</h2>
         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 8 }}>
-          Columnas: <strong>{columns.map(c => c.key).join(', ')}</strong>
+          Columnas: <strong>{columns.map(c => c.header || c.key).join(', ')}</strong>
         </p>
         <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
           Formatos aceptados: <strong>.xlsx, .xls, .csv</strong>
@@ -140,7 +140,7 @@ export default function ImportModal({ title, columns, apiPath, payloadKey, onClo
                       <tr>
                         {columns.map(c => (
                           <th key={c.key} style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid var(--border)', color: 'var(--ink-soft)' }}>
-                            {c.key}
+                            {c.header || c.key}
                           </th>
                         ))}
                       </tr>

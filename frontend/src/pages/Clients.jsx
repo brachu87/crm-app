@@ -182,10 +182,19 @@ export default function Clients() {
         <ImportModal
           title="Importar clientes desde Excel o CSV"
           columns={[
-            { key: 'name',  labels: ['nombre','name'] },
-            { key: 'phone', labels: ['telefono','teléfono','phone','cel','celular'] },
-            { key: 'email', labels: ['email','correo','mail'] },
-            { key: 'notes', labels: ['notas','notes','observaciones'] },
+            { key: 'name',             header: 'Nombre',                 labels: ['nombre','name','nombre y apellido','apellido y nombre','cliente'] },
+            { key: 'dni',              header: 'DNI',                    labels: ['dni','documento','doc','nro documento','n° documento'] },
+            { key: 'phone',            header: 'Teléfono',               labels: ['telefono','teléfono','phone','cel','celular','tel','whatsapp'] },
+            { key: 'email',            header: 'Email',                  labels: ['email','correo','mail','e-mail','correo electronico'] },
+            { key: 'birthday',         header: 'Fecha de nacimiento',    labels: ['fecha de nacimiento','nacimiento','cumpleaños','cumple','birthday','fec nac','f. nacimiento'] },
+            { key: 'cuit',             header: 'CUIT',                   labels: ['cuit','cuil'] },
+            { key: 'notes',            header: 'Notas',                  labels: ['notas','notes','observaciones','obs'] },
+            { key: 'medicalNotes',     header: 'Notas médicas',          labels: ['notas medicas','notas médicas','observaciones medicas','medico','apto medico','apto físico'] },
+            { key: 'emergencyContact', header: 'Contacto de emergencia', labels: ['contacto de emergencia','emergencia','contacto emergencia'] },
+            { key: 'emergencyPhone',   header: 'Teléfono de emergencia', labels: ['telefono de emergencia','teléfono de emergencia','tel emergencia'] },
+            { key: 'responsableName',  header: 'Responsable (nombre)',   labels: ['responsable','responsable nombre','nombre responsable','tutor','a cargo'] },
+            { key: 'responsablePhone', header: 'Responsable (teléfono)', labels: ['telefono responsable','teléfono responsable','tel responsable','responsable telefono'] },
+            { key: 'globalDiscount',   header: 'Descuento %',            labels: ['descuento','descuento %','descuento global','desc'] },
           ]}
           apiPath="/clients/import"
           payloadKey="clients"

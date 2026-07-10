@@ -157,6 +157,28 @@ router.post('/', validate(schemas.clientCreate), async (req, res) => {
   }
 });
 
+function parseImportDate(v) {
+  if (v === undefined || v === null) return null;
+  const str = String(v).trim();
+  if (!str) return null;
+  // Serial de Excel (número)
+  if (/^\d+(\.\d+)?$/.test(str)) {
+    const n = parseFloat(str);
+    if (n > 20000 && n < 60000) { const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000); return isNaN(d) ? null : d; }
+  }
+  let m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/); // DD/MM/AAAA
+  if (m) { let [, d, mo, y] = m; if (y.length === 2) y = String(+y <= 25 ? 2000 + +y : 1900 + +y); const dt = new Date(Date.UTC(+y, +mo - 1, +d, 12)); return isNaN(dt) ? null : dt; }
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // AAAA-MM-DD
+  if (m) { const dt = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)); return isNaN(dt) ? null : dt; }
+  const dt = new Date(str);
+  return isNaN(dt) ? null : dt;
+}
+
+function parseDiscount(v) {
+  const n = parseFloat(String(v ?? '').replace('%', '').replace(',', '.').trim());
+  return isNaN(n) ? 0 : Math.max(0, Math.min(100, n));
+}
+
 // POST /api/clients/import
 router.post('/import', async (req, res) => {
   try {
@@ -170,7 +192,22 @@ router.post('/import', async (req, res) => {
       if (!c.name) { errors.push({ row: c, error: 'Sin nombre' }); continue; }
       try {
         const client = await prisma.client.create({
-          data: { name: c.name, phone: c.phone || null, email: c.email || null, notes: c.notes || null, businessId: req.user.businessId },
+          data: {
+            name: c.name,
+            phone: c.phone || null,
+            email: c.email || null,
+            dni: c.dni || null,
+            cuit: c.cuit || null,
+            notes: c.notes || null,
+            medicalNotes: c.medicalNotes || null,
+            emergencyContact: c.emergencyContact || null,
+            emergencyPhone: c.emergencyPhone || null,
+            responsableName: c.responsableName || null,
+            responsablePhone: c.responsablePhone || null,
+            birthday: parseImportDate(c.birthday),
+            globalDiscount: parseDiscount(c.globalDiscount),
+            businessId: req.user.businessId,
+          },
         });
         created.push(client);
       } catch (e) {

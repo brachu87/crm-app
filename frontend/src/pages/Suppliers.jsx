@@ -138,13 +138,14 @@ export default function Suppliers() {
         <ImportModal
           title="Importar proveedores desde Excel o CSV"
           columns={[
-            { key: 'name',     labels: ['nombre','name'] },
-            { key: 'phone',    labels: ['telefono','teléfono','phone','cel','celular'] },
-            { key: 'email',    labels: ['email','correo','mail'] },
-            { key: 'contact',  labels: ['contacto','contact','responsable'] },
-            { key: 'cuit',     labels: ['cuit','cuil'] },
-            { key: 'category', labels: ['categoria','categoría','category','rubro'] },
-            { key: 'notes',    labels: ['notas','notes','observaciones'] },
+            { key: 'name',     header: 'Nombre',     labels: ['nombre','name','razon social','razón social','proveedor'] },
+            { key: 'contact',  header: 'Contacto',   labels: ['contacto','contact','responsable','referente'] },
+            { key: 'phone',    header: 'Teléfono',   labels: ['telefono','teléfono','phone','cel','celular','tel','whatsapp'] },
+            { key: 'email',    header: 'Email',      labels: ['email','correo','mail','e-mail'] },
+            { key: 'cuit',     header: 'CUIT',       labels: ['cuit','cuil'] },
+            { key: 'dni',      header: 'DNI',        labels: ['dni','documento','doc'] },
+            { key: 'category', header: 'Categoría',  labels: ['categoria','categoría','category','rubro'] },
+            { key: 'notes',    header: 'Notas',      labels: ['notas','notes','observaciones','obs'] },
           ]}
           apiPath="/suppliers/import"
           payloadKey="suppliers"

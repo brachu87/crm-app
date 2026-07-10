@@ -26,6 +26,7 @@ router.post('/import', async (req, res) => {
             phone: s.phone || null,
             email: s.email || null,
             cuit: s.cuit || null,
+            dni: s.dni || null,
             category: s.category || null,
             notes: s.notes || null,
             businessId: req.user.businessId,

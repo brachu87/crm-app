@@ -124,12 +124,13 @@ export default function Employees() {
         <ImportModal
           title="Importar empleados desde Excel o CSV"
           columns={[
-            { key: 'name',   labels: ['nombre','name'] },
-            { key: 'role',   labels: ['rol','role','puesto','cargo','función','funcion'] },
-            { key: 'phone',  labels: ['telefono','teléfono','phone','cel','celular'] },
-            { key: 'email',  labels: ['email','correo','mail'] },
-            { key: 'salary', labels: ['sueldo','salario','salary','remuneracion','remuneración'] },
-            { key: 'notes',  labels: ['notas','notes','observaciones'] },
+            { key: 'name',      header: 'Nombre',            labels: ['nombre','name','nombre y apellido','apellido y nombre'] },
+            { key: 'role',      header: 'Puesto',            labels: ['rol','role','puesto','cargo','función','funcion'] },
+            { key: 'phone',     header: 'Teléfono',          labels: ['telefono','teléfono','phone','cel','celular','tel','whatsapp'] },
+            { key: 'email',     header: 'Email',             labels: ['email','correo','mail','e-mail'] },
+            { key: 'salary',    header: 'Sueldo',            labels: ['sueldo','salario','salary','remuneracion','remuneración','haberes'] },
+            { key: 'startDate', header: 'Fecha de ingreso',  labels: ['fecha de ingreso','ingreso','alta','fecha alta','startdate','fecha de alta'] },
+            { key: 'notes',     header: 'Notas',             labels: ['notas','notes','observaciones','obs'] },
           ]}
           apiPath="/employees/import"
           payloadKey="employees"

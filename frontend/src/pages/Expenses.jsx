@@ -203,11 +203,12 @@ export default function Expenses() {
         <ImportModal
           title="Importar gastos desde Excel o CSV"
           columns={[
-            { key: 'category', labels: ['categoria','categoría','category','rubro','tipo'] },
-            { key: 'amount', labels: ['monto','importe','amount','total','valor'] },
-            { key: 'description', labels: ['descripcion','descripción','description','detalle','concepto'] },
-            { key: 'paymentMethod', labels: ['metodo','método','metodo de pago','método de pago','forma de pago','payment','paymentmethod','pago'] },
-            { key: 'date', labels: ['fecha','date','dia','día'] },
+            { key: 'category',      header: 'Categoría',       labels: ['categoria','categoría','category','rubro','tipo'] },
+            { key: 'amount',        header: 'Monto',           labels: ['monto','importe','amount','total','valor'] },
+            { key: 'description',   header: 'Descripción',     labels: ['descripcion','descripción','description','detalle','concepto'] },
+            { key: 'paymentMethod', header: 'Método de pago',  labels: ['metodo','método','metodo de pago','método de pago','forma de pago','payment','paymentmethod','pago'] },
+            { key: 'date',          header: 'Fecha',           labels: ['fecha','date','dia','día'] },
+            { key: 'supplier',      header: 'Proveedor',       labels: ['proveedor','supplier','prov'] },
           ]}
           apiPath="/expenses/import"
           payloadKey="expenses"

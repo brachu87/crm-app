@@ -31,6 +31,14 @@ router.post('/import', async (req, res) => {
       const amount = parseFloat(String(e.amount).replace(/[^0-9.,-]/g, '').replace(/\.(?=.*\.)/g, '').replace(',', '.'));
       if (!amount || isNaN(amount)) { errors.push({ row: e, error: 'Monto inválido' }); continue; }
       try {
+        let supplierId = null;
+        if (e.supplier && String(e.supplier).trim()) {
+          const sup = await prisma.supplier.findFirst({
+            where: { businessId: req.user.businessId, name: { equals: String(e.supplier).trim(), mode: 'insensitive' } },
+            select: { id: true },
+          });
+          if (sup) supplierId = sup.id;
+        }
         const exp = await prisma.expense.create({
           data: {
             amount,
@@ -38,6 +46,7 @@ router.post('/import', async (req, res) => {
             description: e.description || null,
             paymentMethod: e.paymentMethod || null,
             date: parseExpDate(e.date),
+            supplierId,
             businessId: req.user.businessId,
           },
         });
