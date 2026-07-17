@@ -23,6 +23,7 @@ function formatDate(value) {
 
 export default function ClientDetail() {
   const can = useSectionPerms('clientes');
+  const canCobrar = useSectionPerms('cobranza');
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,7 @@ export default function ClientDetail() {
   const [showAppt, setShowAppt] = useState(false);
   const [showQuick, setShowQuick] = useState(false);
   const [editMontoEnrollment, setEditMontoEnrollment] = useState(null);
+  const [showCobrar, setShowCobrar] = useState(false);
 
   function load() {
     api.get(`/clients/${id}`).then((res) => setClient(res.data)).finally(() => setLoading(false));
@@ -121,6 +123,7 @@ export default function ClientDetail() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {canCobrar.cobrar && <button className="btn btn-primary" onClick={() => setShowCobrar(true)}>💵 Cobrar</button>}
           <button className="btn btn-primary" onClick={() => setShowEnroll(true)}>+ Inscribir a actividad</button>
           <button className="btn btn-secondary" onClick={() => setShowAppt(true)}>+ Agendar turno</button>
           <button className="btn btn-secondary" onClick={() => setShowQuick(true)}>+ Ofrecer servicio</button>
@@ -380,6 +383,9 @@ export default function ClientDetail() {
       )}
       {showEnroll && (
         <EnrollClientModal clientId={id} onClose={() => setShowEnroll(false)} onSaved={() => { setShowEnroll(false); load(); loadAccount(); }} />
+      )}
+      {showCobrar && (
+        <CobrarClienteModal client={client} onClose={() => setShowCobrar(false)} onSaved={() => { setShowCobrar(false); load(); loadAccount(); }} />
       )}
       {showAppt && (
         <AppointmentClientModal clientId={id} onClose={() => setShowAppt(false)} onSaved={() => { setShowAppt(false); load(); loadAccount(); }} />
@@ -974,6 +980,111 @@ function QuickServiceModal({ clientId, onClose, onSaved }) {
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Registrar servicio'}</button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+
+function CobrarClienteModal({ client, onClose, onSaved }) {
+  const [selected, setSelected] = useState(null);
+  const [monto, setMonto] = useState('');
+  const [metodo, setMetodo] = useState('Efectivo');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const cuotas = [];
+  (client.enrollments || []).forEach((e) => {
+    (e.cuotas || []).forEach((c) => {
+      if (c.paymentStatus !== 'paid') cuotas.push({ ...c, activityName: e.activity?.name || 'Actividad' });
+    });
+  });
+  cuotas.sort((a, b) => String(a.dueDate || a.period || '').localeCompare(String(b.dueDate || b.period || '')));
+
+  function pick(c) {
+    setSelected(c);
+    setMonto(Math.max(0, (c.amountDue || 0) - (c.discount || 0)));
+    setError('');
+  }
+
+  async function pay(ev) {
+    ev.preventDefault();
+    setSaving(true); setError('');
+    try {
+      await api.post(`/enrollments/cuotas/${selected.id}/pay`, { amount: Number(monto), method: metodo });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al registrar el cobro');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+        {!selected ? (
+          <>
+            <h2>Cobrar — {client.name}</h2>
+            {cuotas.length === 0 ? (
+              <p style={{ color: 'var(--ink-soft)', margin: '12px 0' }}>No hay cuotas pendientes para cobrar.</p>
+            ) : (
+              <>
+                <p style={{ color: 'var(--ink-soft)', fontSize: 14, marginBottom: 12 }}>Elegí la cuota a cobrar:</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {cuotas.map((c) => {
+                    const net = Math.max(0, (c.amountDue || 0) - (c.discount || 0));
+                    return (
+                      <button key={c.id} type="button" onClick={() => pick(c)} className="btn btn-secondary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', padding: '10px 14px' }}>
+                        <span>
+                          <strong>{c.activityName}</strong>
+                          <span style={{ display: 'block', fontSize: 12, color: 'var(--ink-soft)' }}>
+                            {c.period}{c.dueDate ? ` · vence ${formatDate(c.dueDate)}` : ''} · {statusLabels[c.paymentStatus] || c.paymentStatus}
+                          </span>
+                        </span>
+                        <span style={{ fontWeight: 700 }}>{formatMoney(net)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+              <button type="button" className="btn" onClick={onClose}>Cerrar</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2>Registrar cobro</h2>
+            <p style={{ color: 'var(--ink-soft)', marginBottom: 16, fontSize: 15 }}>
+              <strong>{client.name}</strong> — {selected.activityName} · {selected.period}
+            </p>
+            {error && <div className="error-banner">{error}</div>}
+            <form onSubmit={pay}>
+              <div className="field">
+                <label>Monto a cobrar ($)</label>
+                <input type="number" min="0" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} required />
+                {selected.discount > 0 && (
+                  <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Cuota: {formatMoney(selected.amountDue)} · Descuento: {formatMoney(selected.discount)}</span>
+                )}
+              </div>
+              <div className="field">
+                <label>Forma de pago</label>
+                <select value={metodo} onChange={(e) => setMetodo(e.target.value)}>
+                  <option>Efectivo</option>
+                  <option>Transferencia</option>
+                  <option>Tarjeta débito</option>
+                  <option>Tarjeta crédito</option>
+                  <option>Mercado Pago</option>
+                  <option>Cheque</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando…' : '✅ Confirmar cobro'}</button>
+                <button type="button" className="btn" onClick={() => setSelected(null)}>← Volver</button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
