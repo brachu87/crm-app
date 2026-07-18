@@ -20,9 +20,9 @@ router.get('/', async (req, res) => {
           businessId: bId,
           active: true,
           OR: [
-            { name: { contains: q } },
-            { phone: { contains: q } },
-            { email: { contains: q } },
+            { name: { contains: q, mode: 'insensitive' } },
+            { phone: { contains: q, mode: 'insensitive' } },
+            { email: { contains: q, mode: 'insensitive' } },
           ],
         },
         select: { id: true, name: true, phone: true, email: true },
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
         where: {
           businessId: bId,
           active: true,
-          name: { contains: q },
+          name: { contains: q, mode: 'insensitive' },
         },
         select: { id: true, name: true, schedule: true, price: true },
         take: 4,
