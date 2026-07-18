@@ -145,6 +145,10 @@ export const PERMISSION_TREE = [
     ],
   },
   {
+    key: 'auditoria', label: 'Historial de actividad', icon: '📜',
+    actions: [ { key: 'ver', label: 'Ver historial' } ],
+  },
+  {
     key: 'comprobantes', label: 'Facturación', icon: '🧾',
     actions: [
       { key: 'ver',    label: 'Ver comprobantes' },
@@ -178,6 +182,7 @@ export const ROUTE_MODULE = {
   '/precios': 'precios',
   '/sedes': 'sedes',
   '/comprobantes': 'comprobantes',
+  '/historial': 'auditoria',
 };
 
 /**

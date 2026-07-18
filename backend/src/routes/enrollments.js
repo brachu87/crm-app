@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
+const { logAudit } = require('../lib/audit');
 const { periodKey, addMonthToPeriod } = require('../lib/period');
 const { markOverdueCuotas } = require('../lib/overdue');
 const { autoRenewCuotas } = require('../lib/autoRenew');
@@ -286,6 +287,7 @@ router.post('/cuotas/:cuotaId/pay', async (req, res) => {
       include: { enrollment: { include: { client: true, activity: true } }, payments: true },
     });
 
+    logAudit(req, { action: 'cobro', entity: 'cuota', entityId: req.params.cuotaId, detail: `${cuota.enrollment?.client?.name || ''} · ${cuota.enrollment?.activity?.name || ''} · $${parseFloat(amount)} (${method || 's/método'})` });
     res.status(201).json({ payment, cuota: shapeCuota(cuota) });
   } catch (err) {
     console.error(err);

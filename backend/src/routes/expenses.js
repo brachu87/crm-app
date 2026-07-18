@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const { scopedWhere } = require('../middleware/tenant');
+const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
 const validate = require('../lib/validate');
@@ -241,6 +242,7 @@ router.delete('/:id', async (req, res) => {
     const existing = await prisma.expense.findFirst({ where: scopedWhere(req, { id: req.params.id }) });
     if (!existing) return res.status(404).json({ error: 'Gasto no encontrado' });
     await prisma.expense.delete({ where: { id: req.params.id } });
+    logAudit(req, { action: 'elimino_gasto', entity: 'gasto', entityId: req.params.id, detail: `${existing.category || ''} · $${existing.amount}` });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar gasto' });

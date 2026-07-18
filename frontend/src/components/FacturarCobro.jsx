@@ -5,7 +5,7 @@ import WhatsAppInvoiceButton from './WhatsAppInvoiceButton';
 const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(v || 0);
 
 // Prompt para emitir la factura de un cobro ya registrado.
-export default function FacturarCobro({ clientId, descripcion, total, onClose }) {
+export default function FacturarCobro({ clientId, cuotaId, descripcion, total, onClose }) {
   const [config, setConfig] = useState(null);
   const [tipo, setTipo] = useState('FACTURA X');
   const [saving, setSaving] = useState(false);
@@ -31,6 +31,7 @@ export default function FacturarCobro({ clientId, descripcion, total, onClose })
       const r = await api.post('/facturacion/emitir', {
         tipo,
         clientId: clientId || undefined,
+        cuotaId: cuotaId || undefined,
         condicionIvaReceptorId: tipo === 'FACTURA A' ? 1 : 5,
         items: [{ descripcion: descripcion || 'Cobro', cantidad: 1, precio, alicuota: alic }],
       });

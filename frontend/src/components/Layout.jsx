@@ -46,6 +46,7 @@ const NAV_GROUPS = [
     icon: '⚙️',
     links: [
       { to: '/ajustes', label: 'Ajustes' },
+      { to: '/historial', label: 'Historial', module: 'auditoria' },
       { to: '/sedes',   label: 'Sedes', module: 'sedes' },
     ],
   },

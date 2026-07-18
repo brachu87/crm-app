@@ -5,6 +5,7 @@ const authMiddleware = require('../middleware/auth');
 const afip = require('../lib/afip');
 const invoicePdf = require('../lib/invoicePdf');
 const evo = require('../lib/whatsappEvolution');
+const { logAudit } = require('../lib/audit');
 const path = require('path');
 const fs = require('fs');
 const PHOTOS_DIR = process.env.PHOTOS_DIR || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
@@ -163,11 +164,12 @@ router.post('/emitir', async (req, res) => {
       const numero = count + 1;
       const pv = String(b.fiscalPuntoVenta || '1').replace(/\D/g, '') || '1';
       const inv = await prisma.invoice.create({ data: {
-        businessId: b.id, clientId: clientRec ? clientRec.id : null, tipo, puntoVenta: pv.padStart(4, '0'),
+        businessId: b.id, clientId: clientRec ? clientRec.id : null, cuotaId: body.cuotaId || null, tipo, puntoVenta: pv.padStart(4, '0'),
         numero: String(numero).padStart(8, '0'), total: neto, moneda: 'PES', neto, iva: 0,
         docTipoCode: docTipo, condReceptor: condId, clienteNombre: razon, clienteDoc: docNro,
         status: 'issued', detalleJson: JSON.stringify(items),
       } });
+      logAudit(req, { action: 'factura', entity: 'factura', entityId: inv.id, detail: `${tipo} ${inv.puntoVenta}-${inv.numero} · ${razon} · $${neto}` });
       return res.json({ ok: true, invoice: inv, mensajes: [] });
     }
 
@@ -220,6 +222,7 @@ router.post('/emitir', async (req, res) => {
     let inv = await prisma.invoice.create({ data: {
       businessId: b.id, clientId: clientRec ? clientRec.id : null, tipo, puntoVenta: String(result.ptoVta).padStart(4, '0'),
       numero: String(result.numero).padStart(8, '0'), cae: result.cae, vencimientoCae: result.caeVto,
+      cuotaId: body.cuotaId || null,
       clienteNombre: razon, clienteDoc: docNro, total: result.impTotal, moneda: 'PES',
       neto: result.impNeto, iva: result.impIVA, docTipoCode: docTipo, condReceptor: condId,
       status: 'issued', detalleJson: JSON.stringify(items),
@@ -229,6 +232,7 @@ router.post('/emitir', async (req, res) => {
       const qrUrl = invoicePdf.buildQrUrl(inv, b);
       inv = await prisma.invoice.update({ where: { id: inv.id }, data: { qrUrl } });
     } catch (e) { console.error('[fact] qr', e.message); }
+    logAudit(req, { action: 'factura', entity: 'factura', entityId: inv.id, detail: `${tipo} ${inv.puntoVenta}-${inv.numero} · ${razon} · $${result.impTotal}` });
     res.json({ ok: true, invoice: inv, mensajes: result.mensajes });
   } catch (e) { console.error('[fact] emitir', e); res.status(500).json({ error: 'Error interno al emitir el comprobante' }); }
 });

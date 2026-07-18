@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const { scopedWhere } = require('../middleware/tenant');
+const { logAudit } = require('../lib/audit');
 
 const router = express.Router();
 const validate = require('../lib/validate');
@@ -256,6 +257,7 @@ router.put('/:id', async (req, res) => {
         where: { clientId: req.params.id },
         data: { active },
       });
+      logAudit(req, { action: active ? 'reactivo_cliente' : 'baja_cliente', entity: 'cliente', entityId: req.params.id, detail: existing.name });
     }
 
     res.json(client);
@@ -274,7 +276,7 @@ router.delete('/:id', async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Cliente no encontrado' });
 
     await prisma.client.delete({ where: { id: req.params.id } });
-
+    logAudit(req, { action: 'elimino_cliente', entity: 'cliente', entityId: req.params.id, detail: existing.name });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);

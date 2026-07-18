@@ -489,14 +489,14 @@ function CobrarModal({ enrollment, business, onClose, onSaved }) {
         amount: Number(monto),
         method: metodoPago,
       });
-      setDone({ data: { ...enrollment, ...res.data.cuota, metodoPago, amountDue: Number(monto) }, clientId: enrollment.client?.id, descripcion: enrollment.activity?.name, total: Number(monto) });
+      setDone({ data: { ...enrollment, ...res.data.cuota, metodoPago, amountDue: Number(monto) }, clientId: enrollment.client?.id, cuotaId: enrollment.id, descripcion: enrollment.activity?.name, total: Number(monto) });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);
     }
   }
 
-  if (done) return <FacturarCobro clientId={done.clientId} descripcion={done.descripcion} total={done.total} onClose={() => onSaved(done.data)} />;
+  if (done) return <FacturarCobro clientId={done.clientId} cuotaId={done.cuotaId} descripcion={done.descripcion} total={done.total} onClose={() => onSaved(done.data)} />;
 
   return (
     <div className="modal-overlay">

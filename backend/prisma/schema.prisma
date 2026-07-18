@@ -532,6 +532,7 @@ model Invoice {
   businessId     String
   business       Business @relation(fields: [businessId], references: [id])
   clientId       String?
+  cuotaId        String?
   tipo           String   // "FACTURA A" | "FACTURA B" | "FACTURA C"
   puntoVenta     String?
   numero         String?
@@ -553,4 +554,19 @@ model Invoice {
 
   @@index([businessId])
   @@index([clientId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  businessId String
+  userId     String?
+  userName   String?
+  action     String
+  entity     String?
+  entityId   String?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@index([createdAt])
 }

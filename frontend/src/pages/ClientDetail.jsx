@@ -37,6 +37,7 @@ export default function ClientDetail() {
   const [newNote, setNewNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [account, setAccount] = useState(null);
+  const [invoices, setInvoices] = useState([]);
   const [movModal, setMovModal] = useState(false);
   const [showEnroll, setShowEnroll] = useState(false);
   const [showAppt, setShowAppt] = useState(false);
@@ -56,7 +57,20 @@ export default function ClientDetail() {
     api.get(`/clients/${id}/account`).then((res) => setAccount(res.data)).catch(() => {});
   }
 
-  useEffect(() => { load(); loadNotes(); loadAccount(); }, [id]);
+  function loadInvoices() {
+    api.get('/facturacion').then(r => setInvoices((Array.isArray(r.data) ? r.data : []).filter(i => i.clientId === id))).catch(() => setInvoices([]));
+  }
+  useEffect(() => { load(); loadNotes(); loadAccount(); loadInvoices(); }, [id]);
+
+  async function verComprobantePdf(invId) {
+    try {
+      const res = await api.get(`/facturacion/${invId}/pdf`, { responseType: 'blob' });
+      const u = URL.createObjectURL(res.data);
+      const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noreferrer';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 60000);
+    } catch (_) {}
+  }
 
   async function addNote(e) {
     e.preventDefault();
@@ -382,6 +396,28 @@ export default function ClientDetail() {
           onSaved={() => { setBonModal(null); load(); }}
         />
       )}
+      {invoices.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 10px' }}>🧾 Comprobantes emitidos</h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table">
+              <thead><tr><th>Fecha</th><th>Tipo</th><th>Número</th><th style={{ textAlign: 'right' }}>Total</th><th>PDF</th></tr></thead>
+              <tbody>
+                {invoices.filter(i => i.status === 'issued').map(i => (
+                  <tr key={i.id}>
+                    <td style={{ fontSize: 13 }}>{i.createdAt ? new Date(i.createdAt).toLocaleDateString('es-AR') : ''}</td>
+                    <td style={{ fontSize: 13 }}>{i.tipo}</td>
+                    <td style={{ fontSize: 13 }}>{i.puntoVenta}-{i.numero}</td>
+                    <td style={{ textAlign: 'right', fontSize: 13, fontWeight: 600 }}>{formatMoney(i.total)}</td>
+                    <td><button className="btn" style={{ padding: '4px 10px' }} onClick={() => verComprobantePdf(i.id)}>PDF</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {showEnroll && (
         <EnrollClientModal clientId={id} onClose={() => setShowEnroll(false)} onSaved={() => { setShowEnroll(false); load(); loadAccount(); }} />
       )}
@@ -1014,14 +1050,14 @@ function CobrarClienteModal({ client, onClose, onSaved }) {
     setSaving(true); setError('');
     try {
       await api.post(`/enrollments/cuotas/${selected.id}/pay`, { amount: Number(monto), method: metodo });
-      setDone({ clientId: client.id, descripcion: selected.activityName, total: Number(monto) });
+      setDone({ clientId: client.id, cuotaId: selected.id, descripcion: selected.activityName, total: Number(monto) });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);
     }
   }
 
-  if (done) return <FacturarCobro clientId={done.clientId} descripcion={done.descripcion} total={done.total} onClose={onSaved} />;
+  if (done) return <FacturarCobro clientId={done.clientId} cuotaId={done.cuotaId} descripcion={done.descripcion} total={done.total} onClose={onSaved} />;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
