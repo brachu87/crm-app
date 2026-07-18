@@ -20,7 +20,10 @@ function _normFecha(v) {
 }
 function _num(v) {
   if (v == null || v === '') return null;
-  const n = parseFloat(String(v).replace(/[^0-9.,-]/g, '').replace(/\.(?=.*\.)/g, '').replace(',', '.'));
+  let x = String(v).replace(/[^0-9.,\-]/g, '').trim();
+  if (x.includes(',')) x = x.replace(/\./g, '').replace(',', '.');       // 1.234,56 -> 1234.56
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(x)) x = x.replace(/\./g, '');    // 15.000 -> 15000
+  const n = parseFloat(x);
   return isNaN(n) ? null : n;
 }
 const FISCAL_STR = ['comprobanteTipo', 'puntoVenta', 'comprobanteNumero', 'proveedorCuit', 'proveedorCondIva'];

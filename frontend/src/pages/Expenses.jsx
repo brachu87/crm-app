@@ -6,6 +6,16 @@ import { useSectionPerms } from '../config/permissions';
 import ImportModal from '../components/ImportModal';
 import { ExportMenu, ImportMenu } from '../lib/dataIO';
 
+// Parsea números en formato AR (1.234,56) o simple (1234.56)
+function toNum(v) {
+  if (v == null || v === '') return 0;
+  let x = String(v).replace(/[^0-9.,\-]/g, '').trim();
+  if (x.includes(',')) x = x.replace(/\./g, '').replace(',', '.');            // 1.234,56 -> 1234.56
+  else if (/^-?\d{1,3}(\.\d{3})+$/.test(x)) x = x.replace(/\./g, '');         // 15.000 -> 15000
+  const n = parseFloat(x);
+  return isNaN(n) ? 0 : n;
+}
+
 const CATEGORIAS = ['Alquiler', 'Sueldos', 'Servicios', 'Mantenimiento', 'Marketing', 'Equipamiento', 'Limpieza', 'Impuestos', 'Otro'];
 const METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro'];
 
@@ -315,7 +325,6 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
     percepIIBB: src.percepIIBB ?? '',
     otrosTrib: src.otrosTrib ?? '',
   });
-  const [showFiscal, setShowFiscal] = useState(!!(src.comprobanteTipo || src.comprobanteNumero || src.proveedorCuit || src.netoGravado != null));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -326,7 +335,7 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
   // Autocalcular el total a partir de los importes fiscales (si hay alguno cargado)
   useEffect(() => {
     const raw = [form.netoGravado, form.noGravado, form.ivaMonto, form.percepIva, form.percepIIBB, form.otrosTrib];
-    const sum = raw.reduce((a, v) => { const n = parseFloat(String(v).replace(',', '.')); return a + (isNaN(n) ? 0 : n); }, 0);
+    const sum = raw.reduce((a, v) => a + toNum(v), 0);
     if (sum > 0) {
       const rounded = Math.round(sum * 100) / 100;
       setForm((f) => (String(f.amount) === String(rounded) ? f : { ...f, amount: rounded }));
@@ -338,8 +347,7 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
     setError('');
     setSaving(true);
     try {
-      const rawAmount = String(form.amount).replace(',', '.').replace(/[^0-9.-]/g, '');
-      const parsedAmount = parseFloat(rawAmount);
+      const parsedAmount = toNum(form.amount);
       if (isNaN(parsedAmount) || parsedAmount <= 0) {
         setError('El monto debe ser un número mayor a 0');
         setSaving(false);
@@ -427,14 +435,8 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
               </select>
             </div>
           )}
-          <div style={{ margin: '10px 0', borderTop: '1px dashed var(--border, #e5e7eb)', paddingTop: 10 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>
-              <input type="checkbox" checked={showFiscal} onChange={(e) => setShowFiscal(e.target.checked)} />
-              🧾 Datos fiscales del comprobante (para Libro IVA / ARCA)
-            </label>
-          </div>
-          {showFiscal && (
-            <div style={{ background: 'var(--surface-2, #f8fafc)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+          <div style={{ margin: '10px 0 8px', borderTop: '1px dashed var(--border, #e5e7eb)', paddingTop: 10, fontWeight: 600, fontSize: 14 }}>🧾 Datos del comprobante</div>
+          <div style={{ background: 'var(--surface-2, #f8fafc)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
               <div className="two-col-grid">
                 <div className="field">
                   <label>Tipo de comprobante</label>
@@ -484,7 +486,6 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
                 <input type="text" inputMode="decimal" value={form.otrosTrib} onChange={(e) => update('otrosTrib', e.target.value)} placeholder="0,00" /></div>
               <p style={{ fontSize: 12, color: 'var(--ink-soft, #888)', margin: '2px 0 0' }}>El total se calcula solo con estos importes. Podés ajustarlo arriba.</p>
             </div>
-          )}
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
