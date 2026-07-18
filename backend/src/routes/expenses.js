@@ -23,6 +23,15 @@ function _num(v) {
   const n = parseFloat(String(v).replace(/[^0-9.,-]/g, '').replace(/\.(?=.*\.)/g, '').replace(',', '.'));
   return isNaN(n) ? null : n;
 }
+const FISCAL_STR = ['comprobanteTipo', 'puntoVenta', 'comprobanteNumero', 'proveedorCuit', 'proveedorCondIva'];
+const FISCAL_NUM = ['netoGravado', 'noGravado', 'ivaAlicuota', 'ivaMonto', 'percepIva', 'percepIIBB', 'otrosTrib'];
+// Devuelve los campos fiscales presentes en el body (normalizados). partial=true: sólo las claves presentes.
+function _fiscal(body, partial) {
+  const out = {};
+  for (const k of FISCAL_STR) { if (!partial || k in body) out[k] = (String(body[k] || '').trim() || null); }
+  for (const k of FISCAL_NUM) { if (!partial || k in body) out[k] = _num(body[k]); }
+  return out;
+}
 router.use(authMiddleware);
 
 function parseExpDate(s) {
@@ -124,6 +133,7 @@ router.post('/', validate(schemas.expenseCreate), async (req, res) => {
         paymentMethod: paymentMethod || null,
         supplierId: supplierId || null,
         businessId: req.user.businessId,
+        ..._fiscal(req.body, false),
       },
       include: { supplier: { select: { id: true, name: true } } },
     });
@@ -162,8 +172,14 @@ router.post('/scan', scanUpload.single('file'), async (req, res) => {
       tipo: data.tipo || null,
       numero: data.numero || null,
       neto: _num(data.neto),
+      noGravado: _num(data.noGravado),
+      ivaAlicuota: _num(data.ivaAlicuota),
       iva: _num(data.iva),
+      percepIva: _num(data.percepIva),
+      percepIIBB: _num(data.percepIIBB),
+      otrosTrib: _num(data.otrosTrib),
       total: _num(data.total),
+      condicionIvaProveedor: data.condicionIvaProveedor || null,
       categoria: data.categoria || null,
     };
 
@@ -206,6 +222,7 @@ router.put('/:id', validate(schemas.expenseUpdate), async (req, res) => {
         description:   description   !== undefined ? description || null      : existing.description,
         paymentMethod: paymentMethod !== undefined ? paymentMethod || null    : existing.paymentMethod,
         supplierId:    supplierId    !== undefined ? supplierId || null       : existing.supplierId,
+        ..._fiscal(req.body, true),
       },
       include: { supplier: { select: { id: true, name: true } } },
     });

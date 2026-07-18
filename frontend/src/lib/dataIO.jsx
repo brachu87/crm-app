@@ -80,14 +80,14 @@ const itemStyle = {
 function hoverOn(e) { e.currentTarget.style.background = 'var(--primary-soft, #eef6ee)'; }
 function hoverOff(e) { e.currentTarget.style.background = 'none'; }
 
-export function ExportMenu({ rows = [], columns = [], filename = 'export', title = 'Listado', disabled }) {
+export function ExportMenu({ rows = [], columns = [], filename = 'export', title = 'Listado', disabled, label = '↓ Exportar ▾' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useOutside(ref, () => setOpen(false));
   const run = (fn) => { setOpen(false); fn(); };
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
-      <button className="btn btn-secondary" disabled={disabled} onClick={() => setOpen((o) => !o)}>↓ Exportar ▾</button>
+      <button className="btn btn-secondary" disabled={disabled} onClick={() => setOpen((o) => !o)}>{label}</button>
       {open && (
         <div style={menuStyle}>
           <button style={itemStyle} onMouseEnter={hoverOn} onMouseLeave={hoverOff} onClick={() => run(() => downloadXLSX(rows, columns, filename, title))}>📊 Excel (.xlsx)</button>

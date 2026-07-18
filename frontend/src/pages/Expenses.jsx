@@ -45,17 +45,28 @@ export default function Expenses() {
       fd.append('file', file);
       const r = await api.post('/expenses/scan', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       const d = r.data || {};
-      const partes = [
-        (`Factura ${d.tipo || ''} ${d.numero || ''}`).trim(),
-        (!d.supplierId && d.proveedor) ? `${d.proveedor}${d.cuit ? ` (CUIT ${d.cuit})` : ''}` : '',
-      ].filter(Boolean);
+      const tipoMap = { A: 'Factura A', B: 'Factura B', C: 'Factura C', M: 'Factura M' };
+      let _pv = '', _num = '';
+      if (d.numero) { const m = String(d.numero).match(/(\d{1,5})\s*-\s*(\d{1,8})/); if (m) { _pv = m[1]; _num = m[2]; } else { _num = String(d.numero); } }
       setPrefill({
         amount: d.total != null ? d.total : '',
         date: d.fecha || new Date().toISOString().slice(0, 10),
         category: d.categoria || '',
-        description: partes.join(' — '),
+        description: (!d.supplierId && d.proveedor) ? d.proveedor : '',
         paymentMethod: '',
         supplierId: d.supplierId || '',
+        comprobanteTipo: d.tipo ? (tipoMap[String(d.tipo).toUpperCase()] || d.tipo) : '',
+        puntoVenta: _pv,
+        comprobanteNumero: _num,
+        proveedorCuit: d.cuit || '',
+        proveedorCondIva: d.condicionIvaProveedor || '',
+        netoGravado: d.neto != null ? d.neto : '',
+        noGravado: d.noGravado != null ? d.noGravado : '',
+        ivaAlicuota: d.ivaAlicuota != null ? d.ivaAlicuota : '',
+        ivaMonto: d.iva != null ? d.iva : '',
+        percepIva: d.percepIva != null ? d.percepIva : '',
+        percepIIBB: d.percepIIBB != null ? d.percepIIBB : '',
+        otrosTrib: d.otrosTrib != null ? d.otrosTrib : '',
       });
       setEditing(null); setShowModal(true);
     } catch (err) {
@@ -118,6 +129,27 @@ export default function Expenses() {
         <div style={{ display: 'flex', gap: 8 }}>
           {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
           {expenses.length > 0 && can.exportar && <ExportMenu rows={filtered} filename="gastos" title="Gastos" columns={[{ header: 'Fecha', value: (e) => e.date ? new Date(e.date).toLocaleDateString('es-AR') : '' }, { header: 'Categoría', value: (e) => e.category || '' }, { header: 'Descripción', value: (e) => e.description || '' }, { header: 'Proveedor', value: (e) => e.supplier?.name || '' }, { header: 'Método de pago', value: (e) => e.paymentMethod || '' }, { header: 'Monto', value: (e) => e.amount }]} />}
+          {can.exportar && filtered.some((e) => e.comprobanteTipo || e.comprobanteNumero || e.proveedorCuit) && (
+            <ExportMenu label="📚 Libro IVA ▾" filename="libro-iva-compras" title="Libro IVA Compras"
+              rows={filtered.filter((e) => e.comprobanteTipo || e.comprobanteNumero || e.proveedorCuit)}
+              columns={[
+                { header: 'Fecha', value: (e) => e.date ? new Date(e.date).toLocaleDateString('es-AR') : '' },
+                { header: 'Tipo comprobante', value: (e) => e.comprobanteTipo || '' },
+                { header: 'Pto venta', value: (e) => e.puntoVenta || '' },
+                { header: 'Número', value: (e) => e.comprobanteNumero || '' },
+                { header: 'CUIT proveedor', value: (e) => e.proveedorCuit || '' },
+                { header: 'Proveedor', value: (e) => e.supplier?.name || '' },
+                { header: 'Cond. IVA', value: (e) => e.proveedorCondIva || '' },
+                { header: 'Neto gravado', value: (e) => e.netoGravado ?? '' },
+                { header: 'No gravado/Exento', value: (e) => e.noGravado ?? '' },
+                { header: 'Alícuota IVA', value: (e) => e.ivaAlicuota != null ? e.ivaAlicuota + '%' : '' },
+                { header: 'IVA', value: (e) => e.ivaMonto ?? '' },
+                { header: 'Perc. IVA', value: (e) => e.percepIva ?? '' },
+                { header: 'Perc. IIBB', value: (e) => e.percepIIBB ?? '' },
+                { header: 'Otros tributos', value: (e) => e.otrosTrib ?? '' },
+                { header: 'Total', value: (e) => e.amount },
+              ]} />
+          )}
           {can.crear && <>
             <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={onScanFile} />
             <button className="btn btn-secondary" onClick={() => fileRef.current && fileRef.current.click()} disabled={scanning} title="Sacá una foto o subí el PDF de una factura de compra">
@@ -270,13 +302,36 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
     description: src.description || '',
     paymentMethod: src.paymentMethod || '',
     supplierId: src.supplierId || '',
+    comprobanteTipo: src.comprobanteTipo || '',
+    puntoVenta: src.puntoVenta || '',
+    comprobanteNumero: src.comprobanteNumero || '',
+    proveedorCuit: src.proveedorCuit || '',
+    proveedorCondIva: src.proveedorCondIva || '',
+    netoGravado: src.netoGravado ?? '',
+    noGravado: src.noGravado ?? '',
+    ivaAlicuota: src.ivaAlicuota ?? '',
+    ivaMonto: src.ivaMonto ?? '',
+    percepIva: src.percepIva ?? '',
+    percepIIBB: src.percepIIBB ?? '',
+    otrosTrib: src.otrosTrib ?? '',
   });
+  const [showFiscal, setShowFiscal] = useState(!!(src.comprobanteTipo || src.comprobanteNumero || src.proveedorCuit || src.netoGravado != null));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
+
+  // Autocalcular el total a partir de los importes fiscales (si hay alguno cargado)
+  useEffect(() => {
+    const raw = [form.netoGravado, form.noGravado, form.ivaMonto, form.percepIva, form.percepIIBB, form.otrosTrib];
+    const sum = raw.reduce((a, v) => { const n = parseFloat(String(v).replace(',', '.')); return a + (isNaN(n) ? 0 : n); }, 0);
+    if (sum > 0) {
+      const rounded = Math.round(sum * 100) / 100;
+      setForm((f) => (String(f.amount) === String(rounded) ? f : { ...f, amount: rounded }));
+    }
+  }, [form.netoGravado, form.noGravado, form.ivaMonto, form.percepIva, form.percepIIBB, form.otrosTrib]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -297,6 +352,18 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
         description: form.description || undefined,
         paymentMethod: form.paymentMethod || undefined,
         supplierId: form.supplierId || null,
+        comprobanteTipo: form.comprobanteTipo || '',
+        puntoVenta: form.puntoVenta || '',
+        comprobanteNumero: form.comprobanteNumero || '',
+        proveedorCuit: form.proveedorCuit || '',
+        proveedorCondIva: form.proveedorCondIva || '',
+        netoGravado: form.netoGravado,
+        noGravado: form.noGravado,
+        ivaAlicuota: form.ivaAlicuota,
+        ivaMonto: form.ivaMonto,
+        percepIva: form.percepIva,
+        percepIIBB: form.percepIIBB,
+        otrosTrib: form.otrosTrib,
       };
       if (isEdit) {
         await api.put(`/expenses/${expense.id}`, payload);
@@ -358,6 +425,64 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
                 <option value="">— Sin proveedor —</option>
                 {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+            </div>
+          )}
+          <div style={{ margin: '10px 0', borderTop: '1px dashed var(--border, #e5e7eb)', paddingTop: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>
+              <input type="checkbox" checked={showFiscal} onChange={(e) => setShowFiscal(e.target.checked)} />
+              🧾 Datos fiscales del comprobante (para Libro IVA / ARCA)
+            </label>
+          </div>
+          {showFiscal && (
+            <div style={{ background: 'var(--surface-2, #f8fafc)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+              <div className="two-col-grid">
+                <div className="field">
+                  <label>Tipo de comprobante</label>
+                  <select value={form.comprobanteTipo} onChange={(e) => update('comprobanteTipo', e.target.value)}>
+                    <option value="">— Seleccionar —</option>
+                    {['Factura A','Factura B','Factura C','Factura M','Nota de Crédito A','Nota de Crédito B','Nota de Crédito C','Nota de Débito A','Nota de Débito B','Nota de Débito C','Ticket','Recibo','Otro'].map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Cond. IVA del proveedor</label>
+                  <select value={form.proveedorCondIva} onChange={(e) => update('proveedorCondIva', e.target.value)}>
+                    <option value="">— Seleccionar —</option>
+                    {['Responsable Inscripto','Monotributo','Exento','Consumidor Final'].map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="two-col-grid">
+                <div className="field"><label>Punto de venta</label>
+                  <input value={form.puntoVenta} onChange={(e) => update('puntoVenta', e.target.value)} placeholder="0001" /></div>
+                <div className="field"><label>Número de comprobante</label>
+                  <input value={form.comprobanteNumero} onChange={(e) => update('comprobanteNumero', e.target.value)} placeholder="00000123" /></div>
+              </div>
+              <div className="field"><label>CUIT del proveedor</label>
+                <input value={form.proveedorCuit} onChange={(e) => update('proveedorCuit', e.target.value)} placeholder="30712345678" /></div>
+              <div className="two-col-grid">
+                <div className="field"><label>Neto gravado ($)</label>
+                  <input type="text" inputMode="decimal" value={form.netoGravado} onChange={(e) => update('netoGravado', e.target.value)} placeholder="0,00" /></div>
+                <div className="field"><label>No gravado / Exento ($)</label>
+                  <input type="text" inputMode="decimal" value={form.noGravado} onChange={(e) => update('noGravado', e.target.value)} placeholder="0,00" /></div>
+              </div>
+              <div className="two-col-grid">
+                <div className="field"><label>Alícuota IVA</label>
+                  <select value={form.ivaAlicuota} onChange={(e) => update('ivaAlicuota', e.target.value)}>
+                    <option value="">—</option>
+                    {['21','10.5','27','5','2.5','0'].map((a) => <option key={a} value={a}>{a}%</option>)}
+                  </select></div>
+                <div className="field"><label>IVA ($)</label>
+                  <input type="text" inputMode="decimal" value={form.ivaMonto} onChange={(e) => update('ivaMonto', e.target.value)} placeholder="0,00" /></div>
+              </div>
+              <div className="two-col-grid">
+                <div className="field"><label>Percep. IVA ($)</label>
+                  <input type="text" inputMode="decimal" value={form.percepIva} onChange={(e) => update('percepIva', e.target.value)} placeholder="0,00" /></div>
+                <div className="field"><label>Percep. IIBB ($)</label>
+                  <input type="text" inputMode="decimal" value={form.percepIIBB} onChange={(e) => update('percepIIBB', e.target.value)} placeholder="0,00" /></div>
+              </div>
+              <div className="field"><label>Otros tributos ($)</label>
+                <input type="text" inputMode="decimal" value={form.otrosTrib} onChange={(e) => update('otrosTrib', e.target.value)} placeholder="0,00" /></div>
+              <p style={{ fontSize: 12, color: 'var(--ink-soft, #888)', margin: '2px 0 0' }}>El total se calcula solo con estos importes. Podés ajustarlo arriba.</p>
             </div>
           )}
           <div className="modal-actions">

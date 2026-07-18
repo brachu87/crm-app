@@ -291,6 +291,19 @@ model Expense {
   category      String
   description   String?
   paymentMethod String?
+  // Datos fiscales del comprobante (para Libro IVA Compras / ARCA)
+  comprobanteTipo   String?
+  puntoVenta        String?
+  comprobanteNumero String?
+  proveedorCuit     String?
+  proveedorCondIva  String?
+  netoGravado       Float?
+  noGravado         Float?
+  ivaAlicuota       Float?
+  ivaMonto          Float?
+  percepIva         Float?
+  percepIIBB        Float?
+  otrosTrib         Float?
   supplierId    String?
   supplier      Supplier? @relation(fields: [supplierId], references: [id])
   businessId    String

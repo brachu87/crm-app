@@ -12,8 +12,14 @@ Devolvé SOLO un objeto JSON (sin texto adicional) con estas claves:
  "tipo": "A, B, C, M o null",
  "numero": "número de comprobante ej 0001-00000123, o null",
  "neto": "importe neto gravado como número, o null",
- "iva": "total de IVA como número, o null",
+ "noGravado": "importe no gravado o exento como número, o null",
+ "ivaAlicuota": "alícuota de IVA principal en porcentaje (21, 10.5, 27, 0), o null",
+ "iva": "total de IVA (crédito fiscal) como número, o null",
+ "percepIva": "percepciones de IVA como número, o null",
+ "percepIIBB": "percepciones de Ingresos Brutos como número, o null",
+ "otrosTrib": "otros tributos/impuestos internos como número, o null",
  "total": "importe total como número, o null",
+ "condicionIvaProveedor": "condición IVA del emisor: RI, Monotributo, Exento o Consumidor Final, o null",
  "categoria": "rubro sugerido del gasto: Alquiler, Servicios, Mercadería, Mantenimiento, Marketing, Equipamiento, Limpieza, Impuestos u Otro"
 }
 Usá punto decimal en los números, sin símbolos ni separadores de miles. Si un dato no aparece, poné null. Respondé en JSON.`;
