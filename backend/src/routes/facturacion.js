@@ -4,6 +4,7 @@ const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const afip = require('../lib/afip');
 const invoicePdf = require('../lib/invoicePdf');
+const evo = require('../lib/whatsappEvolution');
 const path = require('path');
 const fs = require('fs');
 const PHOTOS_DIR = process.env.PHOTOS_DIR || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
@@ -228,6 +229,32 @@ router.get('/:id/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `inline; filename="factura-${inv.puntoVenta || ''}-${inv.numero || ''}.pdf"`);
     res.send(pdf);
   } catch (e) { console.error('[fact] pdf', e); res.status(500).json({ error: 'Error al generar el PDF' }); }
+});
+
+// POST /api/facturacion/:id/whatsapp -> envía el PDF de la factura por WhatsApp
+router.post('/:id/whatsapp', async (req, res) => {
+  try {
+    const inv = await prisma.invoice.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!inv) return res.status(404).json({ error: 'Comprobante no encontrado' });
+    if (!evo.isConfigured()) return res.status(400).json({ error: 'WhatsApp no está configurado en el sistema.' });
+    let phone = String((req.body && req.body.phone) || '').replace(/\D/g, '');
+    if (!phone && inv.clientId) {
+      const c = await prisma.client.findFirst({ where: { id: inv.clientId, businessId: req.user.businessId }, select: { phone: true } });
+      phone = String((c && c.phone) || '').replace(/\D/g, '');
+    }
+    if (!phone) return res.status(400).json({ error: 'No hay teléfono para enviar. Ingresá un número.' });
+    const b = await prisma.business.findUnique({ where: { id: req.user.businessId } });
+    const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+    const pdf = await invoicePdf.generateInvoicePdf(inv, b, { logoPath: fs.existsSync(logoPath) ? logoPath : null });
+    const nombre = b.fiscalRazonSocial || b.name || 'Gestumio';
+    const caption = `${inv.tipo} N° ${inv.puntoVenta || ''}-${inv.numero || ''}\n${nombre}`;
+    const filename = `factura-${inv.puntoVenta || ''}-${inv.numero || ''}.pdf`;
+    await evo.sendDocument(req.user.businessId, phone, pdf, filename, caption);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[fact] whatsapp', e.message);
+    res.status(502).json({ error: 'No se pudo enviar por WhatsApp: ' + (e.message || 'error') });
+  }
 });
 
 module.exports = router;

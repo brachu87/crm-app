@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
+import WhatsAppInvoiceButton from '../components/WhatsAppInvoiceButton';
 
 const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(v || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
@@ -110,7 +111,10 @@ function ComprobantesTab({ invoices, loading }) {
                 ? <span className="pill pill-paid">Autorizada</span>
                 : <span className="pill pill-overdue" title={inv.errorMsg || ''}>Error</span>}</td>
               <td>{inv.status === 'issued'
-                ? <button className="btn" style={{ padding: '4px 10px' }} onClick={() => downloadInvoicePdf(inv.id)}>PDF</button>
+                ? <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                    <button className="btn" style={{ padding: '4px 10px' }} onClick={() => downloadInvoicePdf(inv.id)}>PDF</button>
+                    <WhatsAppInvoiceButton invoiceId={inv.id} label="📲" className="btn" />
+                  </span>
                 : '—'}</td>
             </tr>
           ))}
@@ -302,6 +306,7 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
           {inv.cae && <p style={{ fontSize: 14 }}><strong>CAE:</strong> {inv.cae}{inv.vencimientoCae ? ` (vence ${inv.vencimientoCae})` : ''}</p>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
             {inv.id && <button className="btn btn-secondary" onClick={() => downloadInvoicePdf(inv.id)}>⬇ Ver PDF</button>}
+            {inv.id && <WhatsAppInvoiceButton invoiceId={inv.id} />}
             <button className="btn btn-primary" onClick={onSaved}>Listo</button>
           </div>
         </div>

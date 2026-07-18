@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
+import WhatsAppInvoiceButton from './WhatsAppInvoiceButton';
 
 const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(v || 0);
 
@@ -61,6 +62,7 @@ export default function FacturarCobro({ clientId, descripcion, total, onClose })
             {ok.invoice?.cae && <p style={{ fontSize: 14 }}><strong>CAE:</strong> {ok.invoice.cae}</p>}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
               {ok.invoice?.id && <button className="btn btn-secondary" onClick={() => verPdf(ok.invoice.id)}>⬇ Ver PDF</button>}
+              {ok.invoice?.id && <WhatsAppInvoiceButton invoiceId={ok.invoice.id} />}
               <button className="btn btn-primary" onClick={onClose}>Listo</button>
             </div>
           </>
