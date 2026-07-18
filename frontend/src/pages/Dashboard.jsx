@@ -29,23 +29,19 @@ function Sparkline({ data, field, color }) {
 // ── Big KPI Card ──────────────────────────────────────────────────────────────
 function BigKPI({ label, value, color, sparkData, sparkField, change, hint, icon }) {
   return (
-    <div className="card kpi-card" style={{ padding:'20px 24px', position:'relative', overflow:'hidden' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-        <div style={{ flex:1 }}>
-          <p style={{ margin:0, fontSize:12, color:'var(--ink-soft)', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:500 }}>{label}</p>
-          <p style={{ margin:0, fontSize:28, fontWeight:800, color, lineHeight:1 }}>{value}</p>
-          {hint && <p style={{ margin:'6px 0 0', fontSize:12, color:'var(--ink-soft)' }}>{hint}</p>}
-          {change && (
-            <p style={{ margin:'8px 0 0', fontSize:12, color: change.up ? '#10b981' : '#ef4444', fontWeight:600 }}>
-              {change.up ? '↑' : '↓'} {change.value}% vs mes anterior
-            </p>
-          )}
-        </div>
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-          {icon && <span style={{ fontSize:24 }}>{icon}</span>}
-          {sparkData && <Sparkline data={sparkData} field={sparkField} color={color} />}
-        </div>
+    <div className="card dash-card" style={{ padding:'18px 20px', position:'relative', overflow:'hidden', borderTop:`3px solid ${color}` }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+        {icon && <span style={{ width:38, height:38, borderRadius:10, background:color+'1a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:19 }}>{icon}</span>}
+        {change && (
+          <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:20, background:(change.up?'#10b981':'#ef4444')+'18', color: change.up ? '#10b981' : '#ef4444' }}>
+            {change.up ? '↑' : '↓'} {change.value}%
+          </span>
+        )}
       </div>
+      <p style={{ margin:0, fontSize:11, color:'var(--ink-soft)', textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:600 }}>{label}</p>
+      <p style={{ margin:'4px 0 0', fontSize:26, fontWeight:800, color, lineHeight:1.05 }}>{value}</p>
+      {hint && <p style={{ margin:'6px 0 0', fontSize:12, color:'var(--ink-soft)' }}>{hint}</p>}
+      {sparkData && <div style={{ marginTop:10 }}><Sparkline data={sparkData} field={sparkField} color={color} /></div>}
     </div>
   );
 }
@@ -197,6 +193,12 @@ export default function Dashboard() {
 
   return (
     <div>
+      <style>{`
+        .dash-card{transition:transform .15s ease, box-shadow .15s ease;}
+        .dash-card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(0,0,0,.09);}
+        .dash-entity{transition:transform .12s ease, box-shadow .12s ease;}
+        .dash-entity:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.09);}
+      `}</style>
       <div style={{ borderRadius:16, padding:'22px 26px', marginBottom:20, background:'linear-gradient(135deg,#12833b 0%,#1BA84C 55%,#37c96c 100%)', color:'#fff', display:'flex', alignItems:'center', gap:18, boxShadow:'0 10px 28px rgba(27,168,76,.28)', flexWrap:'wrap' }}>
         <div style={{ width:60, height:60, borderRadius:14, background:'rgba(255,255,255,.18)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
           <AuthImage path="/business/logo" alt="logo" style={{ width:'100%', height:'100%', objectFit:'cover' }} fallback={<span style={{ fontSize:28 }}>🏪</span>} />
@@ -218,6 +220,7 @@ export default function Dashboard() {
           label="Ingresos este mes"
           value={fmt(data.ingresosDelMes)}
           color="#10b981"
+          icon="💰"
           sparkData={data.monthlyTrend}
           sparkField="income"
           change={ingresosChange}
@@ -226,6 +229,7 @@ export default function Dashboard() {
           label="Gastos este mes"
           value={fmt(data.gastosDelMes)}
           color="#ef4444"
+          icon="💸"
           sparkData={data.monthlyTrend}
           sparkField="expenses"
           change={gastosChange ? { ...gastosChange, up: !gastosChange.up } : null}
@@ -234,12 +238,14 @@ export default function Dashboard() {
           label="Resultado del mes"
           value={fmt(balance)}
           color={balance>=0?'#10b981':'#ef4444'}
+          icon="📊"
           hint={balance>=0?'Positivo ✓':'Déficit — revisá gastos'}
         />
         <BigKPI
           label="Cuotas vencidas"
           value={data.overdue.count}
           color={data.overdue.count>0?'#f59e0b':'#10b981'}
+          icon="⚠️"
           hint={data.overdue.count>0 ? fmt(data.overdue.total)+' pendiente' : 'Todo al día ✓'}
         />
       </div>
@@ -247,16 +253,17 @@ export default function Dashboard() {
       {/* ── Row 2: Entity counts ── */}
       <div className="entity-count-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))', gap:10, marginBottom:20 }}>
         {[
-          { label:'Clientes activos', value:data.clientsCount, color:'#6366f1', link:'/clientes' },
-          { label:'Actividades',      value:data.activitiesCount, color:'#3b82f6', link:'/actividades' },
-          { label:'Turnos del mes',   value:data.servicesCount, color:'#8b5cf6', link:'/agenda' },
-          { label:'Empleados',        value:data.employeesCount, color:'#0891b2', link:'/empleados' },
-          { label:'Proveedores',      value:data.suppliersCount, color:'#059669', link:'/proveedores' },
+          { label:'Clientes activos', value:data.clientsCount, color:'#6366f1', link:'/clientes', icon:'👤' },
+          { label:'Actividades',      value:data.activitiesCount, color:'#3b82f6', link:'/actividades', icon:'🏃' },
+          { label:'Turnos del mes',   value:data.servicesCount, color:'#8b5cf6', link:'/agenda', icon:'📅' },
+          { label:'Empleados',        value:data.employeesCount, color:'#0891b2', link:'/empleados', icon:'👥' },
+          { label:'Proveedores',      value:data.suppliersCount, color:'#059669', link:'/proveedores', icon:'🏭' },
         ].map(item => (
           <Link key={item.label} to={item.link} style={{ textDecoration:'none' }}>
-            <div className="card" style={{ padding:'14px 16px', textAlign:'center', cursor:'pointer', transition:'transform 0.1s', ':hover':{ transform:'scale(1.02)' } }}>
-              <p style={{ margin:0, fontSize:28, fontWeight:800, color:item.color }}>{item.value}</p>
-              <p style={{ margin:'4px 0 0', fontSize:11, color:'var(--ink-soft)' }}>{item.label}</p>
+            <div className="card dash-entity" style={{ padding:'14px 16px', textAlign:'center', cursor:'pointer' }}>
+              <span style={{ fontSize:18 }}>{item.icon}</span>
+              <p style={{ margin:'2px 0 0', fontSize:26, fontWeight:800, color:item.color }}>{item.value}</p>
+              <p style={{ margin:'2px 0 0', fontSize:11, color:'var(--ink-soft)' }}>{item.label}</p>
             </div>
           </Link>
         ))}
