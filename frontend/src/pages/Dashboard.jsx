@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
+import AuthImage from '../components/AuthImage';
 
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 function fmt(n) { return '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function saludo() { const h = new Date().getHours(); return h < 12 ? 'Buen día' : h < 20 ? 'Buenas tardes' : 'Buenas noches'; }
 function fmtChange(curr, prev) {
   if (!prev || prev === 0) return null;
   const delta = ((curr - prev) / prev) * 100;
@@ -144,6 +146,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [invoices, setInvoices] = useState([]);
   const [widgets, setWidgets] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dash_widgets') || 'null') || defaultWidgets(); }
     catch { return defaultWidgets(); }
@@ -156,8 +159,11 @@ export default function Dashboard() {
   function load() {
     setLoading(true);
     setError('');
-    api.get('/dashboard')
-      .then(r => setData(r.data))
+    Promise.all([
+      api.get('/dashboard'),
+      api.get('/facturacion').catch(() => ({ data: [] })),
+    ])
+      .then(([d, f]) => { setData(d.data); setInvoices(Array.isArray(f.data) ? f.data : []); })
       .catch(() => setError('Error al cargar el dashboard'))
       .finally(() => setLoading(false));
   }
@@ -176,18 +182,34 @@ export default function Dashboard() {
   const gastosChange   = fmtChange(data.currMonth?.expenses, data.prevMonth?.expenses);
   const balance = data.ingresosDelMes - data.gastosDelMes;
 
+  const business = (() => { try { return JSON.parse(localStorage.getItem('business') || '{}'); } catch { return {}; } })();
+  const ym = new Date().toISOString().slice(0, 7);
+  const issuedInv = invoices.filter(i => i.status === 'issued');
+  const mesInv = issuedInv.filter(i => String(i.createdAt || '').slice(0, 7) === ym);
+  const facturadoMes = mesInv.reduce((s, i) => s + (i.total || 0), 0);
+  const ivaMes = mesInv.reduce((s, i) => s + (i.iva || 0), 0);
+  const ultimasInv = issuedInv.slice(0, 5);
+  const resumenHero = `Este mes facturaste ${fmt(facturadoMes)} · ${data.overdue.count} vencidas · ${data.pending.count} por cobrar`;
+
   const maxOverdueAmt = Math.max(...(data.upcomingDueDates?.filter(d=>d.paymentStatus==='overdue').map(d=>d.amountDue)||[]),1);
   const overdueList = data.upcomingDueDates?.filter(d=>d.paymentStatus==='overdue').slice(0,5) || [];
   const pendingList = data.upcomingDueDates?.filter(d=>d.paymentStatus==='pending').slice(0,5) || [];
 
   return (
     <div>
-      <div className="page-header" style={{ marginBottom:24 }}>
-        <div>
-          <h1>Dashboard</h1>
-          <p className="page-subtitle">Vista general del negocio · {new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'})}</p>
+      <div style={{ borderRadius:16, padding:'22px 26px', marginBottom:20, background:'linear-gradient(135deg,#12833b 0%,#1BA84C 55%,#37c96c 100%)', color:'#fff', display:'flex', alignItems:'center', gap:18, boxShadow:'0 10px 28px rgba(27,168,76,.28)', flexWrap:'wrap' }}>
+        <div style={{ width:60, height:60, borderRadius:14, background:'rgba(255,255,255,.18)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+          <AuthImage path="/business/logo" alt="logo" style={{ width:'100%', height:'100%', objectFit:'cover' }} fallback={<span style={{ fontSize:28 }}>🏪</span>} />
         </div>
-        <button className="btn btn-secondary" onClick={load} style={{ fontSize:13 }}>↻ Actualizar</button>
+        <div style={{ flex:1, minWidth:180 }}>
+          <p style={{ margin:0, fontSize:13, opacity:.9 }}>{saludo()} 👋</p>
+          <h1 style={{ margin:'2px 0 0', fontSize:24, fontWeight:800, color:'#fff' }}>{business.name || 'Tu negocio'}</h1>
+          <p style={{ margin:'6px 0 0', fontSize:13, opacity:.92 }}>{resumenHero}</p>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:8 }}>
+          <span style={{ fontSize:13, opacity:.9, textTransform:'capitalize' }}>{new Date().toLocaleDateString('es-AR',{ weekday:'long', day:'numeric', month:'long' })}</span>
+          <button className="btn" onClick={load} style={{ fontSize:12, background:'rgba(255,255,255,.2)', color:'#fff', border:'none' }}>↻ Actualizar</button>
+        </div>
       </div>
 
       {/* ── Row 1: Big KPIs ── */}
@@ -261,6 +283,42 @@ export default function Dashboard() {
             overdue={data.enrollmentStatus.overdue}
           />
         </div>
+      </div>
+
+      {/* ── Facturación del mes ── */}
+      <div className="card" style={{ marginBottom:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+          <h3 style={{ margin:0 }}>🧾 Facturación del mes</h3>
+          <Link to="/comprobantes" style={{ fontSize:12, color:'var(--primary)', textDecoration:'none' }}>Ir a facturación →</Link>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:12, marginBottom: ultimasInv.length ? 16 : 0 }}>
+          <div style={{ padding:'12px 14px', background:'var(--bg)', borderRadius:10 }}>
+            <p style={{ margin:0, fontSize:11, color:'var(--ink-soft)', textTransform:'uppercase', letterSpacing:'.04em' }}>Facturado</p>
+            <p style={{ margin:'4px 0 0', fontSize:22, fontWeight:800, color:'#1BA84C' }}>{fmt(facturadoMes)}</p>
+          </div>
+          <div style={{ padding:'12px 14px', background:'var(--bg)', borderRadius:10 }}>
+            <p style={{ margin:0, fontSize:11, color:'var(--ink-soft)', textTransform:'uppercase', letterSpacing:'.04em' }}>IVA débito</p>
+            <p style={{ margin:'4px 0 0', fontSize:22, fontWeight:800, color:'#d97706' }}>{fmt(ivaMes)}</p>
+          </div>
+          <div style={{ padding:'12px 14px', background:'var(--bg)', borderRadius:10 }}>
+            <p style={{ margin:0, fontSize:11, color:'var(--ink-soft)', textTransform:'uppercase', letterSpacing:'.04em' }}>Comprobantes</p>
+            <p style={{ margin:'4px 0 0', fontSize:22, fontWeight:800, color:'#6366f1' }}>{mesInv.length}</p>
+          </div>
+        </div>
+        {ultimasInv.length === 0 ? (
+          <p style={{ color:'var(--ink-soft)', fontSize:13, margin:0 }}>Todavía no emitiste comprobantes. <Link to="/comprobantes" style={{ color:'var(--primary)' }}>Emitir una factura →</Link></p>
+        ) : (
+          <div>
+            <p style={{ margin:'0 0 6px', fontSize:12, color:'var(--ink-soft)', fontWeight:600 }}>Últimos comprobantes</p>
+            {ultimasInv.map(i => (
+              <div key={i.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'6px 0', borderBottom:'1px solid var(--bg)' }}>
+                <span style={{ fontSize:12, fontWeight:700, color:'var(--ink-soft)', minWidth:88 }}>{String(i.tipo||'').replace('FACTURA','Fact.').replace('NOTA DE CREDITO','NC').replace('NOTA DE DEBITO','ND')} {i.puntoVenta}-{i.numero}</span>
+                <span style={{ flex:1, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{i.clienteNombre || 'Consumidor Final'}</span>
+                <span style={{ fontSize:13, fontWeight:700 }}>{fmt(i.total)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Row 4: Morosos + Pendientes ── */}
