@@ -143,6 +143,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [invoices, setInvoices] = useState([]);
+  const [waConnected, setWaConnected] = useState(false);
+  const [factConfigured, setFactConfigured] = useState(false);
+  const [obDismissed, setObDismissed] = useState(() => { try { return localStorage.getItem('gestumio_onboarding_done') === '1'; } catch { return false; } });
   const [widgets, setWidgets] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dash_widgets') || 'null') || defaultWidgets(); }
     catch { return defaultWidgets(); }
@@ -158,8 +161,15 @@ export default function Dashboard() {
     Promise.all([
       api.get('/dashboard'),
       api.get('/facturacion').catch(() => ({ data: [] })),
+      api.get('/whatsapp/status').catch(() => ({ data: {} })),
+      api.get('/facturacion/config').catch(() => ({ data: {} })),
     ])
-      .then(([d, f]) => { setData(d.data); setInvoices(Array.isArray(f.data) ? f.data : []); })
+      .then(([d, f, w, c]) => {
+        setData(d.data);
+        setInvoices(Array.isArray(f.data) ? f.data : []);
+        setWaConnected(!!(w.data && w.data.connected));
+        setFactConfigured(!!(c.data && c.data.configured));
+      })
       .catch(() => setError('Error al cargar el dashboard'))
       .finally(() => setLoading(false));
   }
@@ -187,6 +197,18 @@ export default function Dashboard() {
   const ultimasInv = issuedInv.slice(0, 5);
   const resumenHero = `Este mes facturaste ${fmt(facturadoMes)} · ${data.overdue.count} vencidas · ${data.pending.count} por cobrar`;
 
+  const onbSteps = [
+    { done: (data.activitiesCount || 0) > 0, label: 'Cargá tu primera actividad o servicio', to: '/actividades' },
+    { done: (data.clientsCount || 0) > 0,    label: 'Sumá tu primer cliente', to: '/clientes' },
+    { done: (data.ingresosDelMes || 0) > 0 || (data.pending?.count || 0) > 0 || (data.overdue?.count || 0) > 0, label: 'Registrá tu primer cobro', to: '/cobranza' },
+    { done: waConnected, label: 'Conectá tu WhatsApp para recordatorios', to: '/ajustes' },
+    { done: factConfigured, label: 'Configurá la facturación (opcional)', to: '/comprobantes', optional: true },
+  ];
+  const obRequiredDone = onbSteps.filter(s => !s.optional).every(s => s.done);
+  const obCount = onbSteps.filter(s => s.done).length;
+  const showOnboarding = !obDismissed && !obRequiredDone;
+  function dismissOnboarding() { try { localStorage.setItem('gestumio_onboarding_done', '1'); } catch {} setObDismissed(true); }
+
   const maxOverdueAmt = Math.max(...(data.upcomingDueDates?.filter(d=>d.paymentStatus==='overdue').map(d=>d.amountDue)||[]),1);
   const overdueList = data.upcomingDueDates?.filter(d=>d.paymentStatus==='overdue').slice(0,5) || [];
   const pendingList = data.upcomingDueDates?.filter(d=>d.paymentStatus==='pending').slice(0,5) || [];
@@ -213,6 +235,27 @@ export default function Dashboard() {
           <button className="btn" onClick={load} style={{ fontSize:12, background:'rgba(255,255,255,.2)', color:'#fff', border:'none' }}>↻ Actualizar</button>
         </div>
       </div>
+
+      {showOnboarding && (
+        <div className="card" style={{ marginBottom:20, border:'1px solid #bbf7d0', background:'#f0fdf4' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <h3 style={{ margin:0 }}>🚀 Primeros pasos <span style={{ fontSize:13, fontWeight:500, color:'var(--ink-soft)' }}>({obCount}/{onbSteps.length})</span></h3>
+            <button onClick={dismissOnboarding} style={{ background:'none', border:'none', color:'var(--ink-soft)', cursor:'pointer', fontSize:13 }}>Ocultar ✕</button>
+          </div>
+          <div style={{ height:6, borderRadius:4, background:'#dcfce7', overflow:'hidden', marginBottom:14 }}>
+            <div style={{ width:`${(obCount/onbSteps.length)*100}%`, height:'100%', background:'#16a34a', transition:'width .4s ease' }} />
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {onbSteps.map((st, i) => (
+              <Link key={i} to={st.to} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:8, background: st.done ? 'transparent' : '#fff', border: st.done ? 'none' : '1px solid var(--border)' }}>
+                <span style={{ width:22, height:22, borderRadius:'50%', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, background: st.done ? '#16a34a' : 'var(--bg)', color: st.done ? '#fff' : 'var(--ink-soft)', border: st.done ? 'none' : '1px solid var(--border)' }}>{st.done ? '✓' : (i+1)}</span>
+                <span style={{ flex:1, fontSize:14, color: st.done ? 'var(--ink-soft)' : 'var(--ink)', textDecoration: st.done ? 'line-through' : 'none' }}>{st.label}</span>
+                {!st.done && <span style={{ fontSize:12, color:'var(--primary)', fontWeight:600 }}>Ir →</span>}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Row 1: Big KPIs ── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:20 }}>
