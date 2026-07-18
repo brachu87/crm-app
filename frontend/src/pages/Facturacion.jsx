@@ -124,23 +124,23 @@ function ComprobantesTab({ invoices, loading }) {
       </div>
     )}
     <div className="card" style={{ overflowX: 'auto' }}>
-      <table className="table">
+      <table className="table cards-mobile">
         <thead>
           <tr><th>Fecha</th><th>Tipo</th><th>Número</th><th>Cliente</th><th style={{ textAlign: 'right' }}>Total</th><th>CAE</th><th>Estado</th><th>PDF</th></tr>
         </thead>
         <tbody>
           {invoices.map(inv => (
             <tr key={inv.id}>
-              <td>{fmtDate(inv.createdAt)}</td>
-              <td>{inv.tipo}</td>
-              <td>{inv.puntoVenta ? inv.puntoVenta + '-' : ''}{inv.numero || '—'}</td>
-              <td>{inv.clienteNombre || '—'}</td>
-              <td style={{ textAlign: 'right' }}>{fmt(inv.total)}</td>
-              <td style={{ fontSize: 12 }}>{inv.cae || '—'}{inv.vencimientoCae ? ` (${inv.vencimientoCae})` : ''}</td>
-              <td>{inv.status === 'issued'
+              <td data-label="Fecha">{fmtDate(inv.createdAt)}</td>
+              <td data-label="Tipo">{inv.tipo}</td>
+              <td data-label="Número">{inv.puntoVenta ? inv.puntoVenta + '-' : ''}{inv.numero || '—'}</td>
+              <td data-label="Cliente">{inv.clienteNombre || '—'}</td>
+              <td data-label="Total" style={{ textAlign: 'right' }}>{fmt(inv.total)}</td>
+              <td data-label="CAE" style={{ fontSize: 12 }}>{inv.cae || '—'}{inv.vencimientoCae ? ` (${inv.vencimientoCae})` : ''}</td>
+              <td data-label="Estado">{inv.status === 'issued'
                 ? <span className="pill pill-paid">Autorizada</span>
                 : <span className="pill pill-overdue" title={inv.errorMsg || ''}>Error</span>}</td>
-              <td>{inv.status === 'issued'
+              <td data-label="PDF" className="actions-cell">{inv.status === 'issued'
                 ? <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                     <button className="btn" style={{ padding: '4px 10px' }} onClick={() => downloadInvoicePdf(inv.id)}>PDF</button>
                     <WhatsAppInvoiceButton invoiceId={inv.id} label="📲" className="btn" />
