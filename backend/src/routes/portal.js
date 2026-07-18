@@ -6,6 +6,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+const APP_URL = process.env.APP_URL || 'https://crm-app-production-0669.up.railway.app';
 const prisma = require('../prisma');
 const evo = require('../lib/whatsappEvolution');
 let gcal = null; try { gcal = require('../lib/googleCalendar'); } catch (_) {}
@@ -59,7 +61,7 @@ router.get('/me', portalAuth, async (req, res) => {
     const client = await prisma.client.findUnique({
       where: { id: req.socioId },
       include: {
-        business: { select: { name: true } },
+        business: { select: { name: true, mpAccessToken: true } },
         enrollments: {
           include: {
             activity: { select: { name: true, price: true } },
@@ -93,6 +95,8 @@ router.get('/me', portalAuth, async (req, res) => {
         amount: e.amountDue,
         status: current?.paymentStatus || 'pending',
         dueDate: current?.dueDate || null,
+        cuotaId: current ? current.id : null,
+        net: current ? Math.max(0, current.amountDue - (current.discount || 0)) : e.amountDue,
       };
     });
 
@@ -101,6 +105,7 @@ router.get('/me', portalAuth, async (req, res) => {
       memberNumber: client.memberNumber,
       dni: client.dni || null,
       businessName: client.business?.name || '',
+      mpEnabled: !!(client.business && client.business.mpAccessToken),
       balance,
       activities,
       hasCustomPassword: !!client.portalPassword,
@@ -562,6 +567,74 @@ router.post('/class-reservations/cancel-group', portalAuth, async (req, res) => 
     await prisma.classReservation.updateMany({ where, data: { status: 'cancelled' } });
     res.json({ ok: true });
   } catch (e) { console.error('[portal-cancel-group]', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// POST /api/portal/cuotas/:cuotaId/pay-preference — crea el checkout de Mercado Pago
+router.post('/cuotas/:cuotaId/pay-preference', portalAuth, async (req, res) => {
+  try {
+    const cuota = await prisma.cuota.findFirst({
+      where: { id: req.params.cuotaId, enrollment: { clientId: req.socioId } },
+      include: { enrollment: { include: { client: true, activity: { include: { business: true } } } } },
+    });
+    if (!cuota) return res.status(404).json({ error: 'Cuota no encontrada' });
+    const biz = cuota.enrollment.activity.business;
+    if (!biz || !biz.mpAccessToken) return res.status(400).json({ error: 'El negocio todavía no tiene Mercado Pago configurado.' });
+    const net = Math.max(0, cuota.amountDue - (cuota.discount || 0));
+    if (net <= 0) return res.status(400).json({ error: 'Esta cuota no tiene saldo para pagar.' });
+
+    const client = new MercadoPagoConfig({ accessToken: biz.mpAccessToken });
+    const pref = await new Preference(client).create({
+      body: {
+        items: [{
+          title: `${cuota.enrollment.activity?.name || 'Cuota'} - ${cuota.period}`,
+          quantity: 1, currency_id: 'ARS', unit_price: Math.round(net * 100) / 100,
+        }],
+        payer: { name: cuota.enrollment.client?.name || '' },
+        external_reference: cuota.id,
+        back_urls: {
+          success: `${APP_URL}/socio?pago=ok`,
+          failure: `${APP_URL}/socio?pago=error`,
+          pending: `${APP_URL}/socio?pago=pend`,
+        },
+        auto_return: 'approved',
+        notification_url: `${APP_URL}/api/portal/mp-webhook?bid=${biz.id}`,
+        statement_descriptor: (biz.name || 'GESTUMIO').slice(0, 22),
+      },
+    });
+    res.json({ init_point: pref.init_point || pref.sandbox_init_point });
+  } catch (e) {
+    console.error('[portal pay-pref]', e.message);
+    res.status(502).json({ error: 'No se pudo iniciar el pago. Intentá de nuevo.' });
+  }
+});
+
+// POST /api/portal/mp-webhook — Mercado Pago notifica el pago (público, sin auth)
+router.post('/mp-webhook', async (req, res) => {
+  res.sendStatus(200); // responder rápido a MP
+  try {
+    const bid = req.query.bid;
+    const type = req.body?.type || req.query.type || req.query.topic;
+    const paymentId = (req.body?.data && req.body.data.id) || req.query['data.id'] || req.query.id;
+    if (!bid || !paymentId || (type && type !== 'payment')) return;
+    const biz = await prisma.business.findUnique({ where: { id: String(bid) }, select: { id: true, mpAccessToken: true } });
+    if (!biz || !biz.mpAccessToken) return;
+    const client = new MercadoPagoConfig({ accessToken: biz.mpAccessToken });
+    const pay = await new Payment(client).get({ id: String(paymentId) });
+    if (!pay || pay.status !== 'approved') return;
+    const cuotaId = pay.external_reference;
+    if (!cuotaId) return;
+    const dup = await prisma.payment.findFirst({ where: { externalId: String(pay.id) } });
+    if (dup) return;
+    const cuota = await prisma.cuota.findFirst({ where: { id: cuotaId, enrollment: { activity: { businessId: biz.id } } } });
+    if (!cuota) return;
+    await prisma.payment.create({ data: { cuotaId, amount: pay.transaction_amount || 0, method: 'Mercado Pago', externalId: String(pay.id) } });
+    const agg = await prisma.payment.aggregate({ where: { cuotaId }, _sum: { amount: true } });
+    const totalPaid = agg._sum.amount || 0;
+    const net = Math.max(0, cuota.amountDue - (cuota.discount || 0));
+    const newStatus = totalPaid >= net ? 'paid' : (cuota.paymentStatus === 'overdue' ? 'overdue' : 'pending');
+    await prisma.cuota.update({ where: { id: cuotaId }, data: { paymentStatus: newStatus } });
+    console.log('[mp-webhook] cobro online registrado — cuota', cuotaId, 'pago', pay.id);
+  } catch (e) { console.error('[mp-webhook]', e.message); }
 });
 
 module.exports = router;

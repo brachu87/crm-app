@@ -31,6 +31,7 @@ model Business {
   waPhoneNumber String?  // numero visible para mostrar en la UI
   waWabaId      String?  // WhatsApp Business Account ID del negocio
   waToken       String?  // token de acceso del negocio (Embedded Signup)
+  mpAccessToken String?  // Mercado Pago del negocio (cobros del portal)
 
   waTemplateExpiring    String?
   waTemplateOverdue     String?
@@ -203,6 +204,7 @@ model Payment {
   amount    Float
   date      DateTime @default(now())
   method    String?
+  externalId String?
 
   @@index([cuotaId])
   @@index([date])

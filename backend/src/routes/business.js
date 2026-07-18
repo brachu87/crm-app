@@ -162,6 +162,24 @@ router.get('/export', async (req, res) => {
   } catch (e) { console.error('[business-export]', e.message); res.status(500).json({ error: 'No se pudo exportar' }); }
 });
 
+// GET /api/business/mp-status — ¿tiene Mercado Pago conectado?
+router.get('/mp-status', async (req, res) => {
+  try {
+    const b = await prisma.business.findUnique({ where: { id: req.user.businessId }, select: { mpAccessToken: true } });
+    res.json({ connected: !!(b && b.mpAccessToken) });
+  } catch (e) { res.status(500).json({ error: 'Error' }); }
+});
+
+// PUT /api/business/mp-token — guardar/quitar el Access Token de Mercado Pago (solo owner)
+router.put('/mp-token', async (req, res) => {
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede configurar Mercado Pago' });
+  try {
+    const raw = (req.body && req.body.accessToken || '').trim();
+    await prisma.business.update({ where: { id: req.user.businessId }, data: { mpAccessToken: raw || null } });
+    res.json({ ok: true, connected: !!raw });
+  } catch (e) { res.status(500).json({ error: 'Error al guardar' }); }
+});
+
 module.exports = router;
 
 

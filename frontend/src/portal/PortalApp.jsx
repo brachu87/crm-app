@@ -137,6 +137,25 @@ function PortalDashboard({ me, onLogout, onReload }) {
   const [classes, setClasses] = useState([]);
   const [myClasses, setMyClasses] = useState([]);
   const [reserving, setReserving] = useState(null);
+  const [paying, setPaying] = useState(false);
+  const [payMsg, setPayMsg] = useState('');
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('pago');
+    if (p === 'ok') setPayMsg('✅ ¡Pago recibido! Se acreditará en unos segundos.');
+    else if (p === 'pend') setPayMsg('⏳ Tu pago quedó pendiente de acreditación.');
+    else if (p === 'error') setPayMsg('❌ El pago no se completó. Podés intentar de nuevo.');
+    if (p) { window.history.replaceState({}, '', '/socio'); setTimeout(() => { try { location.reload(); } catch {} }, 4000); }
+  }, []);
+
+  async function pagarCuota(cuotaId) {
+    setPaying(true);
+    try {
+      const r = await portalFetch('/cuotas/' + cuotaId + '/pay-preference', { method: 'POST' });
+      if (r.init_point) { window.location.href = r.init_point; return; }
+      throw new Error('No se pudo iniciar el pago');
+    } catch (e) { alert(e.message || 'No se pudo iniciar el pago'); setPaying(false); }
+  }
 
   const statusColor = { paid: '#16a34a', pending: '#d97706', overdue: '#dc2626' };
   const statusLabel = { paid: 'Al día', pending: 'Pendiente', overdue: 'Vencida' };
@@ -206,6 +225,11 @@ function PortalDashboard({ me, onLogout, onReload }) {
 
       <div style={{ maxWidth: 620, margin: '0 auto', padding: 20 }}>
 
+        {payMsg && (
+          <div style={{ ...cardS, background: '#eff6ff', border: '1px solid #bfdbfe', marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: 14 }}>{payMsg}</p>
+          </div>
+        )}
         {section === 'inicio' && (
           <>
             <div style={cardS}>
@@ -229,7 +253,15 @@ function PortalDashboard({ me, onLogout, onReload }) {
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{a.name}</div>
                       <div style={{ fontSize: 12, color: '#64748b' }}>{fmtMoney(a.amount)} / mes{a.dueDate ? ` · vence ${fmtDate(a.dueDate)}` : ''}</div>
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: statusColor[a.status] || '#64748b' }}>{statusLabel[a.status] || a.status}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: statusColor[a.status] || '#64748b' }}>{statusLabel[a.status] || a.status}</span>
+                      {me.mpEnabled && a.cuotaId && a.status !== 'paid' && (
+                        <button onClick={() => pagarCuota(a.cuotaId)} disabled={paying}
+                          style={{ background: '#009ee3', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          {paying ? '...' : '💳 Pagar'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
