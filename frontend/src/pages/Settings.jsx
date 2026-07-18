@@ -527,6 +527,9 @@ function WhatsAppAuto() {
   const [templates, setTemplates] = useState({ expiring: '', overdue: '', appointment: '' });
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [templatesSaved, setTemplatesSaved] = useState(false);
+  const [remCfg, setRemCfg] = useState({ autoReminders: false, reminderHour: 9 });
+  const [remSaved, setRemSaved] = useState(false);
+  const [remLoaded, setRemLoaded] = useState(false);
 
   const state = status?.state || 'disconnected';
   const connected = state === 'connected';
@@ -547,8 +550,17 @@ function WhatsAppAuto() {
       if (!templatesLoaded) {
         api.get('/whatsapp/templates').then(r => { setTemplates(r.data); setTemplatesLoaded(true); }).catch(() => {});
       }
+      if (!remLoaded) {
+        api.get('/whatsapp/reminder-config').then(r => { setRemCfg(r.data); setRemLoaded(true); }).catch(() => {});
+      }
     }
-  }, [connected, templatesLoaded]);
+  }, [connected, templatesLoaded, remLoaded]);
+
+  async function saveRem(next) {
+    setRemCfg(next);
+    try { await api.put('/whatsapp/reminder-config', next); setRemSaved(true); setTimeout(() => setRemSaved(false), 1500); }
+    catch (e) { setFeedback('❌ ' + (e.response?.data?.error || e.message)); }
+  }
 
   // Mientras esperamos el escaneo, refrescar el QR periódicamente
   useEffect(() => {
@@ -676,6 +688,26 @@ function WhatsAppAuto() {
               <button className="btn btn-secondary" onClick={handleTest} disabled={testing || !testPhone}>{testing ? 'Enviando...' : '📤 Enviar mensaje de prueba'}</button>
               <button className="btn btn-secondary" onClick={handleRunNow} disabled={running}>{running ? 'Ejecutando...' : '🔔 Enviar recordatorios ahora'}</button>
             </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}>
+              <input type="checkbox" checked={remCfg.autoReminders} onChange={e => saveRem({ ...remCfg, autoReminders: e.target.checked })} />
+              🔔 Recordatorios automáticos {remSaved && <span style={{ color: '#16a34a', fontSize: 12, fontWeight: 500 }}>✓ guardado</span>}
+            </label>
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', margin: '4px 0 8px 26px' }}>
+              Envía solo los recordatorios (cuotas por vencer, vencidas y turnos de mañana) todos los días a la hora que elijas.
+            </p>
+            {remCfg.autoReminders && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 26 }}>
+                <span style={{ fontSize: 13 }}>Enviar todos los días a las</span>
+                <select value={remCfg.reminderHour} onChange={e => saveRem({ ...remCfg, reminderHour: Number(e.target.value) })}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--ink)' }}>
+                  {Array.from({ length: 24 }).map((_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+                </select>
+                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>hs</span>
+              </div>
+            )}
           </div>
         </>
       )}

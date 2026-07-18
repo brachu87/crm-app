@@ -35,6 +35,8 @@ model Business {
   waTemplateExpiring    String?
   waTemplateOverdue     String?
   waTemplateAppointment String?
+  waAutoReminders       Boolean  @default(false)
+  waReminderHour        Int      @default(9)
   enabledModules        String?
 
   googleCalendarToken  String?

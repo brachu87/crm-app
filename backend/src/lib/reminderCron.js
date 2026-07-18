@@ -124,9 +124,26 @@ async function runReminders(onlyBusinessId = null) {
   return { sent, errors };
 }
 
-function startReminderCron() {
-  cron.schedule('0 12 * * *', () => runReminders(), { timezone: 'UTC' });
-  console.log('[wa-cron] Cron programado — 09:00 AR / 12:00 UTC');
+// Corre cada hora en punto; envía a los negocios cuya hora configurada coincide y tienen el auto activado.
+async function runScheduledReminders() {
+  const arHour = (new Date().getUTCHours() + 21) % 24; // UTC-3
+  let businesses = [];
+  try {
+    businesses = await prisma.business.findMany({
+      where: { waAutoReminders: true, waReminderHour: arHour },
+      select: { id: true },
+    });
+  } catch (e) { console.error('[wa-cron] no se pudo listar negocios:', e.message); return; }
+  if (!businesses.length) return;
+  console.log(`[wa-cron] ${arHour}:00 AR — ${businesses.length} negocio(s) con recordatorios automáticos`);
+  for (const b of businesses) {
+    await runReminders(b.id).catch(e => console.error('[wa-cron] negocio ' + b.id, e.message));
+  }
 }
 
-module.exports = { startReminderCron, runReminders };
+function startReminderCron() {
+  cron.schedule('0 * * * *', () => runScheduledReminders(), { timezone: 'UTC' });
+  console.log('[wa-cron] Cron horario programado (por negocio, según su hora configurada)');
+}
+
+module.exports = { startReminderCron, runReminders, runScheduledReminders };

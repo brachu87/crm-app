@@ -233,4 +233,30 @@ router.put('/templates', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/whatsapp/reminder-config — config de recordatorios automáticos
+router.get('/reminder-config', async (req, res) => {
+  try {
+    const biz = await prisma.business.findUnique({
+      where: { id: req.user.businessId },
+      select: { waAutoReminders: true, waReminderHour: true },
+    });
+    res.json({ autoReminders: !!biz?.waAutoReminders, reminderHour: biz?.waReminderHour ?? 9 });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT /api/whatsapp/reminder-config — activar/desactivar y elegir hora
+router.put('/reminder-config', async (req, res) => {
+  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede cambiar esto' });
+  try {
+    const auto = !!req.body.autoReminders;
+    let hour = parseInt(req.body.reminderHour, 10);
+    if (isNaN(hour) || hour < 0 || hour > 23) hour = 9;
+    await prisma.business.update({
+      where: { id: req.user.businessId },
+      data: { waAutoReminders: auto, waReminderHour: hour },
+    });
+    res.json({ ok: true, autoReminders: auto, reminderHour: hour });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 module.exports = router;
