@@ -14,6 +14,7 @@ function getAge(birthday) {
 
 export default function ClientModal({ client, onClose, onSaved }) {
   const isEdit = !!client;
+  const [padronLoading, setPadronLoading] = useState(false);
   const [form, setForm] = useState({
     name: client?.name || '',
     phone: client?.phone || '',
@@ -44,6 +45,18 @@ export default function ClientModal({ client, onClose, onSaved }) {
 
   const age = getAge(form.birthday);
   const isMinor = age !== null && age < 18;
+
+  async function buscarPadronCli() {
+    const cuit = String(form.cuit || '').replace(/\D/g, '');
+    if (cuit.length < 11) { alert('Ingresá un CUIT válido (11 dígitos).'); return; }
+    setPadronLoading(true);
+    try {
+      const r = await api.post('/facturacion/padron', { cuit });
+      if (r.data.razonSocial) setForm((f) => ({ ...f, name: r.data.razonSocial }));
+      else alert('No se encontraron datos para ese CUIT.');
+    } catch (e) { alert(e.response?.data?.error || 'No se pudo consultar el padrón'); }
+    finally { setPadronLoading(false); }
+  }
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -128,7 +141,10 @@ export default function ClientModal({ client, onClose, onSaved }) {
           <div className="two-col-grid">
             <div className="field">
               <label>CUIT / CUIL</label>
-              <input value={form.cuit} onChange={(e) => update('cuit', e.target.value)} placeholder="XX-XXXXXXXX-X" />
+              <div style={{ display: 'flex', gap: 6 }}>
+              <input value={form.cuit} onChange={(e) => update('cuit', e.target.value)} placeholder="XX-XXXXXXXX-X" style={{ flex: 1 }} />
+              <button type="button" className="btn btn-secondary" style={{ padding: '0 10px', whiteSpace: 'nowrap' }} onClick={buscarPadronCli} disabled={padronLoading} title="Autocompletar nombre desde AFIP">{padronLoading ? '…' : '🔍 AFIP'}</button>
+            </div>
             </div>
             <div />
           </div>

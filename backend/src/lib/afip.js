@@ -13,6 +13,14 @@ const ENDPOINTS = {
   },
 };
 
+const PADRON_URL = {
+  homologacion: 'https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA13',
+  produccion: 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA13',
+};
+
+// Cache en memoria de TA por (negocio + servicio) para servicios distintos de wsfe.
+const _taCache = new Map();
+
 const CBTE_TIPO = {
   'FACTURA A': 1, 'FACTURA B': 6, 'FACTURA C': 11,
   'NOTA DE DEBITO A': 2, 'NOTA DE DEBITO B': 7, 'NOTA DE DEBITO C': 12,
@@ -119,22 +127,57 @@ async function callWSAA(env, cms) {
 }
 
 // Obtiene un TA válido (reutiliza el cacheado en el negocio si no venció)
-async function getAuth(biz, prisma) {
+async function getAuth(biz, prisma, service = 'wsfe') {
   if (!biz.afipCertPem || !biz.afipKeyPem) throw new Error('Falta el certificado. Completá la configuración de AFIP.');
   const now = Date.now();
-  if (biz.afipToken && biz.afipSign && biz.afipTokenExp && new Date(biz.afipTokenExp).getTime() > now + 10 * 60 * 1000) {
-    return { token: biz.afipToken, sign: biz.afipSign };
+  if (service === 'wsfe') {
+    if (biz.afipToken && biz.afipSign && biz.afipTokenExp && new Date(biz.afipTokenExp).getTime() > now + 10 * 60 * 1000) {
+      return { token: biz.afipToken, sign: biz.afipSign };
+    }
+  } else {
+    const cached = _taCache.get(biz.id + '|' + service);
+    if (cached && cached.exp > now + 10 * 60 * 1000) return { token: cached.token, sign: cached.sign };
   }
-  const tra = buildTRA('wsfe');
+  const tra = buildTRA(service);
   const cms = signCMS(tra, biz.afipCertPem, biz.afipKeyPem);
   const auth = await callWSAA(biz.afipEnv, cms);
-  if (prisma) {
-    await prisma.business.update({
-      where: { id: biz.id },
-      data: { afipToken: auth.token, afipSign: auth.sign, afipTokenExp: auth.exp },
-    });
+  if (service === 'wsfe') {
+    if (prisma) {
+      await prisma.business.update({
+        where: { id: biz.id },
+        data: { afipToken: auth.token, afipSign: auth.sign, afipTokenExp: auth.exp },
+      });
+    }
+  } else {
+    _taCache.set(biz.id + '|' + service, { token: auth.token, sign: auth.sign, exp: new Date(auth.exp).getTime() });
   }
   return { token: auth.token, sign: auth.sign };
+}
+
+// Consulta el padrón A13 de AFIP y devuelve razón social y condición IVA.
+async function consultarPadron(biz, cuitConsulta) {
+  const cuit = String(cuitConsulta).replace(/\D/g, '');
+  if (cuit.length < 11) throw new Error('CUIT inválido');
+  const auth = await getAuth(biz, null, 'ws_sr_padron_a13');
+  const emisor = String(biz.fiscalCuit || '').replace(/\D/g, '');
+  const url = PADRON_URL[biz.afipEnv === 'produccion' ? 'produccion' : 'homologacion'];
+  const body =
+    `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:a13="http://a13.soap.ws.server.puc.sr/">` +
+    `<soapenv:Header/><soapenv:Body><a13:getPersona>` +
+    `<token>${auth.token}</token><sign>${auth.sign}</sign>` +
+    `<cuitRepresentada>${emisor}</cuitRepresentada><idPersona>${cuit}</idPersona>` +
+    `</a13:getPersona></soapenv:Body></soapenv:Envelope>`;
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/xml; charset=utf-8', SOAPAction: '' }, body });
+  const xml = await res.text();
+  const fault = pick(xml, 'faultstring');
+  if (fault) throw new Error(unescapeXml(fault));
+  const razon = pick(xml, 'razonSocial') || [pick(xml, 'apellido'), pick(xml, 'nombre')].filter(Boolean).join(' ').trim() || null;
+  let condicion = null, condId = 5;
+  const low = xml.toLowerCase();
+  if (low.includes('monotributo') || /<idimpuesto>2[01]<\/idimpuesto>/.test(low)) { condicion = 'MONOTRIBUTO'; condId = 6; }
+  else if (/<idimpuesto>32<\/idimpuesto>/.test(low)) { condicion = 'EXENTO'; condId = 4; }
+  else if (/<idimpuesto>30<\/idimpuesto>/.test(low)) { condicion = 'RI'; condId = 1; }
+  return { cuit, razonSocial: razon, condicion, condId };
 }
 
 // ---------- WSFEv1 ----------
@@ -255,5 +298,5 @@ async function solicitarCAE(env, auth, params) {
 
 module.exports = {
   ENDPOINTS, CBTE_TIPO, endpoints,
-  generateKeyAndCsr, getAuth, ultimoAutorizado, solicitarCAE, ymd,
+  generateKeyAndCsr, getAuth, ultimoAutorizado, solicitarCAE, consultarPadron, ymd,
 };

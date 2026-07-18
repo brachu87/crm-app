@@ -292,7 +292,19 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState(null);
+  const [padronLoading, setPadronLoading] = useState(false);
   const [invoices, setInvoices] = useState([]);
+  async function buscarPadron() {
+    const cuit = String(docNro || '').replace(/\D/g, '');
+    if (cuit.length < 11) { setError('Ingresá un CUIT válido (11 dígitos) para buscar en AFIP.'); return; }
+    setPadronLoading(true); setError('');
+    try {
+      const r = await api.post('/facturacion/padron', { cuit });
+      if (r.data.razonSocial) setRazonSocial(r.data.razonSocial);
+      if (r.data.condId) setCondIva(r.data.condId);
+    } catch (e) { setError(e.response?.data?.error || 'No se pudo consultar el padrón'); }
+    finally { setPadronLoading(false); }
+  }
   const [asociadoId, setAsociadoId] = useState('');
 
   useEffect(() => {
@@ -380,8 +392,11 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <div className="field" style={{ flex: 2, minWidth: 180 }}><label>Razón social (opcional)</label>
                 <input value={razonSocial} onChange={e => setRazonSocial(e.target.value)} placeholder="Consumidor Final" /></div>
-              <div className="field" style={{ flex: 1, minWidth: 140 }}><label>{tipo === 'FACTURA A' ? 'CUIT' : 'DNI / CUIT (opc.)'}</label>
-                <input value={docNro} onChange={e => setDocNro(e.target.value)} placeholder="Sin especificar" /></div>
+              <div className="field" style={{ flex: 1, minWidth: 160 }}><label>{tipo === 'FACTURA A' ? 'CUIT' : 'DNI / CUIT (opc.)'}</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input value={docNro} onChange={e => setDocNro(e.target.value)} placeholder="Sin especificar" style={{ flex: 1 }} />
+                  <button type="button" className="btn btn-secondary" style={{ padding: '0 10px', whiteSpace: 'nowrap' }} onClick={buscarPadron} disabled={padronLoading} title="Autocompletar desde AFIP">{padronLoading ? '…' : '🔍 AFIP'}</button>
+                </div></div>
             </div>
           )}
 

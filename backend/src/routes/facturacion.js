@@ -277,4 +277,19 @@ router.post('/:id/whatsapp', async (req, res) => {
   }
 });
 
+// POST /api/facturacion/padron { cuit } -> consulta razón social y condición IVA en AFIP
+router.post('/padron', async (req, res) => {
+  try {
+    const b = await prisma.business.findUnique({ where: { id: req.user.businessId } });
+    if (!b.afipCertPem || !b.afipKeyPem || !b.fiscalCuit) return res.status(400).json({ error: 'Configurá primero AFIP (certificado y CUIT) en la pestaña Configuración.' });
+    const cuit = String((req.body && req.body.cuit) || '').replace(/\D/g, '');
+    if (cuit.length < 11) return res.status(400).json({ error: 'Ingresá un CUIT válido (11 dígitos).' });
+    const data = await afip.consultarPadron(b, cuit);
+    res.json(data);
+  } catch (e) {
+    console.error('[padron]', e.message);
+    res.status(502).json({ error: 'No se pudo consultar el padrón: ' + (e.message || 'error') });
+  }
+});
+
 module.exports = router;
