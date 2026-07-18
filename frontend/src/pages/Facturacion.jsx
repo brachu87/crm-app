@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
 import WhatsAppInvoiceButton from '../components/WhatsAppInvoiceButton';
+import { ExportMenu } from '../lib/dataIO';
 
 const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(v || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
@@ -97,10 +98,31 @@ function TabBtn({ active, onClick, children }) {
   );
 }
 
+const COND_LABEL = { 1: 'Responsable Inscripto', 4: 'Exento', 5: 'Consumidor Final', 6: 'Monotributo' };
 function ComprobantesTab({ invoices, loading }) {
   if (loading) return <p style={{ color: 'var(--ink-soft)' }}>Cargando…</p>;
   if (!invoices.length) return <p style={{ color: 'var(--ink-soft)', padding: '20px 0' }}>Todavía no emitiste comprobantes.</p>;
+  const issued = invoices.filter((i) => i.status === 'issued');
   return (
+    <>
+    {issued.length > 0 && (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+        <ExportMenu label="📚 Libro IVA Ventas ▾" filename="libro-iva-ventas" title="Libro IVA Ventas" rows={issued}
+          columns={[
+            { header: 'Fecha', value: (i) => i.createdAt ? new Date(i.createdAt).toLocaleDateString('es-AR') : '' },
+            { header: 'Tipo', value: (i) => i.tipo || '' },
+            { header: 'Pto venta', value: (i) => i.puntoVenta || '' },
+            { header: 'Número', value: (i) => i.numero || '' },
+            { header: 'Cliente', value: (i) => i.clienteNombre || '' },
+            { header: 'Doc receptor', value: (i) => i.clienteDoc || '' },
+            { header: 'Cond. IVA', value: (i) => COND_LABEL[i.condReceptor] || '' },
+            { header: 'Neto gravado', value: (i) => i.neto ?? '' },
+            { header: 'IVA', value: (i) => i.iva ?? '' },
+            { header: 'Total', value: (i) => i.total ?? '' },
+            { header: 'CAE', value: (i) => i.cae || '' },
+          ]} />
+      </div>
+    )}
     <div className="card" style={{ overflowX: 'auto' }}>
       <table className="table">
         <thead>
@@ -129,6 +151,7 @@ function ComprobantesTab({ invoices, loading }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 

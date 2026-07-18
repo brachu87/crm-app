@@ -173,6 +173,25 @@ function KPICard({ label, value, color, hint, badge }) {
 // ── Export utilities ──────────────────────────────────────────────────────────
 function fmtRaw(n) { return Number(n || 0); }
 
+function buildFactStats(list) {
+  const issued = (Array.isArray(list) ? list : []).filter((i) => i.status === 'issued');
+  let total = 0, neto = 0, iva = 0;
+  const porTipo = {}, porMes = {};
+  issued.forEach((i) => {
+    total += i.total || 0; neto += i.neto || 0; iva += i.iva || 0;
+    porTipo[i.tipo] = porTipo[i.tipo] || { count: 0, total: 0 };
+    porTipo[i.tipo].count++; porTipo[i.tipo].total += i.total || 0;
+    const m = String(i.createdAt || '').slice(0, 7);
+    porMes[m] = porMes[m] || { count: 0, total: 0 };
+    porMes[m].count++; porMes[m].total += i.total || 0;
+  });
+  return {
+    cantidad: issued.length, total, neto, iva,
+    porTipo: Object.entries(porTipo).map(([tipo, v]) => ({ tipo, ...v })).sort((a, b) => b.total - a.total),
+    porMes: Object.entries(porMes).map(([mes, v]) => ({ mes, ...v })).sort((a, b) => a.mes.localeCompare(b.mes)),
+  };
+}
+
 function exportXLSX(filename, sheets) {
   const wb = XLSX.utils.book_new();
   sheets.forEach(({ name, headers, rows }) => {
@@ -258,6 +277,7 @@ export default function Reports() {
   const [cashProj, setCashProj] = useState(null);
   const [comparison, setComparison] = useState(null);
   const [occupancy, setOccupancy] = useState(null);
+  const [facturacion, setFacturacion] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -277,6 +297,7 @@ export default function Reports() {
       proyeccion: () => api.get('/reports/cash-projection').then(r => setCashProj(r.data)),
       comparativo: () => api.get('/reports/monthly-comparison').then(r => setComparison(r.data)),
       horarios: () => api.get('/reports/class-occupancy').then(r => setOccupancy(r.data)),
+      facturacion: () => api.get('/facturacion').then(r => setFacturacion(buildFactStats(r.data))),
     };
     (calls[tab] || calls['resumen'])()
       .catch(() => setError('Error cargando reporte.'))
@@ -300,6 +321,7 @@ export default function Reports() {
     { id:'proyeccion', label:'💸 Proyección' },
     { id:'comparativo', label:'📅 Comparativo' },
     { id:'horarios', label:'🕐 Horarios' },
+    { id:'facturacion', label:'🧾 Facturación' },
   ];
 
   const dateAffected = ['resumen','actividades','retencion','comparativo'];
@@ -419,6 +441,13 @@ export default function Reports() {
         }]
       };
     }
+    if (activeTab === 'facturacion' && facturacion) {
+      const sheets = [
+        { name: 'Por tipo', headers: ['Tipo', 'Cantidad', 'Total'], rows: facturacion.porTipo.map(t => [t.tipo, t.count, fmtRaw(t.total)]) },
+        { name: 'Por mes', headers: ['Mes', 'Cantidad', 'Total'], rows: facturacion.porMes.map(m => [m.mes, m.count, fmtRaw(m.total)]) },
+      ];
+      return { title: 'Reporte de Facturación', subtitle: `${facturacion.cantidad} comprobantes`, sheets };
+    }
     return null;
   }
 
@@ -441,7 +470,8 @@ export default function Reports() {
     (activeTab === 'retencion' && retention) ||
     (activeTab === 'proyeccion' && cashProj) ||
     (activeTab === 'comparativo' && comparison) ||
-    (activeTab === 'horarios' && occupancy)
+    (activeTab === 'horarios' && occupancy) ||
+    (activeTab === 'facturacion' && facturacion)
   );
 
   return (
@@ -493,6 +523,9 @@ export default function Reports() {
 
           {/* ── HORARIOS ── */}
           {activeTab === 'horarios' && occupancy && <HorariosTab data={occupancy} />}
+
+          {/* ── FACTURACIÓN ── */}
+          {activeTab === 'facturacion' && facturacion && <FacturacionTab data={facturacion} />}
         </>
       )}
     </div>
@@ -500,6 +533,39 @@ export default function Reports() {
 }
 
 // ─── TAB COMPONENTS ───────────────────────────────────────────────────────────
+
+function FacturacionTab({ data }) {
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 20 }}>
+        <KPICard label="Total facturado" value={fmt(data.total)} color="#1BA84C" />
+        <KPICard label="Neto gravado" value={fmt(data.neto)} color="#2563eb" />
+        <KPICard label="IVA débito fiscal" value={fmt(data.iva)} color="#d97706" />
+        <KPICard label="Comprobantes" value={data.cantidad} color="#6b7280" />
+      </div>
+      {data.cantidad === 0 ? (
+        <p style={{ color: 'var(--ink-soft)' }}>Todavía no hay comprobantes emitidos.</p>
+      ) : (
+        <>
+          <h3 style={{ margin: '8px 0' }}>Por tipo de comprobante</h3>
+          <div className="card" style={{ overflowX: 'auto', marginBottom: 20 }}>
+            <table className="table">
+              <thead><tr><th>Tipo</th><th style={{ textAlign: 'right' }}>Cantidad</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
+              <tbody>{data.porTipo.map((t) => <tr key={t.tipo}><td>{t.tipo}</td><td style={{ textAlign: 'right' }}>{t.count}</td><td style={{ textAlign: 'right' }}>{fmt(t.total)}</td></tr>)}</tbody>
+            </table>
+          </div>
+          <h3 style={{ margin: '8px 0' }}>Por mes</h3>
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <table className="table">
+              <thead><tr><th>Mes</th><th style={{ textAlign: 'right' }}>Cantidad</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
+              <tbody>{data.porMes.map((m) => <tr key={m.mes}><td>{m.mes}</td><td style={{ textAlign: 'right' }}>{m.count}</td><td style={{ textAlign: 'right' }}>{fmt(m.total)}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function ResumenTab({ data }) {
   const totalIncome   = data.monthlyData.reduce((s,d)=>s+d.income,0);
