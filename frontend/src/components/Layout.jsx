@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import ChatBot from './ChatBot';
 import AuthImage from './AuthImage';
 import NotificationsBell from './NotificationsBell';
+import SectionIntro from './SectionIntro';
 import { useAuth } from '../context/AuthContext';
 import { ALL_MODULES } from '../config/modules';
 import { canViewModule, ROUTE_MODULE } from '../config/permissions';
@@ -51,6 +52,27 @@ const NAV_GROUPS = [
     ],
   },
 ];
+
+const SECTION_INTRO = {
+  '/':             { key: 'dashboard', title: 'Este es tu panel', text: 'Resumen del negocio: ingresos, cobros pendientes y facturación. Seguí "Primeros pasos" para arrancar.' },
+  '/clientes':     { key: 'clientes', title: 'Tus clientes', text: 'Agregá clientes, inscribilos a actividades y, desde su ficha, cobrales o emití comprobantes.' },
+  '/actividades':  { key: 'actividades', title: 'Actividades y servicios', text: 'Creá tus actividades o servicios con precio, cupos y horarios. Después inscribís clientes.' },
+  '/agenda':       { key: 'agenda', title: 'Agenda y turnos', text: 'Agendá turnos y notas. Podés enviar recordatorios por WhatsApp a tus clientes.' },
+  '/proveedores':  { key: 'proveedores', title: 'Proveedores', text: 'Cargá tus proveedores y llevá su cuenta corriente. Se vinculan con los gastos.' },
+  '/empleados':    { key: 'empleados', title: 'Equipo', text: 'Cargá los legajos de tu equipo para asistencias y liquidaciones.' },
+  '/asistencias':  { key: 'asistencias', title: 'Asistencias', text: 'Registrá la asistencia de tu equipo para calcular después las liquidaciones.' },
+  '/liquidaciones':{ key: 'liquidaciones', title: 'Liquidaciones', text: 'Generá las liquidaciones del equipo y adjuntá el recibo de haberes.' },
+  '/horarios':     { key: 'horarios', title: 'Horarios', text: 'Definí los horarios de tu equipo y de las clases.' },
+  '/cobranza':     { key: 'cobranza', title: 'Cobranza', text: 'Cobrá las cuotas, registrá pagos y mandá recordatorios o recibos por WhatsApp. Al cobrar podés facturar.' },
+  '/caja':         { key: 'caja', title: 'Caja del día', text: 'La caja se arma sola con los cobros y gastos del día. Podés abrir y cerrar caja.' },
+  '/reportes':     { key: 'reportes', title: 'Reportes', text: 'Ingresos, gastos, morosos, facturación y más. Todo exportable a Excel o PDF.' },
+  '/gastos':       { key: 'gastos', title: 'Gastos', text: 'Cargá gastos a mano o sacale una foto a la factura de compra y la IA completa los datos.' },
+  '/precios':      { key: 'precios', title: 'Grilla de precios', text: 'Definí y actualizá los precios de tus actividades y servicios en un solo lugar.' },
+  '/comprobantes': { key: 'comprobantes', title: 'Facturación', text: 'Emití facturas A/B/C, notas de crédito/débito o Factura X. Configurá AFIP en la pestaña Configuración.' },
+  '/historial':    { key: 'historial', title: 'Historial de actividad', text: 'Acá queda registrado quién hizo qué y cuándo: cobros, facturas, bajas y eliminaciones.' },
+  '/ajustes':      { key: 'ajustes', title: 'Ajustes', text: 'Datos del negocio, logo, usuarios y permisos, WhatsApp y más.' },
+  '/sedes':        { key: 'sedes', title: 'Sedes', text: 'Si tenés más de una sede, cargalas acá para organizar actividades y turnos por sede.' },
+};
 
 // Todos los módulos con sus valores por defecto (true = habilitado)
 
@@ -359,6 +381,11 @@ export default function Layout() {
       </aside>
 
       <main className="main">
+      {(() => {
+        const base = '/' + (location.pathname.split('/')[1] || '');
+        const intro = SECTION_INTRO[base];
+        return intro ? <SectionIntro sectionKey={intro.key} title={intro.title} text={intro.text} /> : null;
+      })()}
       <Outlet />
       <ChatBot />
       </main>

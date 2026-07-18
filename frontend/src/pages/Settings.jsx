@@ -334,49 +334,6 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* ── Módulos activos ── */}
-          <div className="card" style={{ marginTop: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <div>
-                <h2 style={{ fontSize: 16, margin: '0 0 2px' }}>Módulos activos</h2>
-                <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0 }}>
-                  Activá solo las secciones que usás. El menú lateral se actualiza al instante.
-                </p>
-              </div>
-              <button className="btn btn-primary" onClick={saveModules} disabled={savingModules}>
-                {modulesSaved ? '✓ Guardado' : savingModules ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
-            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {ALL_MODULES.map(m => (
-                <label key={m.key} style={{
-                  display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
-                  padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)',
-                  background: modules.includes(m.key) ? 'var(--primary-soft)' : 'var(--surface)',
-                  transition: 'background .15s',
-                }}>
-                  <div style={{ position: 'relative', flexShrink: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={modules.includes(m.key)}
-                      onChange={() => toggleModule(m.key)}
-                      style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
-                    />
-                  </div>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14,
-                      color: modules.includes(m.key) ? 'var(--primary)' : 'var(--ink)' }}>
-                      {m.label}
-                    </p>
-                    <p style={{ margin: 0, fontSize: 12, color: 'var(--ink-soft)' }}>{m.desc}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12, marginBottom: 0 }}>
-              ℹ️ Clientes, Cobranza y Ajustes siempre están disponibles.
-            </p>
-          </div>
         </>
       )}
 

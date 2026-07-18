@@ -88,6 +88,7 @@ model User {
   role        String   @default("owner")
   permissions String?
   lastAccessAt DateTime?
+  onboardingSeen String?
   businessId  String
   business   Business @relation(fields: [businessId], references: [id])
   createdAt  DateTime @default(now())
