@@ -145,6 +145,14 @@ export const PERMISSION_TREE = [
     ],
   },
   {
+    key: 'comprobantes', label: 'Facturación AFIP', icon: '🧾',
+    actions: [
+      { key: 'ver',    label: 'Ver comprobantes' },
+      { key: 'emitir', label: 'Emitir factura' },
+      { key: 'config', label: 'Configurar AFIP' },
+    ],
+  },
+  {
     key: 'facturacion', label: 'Facturación', icon: '🧾',
     actions: [
       { key: 'ver',      label: 'Ver estado del plan' },
@@ -169,6 +177,7 @@ export const ROUTE_MODULE = {
   '/gastos': 'gastos',
   '/precios': 'precios',
   '/sedes': 'sedes',
+  '/comprobantes': 'comprobantes',
 };
 
 /**

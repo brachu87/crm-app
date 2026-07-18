@@ -42,6 +42,7 @@ const portalRoutes = require('./routes/portal');
 const googleCalendarRoutes = require('./routes/google-calendar');
 const supportRoutes = require('./routes/support');
 const notificationsRoutes = require('./routes/notifications');
+const facturacionRoutes = require('./routes/facturacion');
 const { startReminderCron } = require('./lib/reminderCron');
 
 const app = express();
@@ -193,6 +194,7 @@ app.use('/api/portal', portalRoutes);
 app.use('/api/google-calendar', googleCalendarRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/facturacion', facturacionRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {

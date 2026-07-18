@@ -43,6 +43,20 @@ model Business {
   gcalSyncAgenda       Boolean  @default(false)
   gcalSyncClases       Boolean  @default(false)
 
+  // Facturacion electronica (AFIP/ARCA - web services directos)
+  fiscalCuit        String?
+  fiscalRazonSocial String?
+  fiscalCondicion   String?   // MONOTRIBUTO | RI | EXENTO
+  fiscalPuntoVenta  String?   // ej "0001"
+  fiscalDomicilio   String?
+  afipEnv           String?   @default("homologacion") // homologacion | produccion
+  afipKeyPem        String?   // clave privada generada por Gestumio
+  afipCsrPem        String?   // CSR para subir a AFIP
+  afipCertPem       String?   // certificado .crt devuelto por AFIP
+  afipToken         String?   // cache del TA (WSAA)
+  afipSign          String?
+  afipTokenExp      DateTime?
+
   users      User[]
   clients    Client[]
   activities Activity[]
@@ -61,6 +75,7 @@ model Business {
   appointments     Appointment[]
   classReservations ClassReservation[]
   serviceSchedules ServiceSchedule[]
+  invoices         Invoice[]
 }
 
 model User {
@@ -495,4 +510,28 @@ model ServiceSchedule {
 
   @@index([businessId])
   @@index([serviceId])
+}
+
+model Invoice {
+  id             String   @id @default(cuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id])
+  clientId       String?
+  tipo           String   // "FACTURA A" | "FACTURA B" | "FACTURA C"
+  puntoVenta     String?
+  numero         String?
+  cae            String?
+  vencimientoCae String?
+  clienteNombre  String?
+  clienteDoc     String?
+  total          Float    @default(0)
+  moneda         String   @default("PES")
+  status         String   @default("issued") // issued | error
+  errorMsg       String?
+  qrUrl          String?
+  detalleJson    String?
+  createdAt      DateTime @default(now())
+
+  @@index([businessId])
+  @@index([clientId])
 }

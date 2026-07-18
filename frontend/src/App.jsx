@@ -18,6 +18,7 @@ import Payroll from './pages/Payroll';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
 import Prices from './pages/Prices';
+import Facturacion from './pages/Facturacion';
 import Suppliers from './pages/Suppliers';
 import SupplierDetail from './pages/SupplierDetail';
 import Notes from './pages/Notes';
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="gastos" element={<Expenses />} />
             <Route path="reportes" element={<Reports />} />
             <Route path="precios" element={<Prices />} />
+            <Route path="comprobantes" element={<Facturacion />} />
             <Route path="proveedores" element={<Suppliers />} />
             <Route path="proveedores/:id" element={<SupplierDetail />} />
             <Route path="agenda" element={<Notes />} />
