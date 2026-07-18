@@ -6,6 +6,23 @@ const { scopedWhere } = require('../middleware/tenant');
 const router = express.Router();
 const validate = require('../lib/validate');
 const schemas = require('../schemas');
+const multer = require('multer');
+const { PDFParse } = require('pdf-parse');
+const invoiceScan = require('../lib/invoiceScan');
+const scanUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+function _normFecha(v) {
+  const s = String(v || '').trim(); if (!s) return null;
+  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) { let [, d, mo, y] = m; if (y.length === 2) y = '20' + y; return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`; }
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return m[0];
+  return null;
+}
+function _num(v) {
+  if (v == null || v === '') return null;
+  const n = parseFloat(String(v).replace(/[^0-9.,-]/g, '').replace(/\.(?=.*\.)/g, '').replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
 router.use(authMiddleware);
 
 function parseExpDate(s) {
@@ -117,6 +134,52 @@ router.post('/', validate(schemas.expenseCreate), async (req, res) => {
 });
 
 // PUT /api/expenses/:id
+// POST /api/expenses/scan — lee una factura de compra (foto o PDF) con IA y devuelve los datos
+router.post('/scan', scanUpload.single('file'), async (req, res) => {
+  try {
+    if (!process.env.GROQ_API_KEY) return res.status(400).json({ error: 'El escaneo con IA no está configurado.' });
+    const f = req.file;
+    if (!f) return res.status(400).json({ error: 'Subí una imagen o PDF de la factura.' });
+    const mt = f.mimetype || '';
+    let data;
+    if (mt.startsWith('image/')) {
+      const dataUrl = `data:${mt};base64,` + f.buffer.toString('base64');
+      data = await invoiceScan.extractFromImage(dataUrl);
+    } else if (mt === 'application/pdf' || (f.originalname || '').toLowerCase().endsWith('.pdf')) {
+      let text = '';
+      try { const parser = new PDFParse({ data: f.buffer }); const r = await parser.getText(); text = (r.text || '').trim(); } catch (e) { text = ''; }
+      if (text.length < 25) return res.status(422).json({ error: 'Este PDF parece escaneado (sin texto). Subí una foto de la factura.' });
+      data = await invoiceScan.extractFromText(text);
+    } else {
+      return res.status(400).json({ error: 'Formato no soportado. Subí una imagen (JPG/PNG) o un PDF.' });
+    }
+
+    const cuit = String(data.cuit || '').replace(/\D/g, '');
+    const out = {
+      proveedor: data.proveedor || null,
+      cuit: cuit || null,
+      fecha: _normFecha(data.fecha),
+      tipo: data.tipo || null,
+      numero: data.numero || null,
+      neto: _num(data.neto),
+      iva: _num(data.iva),
+      total: _num(data.total),
+      categoria: data.categoria || null,
+    };
+
+    let supplier = null;
+    if (cuit) supplier = await prisma.supplier.findFirst({ where: { businessId: req.user.businessId, cuit }, select: { id: true, name: true } });
+    if (!supplier && out.proveedor) supplier = await prisma.supplier.findFirst({ where: { businessId: req.user.businessId, name: { equals: out.proveedor, mode: 'insensitive' } }, select: { id: true, name: true } });
+    out.supplierId = supplier ? supplier.id : null;
+    out.supplierName = supplier ? supplier.name : null;
+
+    res.json(out);
+  } catch (e) {
+    console.error('[expenses/scan]', e.message);
+    res.status(500).json({ error: 'No se pudieron leer los datos de la factura. Probá con una foto más nítida o cargala a mano.' });
+  }
+});
+
 router.put('/:id', validate(schemas.expenseUpdate), async (req, res) => {
   try {
     const existing = await prisma.expense.findFirst({ where: scopedWhere(req, { id: req.params.id }) });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import confirmDialog from '../utils/confirm';
 import { useToast } from '../context/ToastContext';
 import api from '../api/client';
@@ -30,6 +30,38 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [prefill, setPrefill] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanErr, setScanErr] = useState('');
+  const fileRef = useRef(null);
+
+  async function onScanFile(ev) {
+    const file = ev.target.files && ev.target.files[0];
+    if (ev.target) ev.target.value = '';
+    if (!file) return;
+    setScanning(true); setScanErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.post('/expenses/scan', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const d = r.data || {};
+      const partes = [
+        (`Factura ${d.tipo || ''} ${d.numero || ''}`).trim(),
+        (!d.supplierId && d.proveedor) ? `${d.proveedor}${d.cuit ? ` (CUIT ${d.cuit})` : ''}` : '',
+      ].filter(Boolean);
+      setPrefill({
+        amount: d.total != null ? d.total : '',
+        date: d.fecha || new Date().toISOString().slice(0, 10),
+        category: d.categoria || '',
+        description: partes.join(' — '),
+        paymentMethod: '',
+        supplierId: d.supplierId || '',
+      });
+      setEditing(null); setShowModal(true);
+    } catch (err) {
+      setScanErr(err.response?.data?.error || 'No se pudo leer la factura. Probá con una foto más nítida.');
+    } finally { setScanning(false); }
+  }
 
   const [suppliers, setSuppliers] = useState([]);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -86,9 +118,16 @@ export default function Expenses() {
         <div style={{ display: 'flex', gap: 8 }}>
           {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
           {expenses.length > 0 && can.exportar && <ExportMenu rows={filtered} filename="gastos" title="Gastos" columns={[{ header: 'Fecha', value: (e) => e.date ? new Date(e.date).toLocaleDateString('es-AR') : '' }, { header: 'Categoría', value: (e) => e.category || '' }, { header: 'Descripción', value: (e) => e.description || '' }, { header: 'Proveedor', value: (e) => e.supplier?.name || '' }, { header: 'Método de pago', value: (e) => e.paymentMethod || '' }, { header: 'Monto', value: (e) => e.amount }]} />}
-          {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setShowModal(true); }}>+ Nuevo gasto</button>}
+          {can.crear && <>
+            <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={onScanFile} />
+            <button className="btn btn-secondary" onClick={() => fileRef.current && fileRef.current.click()} disabled={scanning} title="Sacá una foto o subí el PDF de una factura de compra">
+              {scanning ? '⏳ Leyendo…' : '📷 Cargar factura'}
+            </button>
+          </>}
+          {can.crear && <button className="btn btn-primary" onClick={() => { setEditing(null); setPrefill(null); setShowModal(true); }}>+ Nuevo gasto</button>}
         </div>
       </div>
+      {scanErr && <div className="error-banner" style={{ marginBottom: 12 }}>{scanErr}</div>}
 
       {!loading && expenses.length > 0 && (
         <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
@@ -193,9 +232,10 @@ export default function Expenses() {
       {showModal && (
         <ExpenseModal
           expense={editing}
+          prefill={editing ? null : prefill}
           suppliers={suppliers}
-          onClose={() => setShowModal(false)}
-          onSaved={() => { setShowModal(false); load(); }}
+          onClose={() => { setShowModal(false); setPrefill(null); }}
+          onSaved={() => { setShowModal(false); setPrefill(null); load(); }}
         />
       )}
 
@@ -220,15 +260,16 @@ export default function Expenses() {
   );
 }
 
-function ExpenseModal({ expense, suppliers = [], onClose, onSaved }) {
-  const isEdit = !!expense;
+function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
+  const isEdit = !!(expense && expense.id);
+  const src = expense || prefill || {};
   const [form, setForm] = useState({
-    amount: expense?.amount ?? '',
-    date: expense?.date ? expense.date.slice(0, 10) : new Date().toISOString().slice(0, 10),
-    category: expense?.category || '',
-    description: expense?.description || '',
-    paymentMethod: expense?.paymentMethod || '',
-    supplierId: expense?.supplierId || '',
+    amount: src.amount ?? '',
+    date: src.date ? String(src.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    category: src.category || '',
+    description: src.description || '',
+    paymentMethod: src.paymentMethod || '',
+    supplierId: src.supplierId || '',
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -273,7 +314,7 @@ function ExpenseModal({ expense, suppliers = [], onClose, onSaved }) {
   return (
     <div className="modal-overlay">
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>{isEdit ? 'Editar gasto' : 'Nuevo gasto'}</h2>
+        <h2>{isEdit ? 'Editar gasto' : (prefill ? '📷 Revisá el gasto de la factura' : 'Nuevo gasto')}</h2>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="two-col-grid">
