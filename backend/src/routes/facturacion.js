@@ -4,6 +4,9 @@ const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const afip = require('../lib/afip');
 const invoicePdf = require('../lib/invoicePdf');
+const path = require('path');
+const fs = require('fs');
+const PHOTOS_DIR = process.env.PHOTOS_DIR || (fs.existsSync('/data') ? '/data/photos' : path.join(__dirname, '../../../data/photos'));
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -200,7 +203,8 @@ router.get('/:id/pdf', async (req, res) => {
     const inv = await prisma.invoice.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
     if (!inv) return res.status(404).json({ error: 'Comprobante no encontrado' });
     const b = await prisma.business.findUnique({ where: { id: req.user.businessId } });
-    const pdf = await invoicePdf.generateInvoicePdf(inv, b);
+    const logoPath = path.join(PHOTOS_DIR, `business-${req.user.businessId}.jpg`);
+    const pdf = await invoicePdf.generateInvoicePdf(inv, b, { logoPath: fs.existsSync(logoPath) ? logoPath : null });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="factura-${inv.puntoVenta || ''}-${inv.numero || ''}.pdf"`);
     res.send(pdf);

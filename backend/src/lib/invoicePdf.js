@@ -1,5 +1,6 @@
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
+const fs = require('fs');
 
 const LETRA = { 'FACTURA A': 'A', 'FACTURA B': 'B', 'FACTURA C': 'C' };
 const CBTE_COD = { 'FACTURA A': 1, 'FACTURA B': 6, 'FACTURA C': 11 };
@@ -27,7 +28,7 @@ function buildQrUrl(inv, biz) {
   return 'https://www.afip.gob.ar/fe/qr/?p=' + b64;
 }
 
-async function generateInvoicePdf(inv, biz) {
+async function generateInvoicePdf(inv, biz, opts = {}) {
   let items = [];
   try { items = JSON.parse(inv.detalleJson || '[]'); } catch (_) {}
   const isC = inv.tipo === 'FACTURA C';
@@ -46,29 +47,41 @@ async function generateInvoicePdf(inv, biz) {
       const mid = left + W / 2;
       const GREY = '#555', DARK = '#111';
 
-      // Recuadro con la letra
-      const boxW = 54, boxH = 54, boxX = mid - boxW / 2, boxY = 40;
-      doc.rect(boxX, boxY, boxW, boxH).lineWidth(1).strokeColor('#000').stroke();
-      doc.font('Helvetica-Bold').fontSize(34).fillColor(DARK).text(LETRA[inv.tipo] || 'C', boxX, boxY + 8, { width: boxW, align: 'center' });
-      doc.font('Helvetica').fontSize(8).fillColor(GREY).text('COD. ' + String(CBTE_COD[inv.tipo] || '').padStart(2, '0'), boxX, boxY + boxH - 12, { width: boxW, align: 'center' });
+      const BRAND = '#1BA84C';
+      const boxW = 54, boxH = 62, boxX = mid - boxW / 2, boxY = 40;
 
-      // Emisor
-      doc.font('Helvetica-Bold').fontSize(15).fillColor(DARK).text(biz.fiscalRazonSocial || biz.name || '', left, boxY, { width: W / 2 - 20 });
+      // Logo del negocio (si existe)
+      let emisorX = left;
+      if (opts.logoPath && fs.existsSync(opts.logoPath)) {
+        try { doc.image(opts.logoPath, left, boxY, { fit: [50, 50] }); emisorX = left + 60; } catch (_) {}
+      }
+
+      // Recuadro con la letra (centro)
+      doc.rect(boxX, boxY, boxW, boxH).lineWidth(1).strokeColor('#000').stroke();
+      doc.font('Helvetica-Bold').fontSize(34).fillColor(DARK).text(LETRA[inv.tipo] || 'C', boxX, boxY + 10, { width: boxW, align: 'center' });
+      doc.font('Helvetica').fontSize(8).fillColor(GREY).text('COD. ' + String(CBTE_COD[inv.tipo] || '').padStart(2, '0'), boxX, boxY + boxH - 14, { width: boxW, align: 'center' });
+
+      // Emisor (izquierda)
+      const emW = boxX - emisorX - 12;
+      doc.font('Helvetica-Bold').fontSize(15).fillColor(DARK).text(biz.fiscalRazonSocial || biz.name || '', emisorX, boxY, { width: emW });
       doc.font('Helvetica').fontSize(9).fillColor(GREY);
       const condLabel = biz.fiscalCondicion === 'RI' ? 'IVA Responsable Inscripto' : biz.fiscalCondicion === 'EXENTO' ? 'IVA Exento' : 'Responsable Monotributo';
-      doc.text('CUIT: ' + (biz.fiscalCuit || ''), left, doc.y + 4, { width: W / 2 - 20 });
-      if (biz.fiscalDomicilio) doc.text(biz.fiscalDomicilio, { width: W / 2 - 20 });
-      doc.text(condLabel, { width: W / 2 - 20 });
+      doc.text('CUIT: ' + (biz.fiscalCuit || ''), emisorX, doc.y + 3, { width: emW });
+      doc.text(condLabel, { width: emW });
+      if (biz.fiscalDomicilio) doc.text(biz.fiscalDomicilio, { width: emW });
+      if (biz.phone) doc.text('Tel: ' + biz.phone, { width: emW });
+      if (biz.email) doc.text(biz.email, { width: emW });
+      const emisorBottom = doc.y;
 
       // Comprobante (derecha)
-      const rx = mid + 16;
-      doc.font('Helvetica-Bold').fontSize(15).fillColor(DARK).text('FACTURA ' + (LETRA[inv.tipo] || ''), rx, boxY, { width: W / 2 - 16, align: 'right' });
+      const rx = boxX + boxW + 12, rW = right - rx;
+      doc.font('Helvetica-Bold').fontSize(15).fillColor(DARK).text('FACTURA ' + (LETRA[inv.tipo] || ''), rx, boxY, { width: rW, align: 'right' });
       doc.font('Helvetica').fontSize(10).fillColor(GREY)
-        .text('N°: ' + (inv.puntoVenta || '') + '-' + (inv.numero || ''), rx, doc.y + 4, { width: W / 2 - 16, align: 'right' })
-        .text('Fecha: ' + new Date(inv.createdAt || Date.now()).toLocaleDateString('es-AR', { timeZone: 'UTC' }), { width: W / 2 - 16, align: 'right' });
+        .text('N°: ' + (inv.puntoVenta || '') + '-' + (inv.numero || ''), rx, doc.y + 4, { width: rW, align: 'right' })
+        .text('Fecha: ' + new Date(inv.createdAt || Date.now()).toLocaleDateString('es-AR', { timeZone: 'UTC' }), { width: rW, align: 'right' });
 
-      let y = boxY + boxH + 24;
-      doc.moveTo(left, y).lineTo(right, y).lineWidth(1).strokeColor('#ddd').stroke(); y += 12;
+      let y = Math.max(emisorBottom, doc.y, boxY + boxH) + 14;
+      doc.moveTo(left, y).lineTo(right, y).lineWidth(2).strokeColor(BRAND).stroke(); y += 12;
 
       // Cliente
       doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text('Cliente:', left, y);
