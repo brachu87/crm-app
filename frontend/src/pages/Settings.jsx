@@ -223,6 +223,7 @@ export default function Settings() {
     { id: 'whatsapp',    label: '💬 WhatsApp' },
     { id: 'calendar',    label: '📅 Calendar' },
     ...(isOwner ? [{ id: 'reservas', label: '🗓️ Reservas online' }] : []),
+    ...(isOwner ? [{ id: 'cobros', label: '💳 Cobros online' }] : []),
     { id: 'facturacion', label: '💳 Facturación' },
   ];
 
@@ -350,26 +351,32 @@ export default function Settings() {
             </div>
           </div>
 
-          {isOwner && (
-            <div className="card" style={{ marginTop: 24 }}>
-              <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>💳 Cobros online (Mercado Pago)</h2>
-              <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
-                Conectá tu Mercado Pago para que tus socios paguen la cuota desde el portal. El dinero va directo a tu cuenta.
-                {mpConnected && <strong style={{ color: '#16a34a' }}> · Conectado ✓</strong>}
-              </p>
-              <div className="field">
-                <label>Access Token de producción</label>
-                <input type="password" value={mpToken} onChange={e => setMpToken(e.target.value)} placeholder={mpConnected ? '•••••• (guardado)' : 'APP_USR-...'} autoComplete="off" />
-                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Lo obtenés en mercadopago.com.ar → Tu negocio → Credenciales de producción.</span>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button className="btn btn-primary" onClick={saveMpToken} disabled={savingMp || !mpToken.trim()}>{savingMp ? 'Guardando…' : 'Guardar'}</button>
-                {mpConnected && <button className="btn" onClick={disconnectMp} disabled={savingMp}>Desconectar</button>}
-              </div>
-              {mpMsg && <p style={{ fontSize: 13, color: '#16a34a', marginTop: 8 }}>{mpMsg}</p>}
-            </div>
-          )}
 
+        </>
+      )}
+
+      {activeTab === 'cobros' && isOwner && (
+        <>
+          <div className="card">
+            <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>💳 Cobros online (Mercado Pago)</h2>
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 12 }}>
+              Conectá tu Mercado Pago para que tus socios paguen la cuota desde el portal del socio. El dinero va directo a tu cuenta de Mercado Pago.
+              {mpConnected && <strong style={{ color: '#16a34a' }}> · Conectado ✓</strong>}
+            </p>
+            <div className="field">
+              <label>Access Token de producción</label>
+              <input type="password" value={mpToken} onChange={e => setMpToken(e.target.value)} placeholder={mpConnected ? '•••••• (guardado)' : 'APP_USR-...'} autoComplete="off" />
+              <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Lo obtenés en mercadopago.com.ar → Tu negocio → Credenciales → Credenciales de producción → Access Token.</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-primary" onClick={saveMpToken} disabled={savingMp || !mpToken.trim()}>{savingMp ? 'Guardando…' : 'Guardar'}</button>
+              {mpConnected && <button className="btn" onClick={disconnectMp} disabled={savingMp}>Desconectar</button>}
+            </div>
+            {mpMsg && <p style={{ fontSize: 13, color: '#16a34a', marginTop: 8 }}>{mpMsg}</p>}
+            <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              ℹ️ Cuando esté conectado, en el portal del socio aparece el botón "Pagar" en cada cuota pendiente. El pago se registra automáticamente en Cobranza y Caja.
+            </p>
+          </div>
         </>
       )}
 
