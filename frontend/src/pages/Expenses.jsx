@@ -332,15 +332,23 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  // Autocalcular el total a partir de los importes fiscales (si hay alguno cargado)
+  // El IVA se calcula desde neto × alícuota; el total suma todos los importes.
   useEffect(() => {
-    const raw = [form.netoGravado, form.noGravado, form.ivaMonto, form.percepIva, form.percepIIBB, form.otrosTrib];
-    const sum = raw.reduce((a, v) => a + toNum(v), 0);
-    if (sum > 0) {
-      const rounded = Math.round(sum * 100) / 100;
-      setForm((f) => (String(f.amount) === String(rounded) ? f : { ...f, amount: rounded }));
-    }
-  }, [form.netoGravado, form.noGravado, form.ivaMonto, form.percepIva, form.percepIIBB, form.otrosTrib]);
+    const neto = toNum(form.netoGravado);
+    const alicRaw = String(form.ivaAlicuota).trim();
+    const hasAlic = alicRaw !== '';
+    const alic = parseFloat(alicRaw.replace(',', '.'));
+    setForm((f) => {
+      let next = f;
+      if (hasAlic && !isNaN(alic)) {
+        const ivaCalc = Math.round(neto * alic) / 100; // neto × (alic/100), 2 decimales
+        if (String(f.ivaMonto) !== String(ivaCalc)) next = { ...next, ivaMonto: ivaCalc };
+      }
+      const total = Math.round((neto + toNum(f.noGravado) + toNum(next.ivaMonto) + toNum(f.percepIva) + toNum(f.percepIIBB) + toNum(f.otrosTrib)) * 100) / 100;
+      if (total > 0 && String(next.amount) !== String(total)) next = { ...next, amount: total };
+      return next;
+    });
+  }, [form.netoGravado, form.ivaAlicuota, form.ivaMonto, form.noGravado, form.percepIva, form.percepIIBB, form.otrosTrib]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -473,8 +481,8 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
                     <option value="">—</option>
                     {['21','10.5','27','5','2.5','0'].map((a) => <option key={a} value={a}>{a}%</option>)}
                   </select></div>
-                <div className="field"><label>IVA ($)</label>
-                  <input type="text" inputMode="decimal" value={form.ivaMonto} onChange={(e) => update('ivaMonto', e.target.value)} placeholder="0,00" /></div>
+                <div className="field"><label>IVA ($){form.ivaAlicuota ? ' (auto)' : ''}</label>
+                  <input type="text" inputMode="decimal" value={form.ivaMonto} onChange={(e) => update('ivaMonto', e.target.value)} placeholder="0,00" readOnly={!!form.ivaAlicuota} title={form.ivaAlicuota ? 'Se calcula automáticamente: neto × alícuota' : ''} style={form.ivaAlicuota ? { background: 'var(--surface-2, #eef2f7)' } : undefined} /></div>
               </div>
               <div className="two-col-grid">
                 <div className="field"><label>Percep. IVA ($)</label>
@@ -484,7 +492,7 @@ function ExpenseModal({ expense, prefill, suppliers = [], onClose, onSaved }) {
               </div>
               <div className="field"><label>Otros tributos ($)</label>
                 <input type="text" inputMode="decimal" value={form.otrosTrib} onChange={(e) => update('otrosTrib', e.target.value)} placeholder="0,00" /></div>
-              <p style={{ fontSize: 12, color: 'var(--ink-soft, #888)', margin: '2px 0 0' }}>El total se calcula solo con estos importes. Podés ajustarlo arriba.</p>
+              <p style={{ fontSize: 12, color: 'var(--ink-soft, #888)', margin: '2px 0 0' }}>El IVA se calcula desde el neto × alícuota, y el total suma neto + IVA + no gravado + percepciones + otros tributos.</p>
             </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
