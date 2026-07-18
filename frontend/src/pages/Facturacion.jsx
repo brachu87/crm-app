@@ -17,7 +17,15 @@ async function downloadInvoicePdf(id) {
   } catch (e) { alert('No se pudo generar el PDF'); }
 }
 
-const TIPOS = ['FACTURA C', 'FACTURA B', 'FACTURA A', 'FACTURA X'];
+const TIPOS = [
+  'FACTURA C', 'FACTURA B', 'FACTURA A', 'FACTURA X',
+  'NOTA DE CREDITO C', 'NOTA DE CREDITO B', 'NOTA DE CREDITO A',
+  'NOTA DE DEBITO C', 'NOTA DE DEBITO B', 'NOTA DE DEBITO A',
+];
+const tipoLabel = (t) => {
+  const base = t.replace('CREDITO', 'Crédito').replace('DEBITO', 'Débito').replace('NOTA DE', 'Nota de').replace('FACTURA', 'Factura');
+  return t.slice(-1) === 'X' ? base + ' (no fiscal)' : base;
+};
 const COND_IVA = [
   { id: 5, label: 'Consumidor Final' },
   { id: 1, label: 'Responsable Inscripto' },
@@ -261,13 +269,17 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [asociadoId, setAsociadoId] = useState('');
 
   useEffect(() => {
     api.get('/clients').then(r => setClients(Array.isArray(r.data) ? r.data : (r.data?.clients || []))).catch(() => setClients([]));
+    api.get('/facturacion').then(r => setInvoices((Array.isArray(r.data) ? r.data : []).filter(i => i.status === 'issued'))).catch(() => setInvoices([]));
   }, []);
-  useEffect(() => { setCondIva(tipo === 'FACTURA A' ? 1 : 5); }, [tipo]);
+  useEffect(() => { setCondIva(tipo.slice(-1) === 'A' ? 1 : 5); }, [tipo]);
 
-  const isC = tipo === 'FACTURA C' || tipo === 'FACTURA X';
+  const esNota = tipo.startsWith('NOTA');
+  const isC = tipo.slice(-1) === 'C' || tipo.slice(-1) === 'X';
   const total = items.reduce((s, it) => {
     const base = (Number(it.precio) || 0) * (Number(it.cantidad) || 1);
     const iva = isC ? 0 : base * ((Number(it.alicuota) || 0) / 100);
@@ -285,6 +297,7 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
         tipo, clientId: clientId || undefined,
         cliente: clientId ? undefined : { razonSocial, dni: docNro, cuit: docNro },
         condicionIvaReceptorId: Number(condIva),
+        asociadoId: asociadoId || undefined,
         items: items.map(it => ({ descripcion: it.descripcion, cantidad: Number(it.cantidad) || 1, precio: Number(it.precio) || 0, alicuota: isC ? 0 : Number(it.alicuota) || 0 })),
       };
       const r = await api.post('/facturacion/emitir', payload);
@@ -322,11 +335,19 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
         <form onSubmit={emitir}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <div className="field" style={{ flex: 1, minWidth: 150 }}><label>Tipo</label>
-              <select value={tipo} onChange={e => setTipo(e.target.value)}>{TIPOS.map(t => <option key={t} value={t}>{t === 'FACTURA X' ? 'Factura X (no fiscal)' : t}</option>)}</select></div>
+              <select value={tipo} onChange={e => setTipo(e.target.value)}>{TIPOS.map(t => <option key={t} value={t}>{tipoLabel(t)}</option>)}</select></div>
             <div className="field" style={{ flex: 1, minWidth: 180 }}><label>Condición IVA del cliente</label>
               <select value={condIva} onChange={e => setCondIva(e.target.value)}>{COND_IVA.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
           </div>
 
+          {esNota && (
+            <div className="field"><label>Comprobante asociado {invoices.length === 0 ? '(no hay comprobantes previos)' : '(recomendado)'}</label>
+              <select value={asociadoId} onChange={e => setAsociadoId(e.target.value)}>
+                <option value="">— Sin asociar —</option>
+                {invoices.filter(i => i.cae).map(i => <option key={i.id} value={i.id}>{i.tipo} {i.puntoVenta}-{i.numero} · {i.clienteNombre || ''}</option>)}
+              </select>
+            </div>
+          )}
           <div className="field"><label>Cliente</label>
             <select value={clientId} onChange={e => setClientId(e.target.value)}>
               <option value="">— Consumidor final / manual —</option>

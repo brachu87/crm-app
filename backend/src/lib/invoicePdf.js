@@ -3,7 +3,11 @@ const QRCode = require('qrcode');
 const fs = require('fs');
 
 const LETRA = { 'FACTURA A': 'A', 'FACTURA B': 'B', 'FACTURA C': 'C', 'FACTURA X': 'X' };
-const CBTE_COD = { 'FACTURA A': 1, 'FACTURA B': 6, 'FACTURA C': 11 };
+const CBTE_COD = {
+  'FACTURA A': 1, 'FACTURA B': 6, 'FACTURA C': 11,
+  'NOTA DE DEBITO A': 2, 'NOTA DE DEBITO B': 7, 'NOTA DE DEBITO C': 12,
+  'NOTA DE CREDITO A': 3, 'NOTA DE CREDITO B': 8, 'NOTA DE CREDITO C': 13,
+};
 const DOC_LABEL = { 80: 'CUIT', 96: 'DNI', 99: 'Consumidor Final' };
 
 function money(n) { return '$ ' + (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -31,7 +35,8 @@ function buildQrUrl(inv, biz) {
 async function generateInvoicePdf(inv, biz, opts = {}) {
   let items = [];
   try { items = JSON.parse(inv.detalleJson || '[]'); } catch (_) {}
-  const isC = inv.tipo === 'FACTURA C' || inv.tipo === 'FACTURA X';
+  const letra = String(inv.tipo || '').trim().slice(-1) || 'C';
+  const isC = letra === 'C' || letra === 'X';
   const qrUrl = inv.qrUrl || buildQrUrl(inv, biz);
   const qrBuf = inv.cae ? await QRCode.toBuffer(qrUrl, { margin: 1, width: 220 }) : null;
 
@@ -58,7 +63,7 @@ async function generateInvoicePdf(inv, biz, opts = {}) {
 
       // Recuadro con la letra (centro)
       doc.rect(boxX, boxY, boxW, boxH).lineWidth(1).strokeColor('#000').stroke();
-      doc.font('Helvetica-Bold').fontSize(34).fillColor(DARK).text(LETRA[inv.tipo] || 'C', boxX, boxY + 10, { width: boxW, align: 'center' });
+      doc.font('Helvetica-Bold').fontSize(34).fillColor(DARK).text(letra, boxX, boxY + 10, { width: boxW, align: 'center' });
       doc.font('Helvetica').fontSize(8).fillColor(GREY).text(CBTE_COD[inv.tipo] ? 'COD. ' + String(CBTE_COD[inv.tipo]).padStart(2, '0') : 'NO FISCAL', boxX, boxY + boxH - 14, { width: boxW, align: 'center' });
 
       // Emisor (izquierda)
@@ -75,7 +80,7 @@ async function generateInvoicePdf(inv, biz, opts = {}) {
 
       // Comprobante (derecha)
       const rx = boxX + boxW + 12, rW = right - rx;
-      doc.font('Helvetica-Bold').fontSize(15).fillColor(DARK).text('FACTURA ' + (LETRA[inv.tipo] || ''), rx, boxY, { width: rW, align: 'right' });
+      doc.font('Helvetica-Bold').fontSize(13).fillColor(DARK).text(String(inv.tipo || 'FACTURA').replace('CREDITO', 'CRÉDITO').replace('DEBITO', 'DÉBITO'), rx, boxY, { width: rW, align: 'right' });
       doc.font('Helvetica').fontSize(10).fillColor(GREY)
         .text('N°: ' + (inv.puntoVenta || '') + '-' + (inv.numero || ''), rx, doc.y + 4, { width: rW, align: 'right' })
         .text('Fecha: ' + new Date(inv.createdAt || Date.now()).toLocaleDateString('es-AR', { timeZone: 'UTC' }), { width: rW, align: 'right' });

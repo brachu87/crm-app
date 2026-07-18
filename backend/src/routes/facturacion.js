@@ -129,7 +129,8 @@ router.post('/emitir', async (req, res) => {
     const b = await prisma.business.findUnique({ where: { id: req.user.businessId } });
     const body = req.body || {};
     const tipo = String(body.tipo || '').toUpperCase();
-    const esX = tipo === 'FACTURA X';
+    const esX = tipo.slice(-1) === 'X';
+    const letra = tipo.slice(-1);
     if (!esX && !afip.CBTE_TIPO[tipo]) return res.status(400).json({ error: 'Tipo de comprobante inválido' });
     if (!esX && (!b.afipCertPem || !b.afipKeyPem || !b.fiscalCuit || !b.fiscalPuntoVenta)) {
       return res.status(400).json({ error: 'Primero completá la configuración de AFIP (CUIT, punto de venta y certificado).' });
@@ -145,20 +146,20 @@ router.post('/emitir', async (req, res) => {
     const dni = String(cli.dni || (clientRec && clientRec.dni) || '').replace(/\D/g, '');
 
     let docTipo = 99, docNro = '0';
-    if (tipo === 'FACTURA A') {
-      if (!cuit || cuit.length < 11) return res.status(400).json({ error: 'Para Factura A el cliente debe tener CUIT válido.' });
+    if (!esX && letra === 'A') {
+      if (!cuit || cuit.length < 11) return res.status(400).json({ error: 'Para comprobantes tipo A el cliente debe tener CUIT válido.' });
       docTipo = 80; docNro = cuit;
     } else if (cuit && cuit.length >= 11) { docTipo = 80; docNro = cuit; }
     else if (dni) { docTipo = 96; docNro = dni; }
 
-    const condId = Number(body.condicionIvaReceptorId) || (tipo === 'FACTURA A' ? 1 : 5);
+    const condId = Number(body.condicionIvaReceptorId) || (letra === 'A' ? 1 : 5);
 
     // Factura X: comprobante NO fiscal (no se conecta con ARCA)
     if (esX) {
       let neto = 0;
       for (const it of items) neto += (Number(it.precio) || 0) * (Number(it.cantidad) || 1);
       neto = Math.round(neto * 100) / 100;
-      const count = await prisma.invoice.count({ where: { businessId: b.id, tipo: 'FACTURA X' } });
+      const count = await prisma.invoice.count({ where: { businessId: b.id, tipo } });
       const numero = count + 1;
       const pv = String(b.fiscalPuntoVenta || '1').replace(/\D/g, '') || '1';
       const inv = await prisma.invoice.create({ data: {
@@ -170,9 +171,24 @@ router.post('/emitir', async (req, res) => {
       return res.json({ ok: true, invoice: inv, mensajes: [] });
     }
 
+    // Comprobante asociado (para notas de crédito/débito)
+    let asociados = [];
+    if (body.asociadoId) {
+      const orig = await prisma.invoice.findFirst({ where: { id: body.asociadoId, businessId: b.id } });
+      if (orig && afip.CBTE_TIPO[orig.tipo]) {
+        asociados.push({
+          tipo: afip.CBTE_TIPO[orig.tipo],
+          ptoVta: parseInt(String(orig.puntoVenta || '').replace(/\D/g, ''), 10) || 0,
+          nro: parseInt(String(orig.numero || '').replace(/\D/g, ''), 10) || 0,
+          cuit: b.fiscalCuit,
+        });
+      }
+    }
+
     const params = {
       tipo, ptoVta: b.fiscalPuntoVenta, cuit: b.fiscalCuit,
       docTipo, docNro, condicionIvaReceptorId: condId, concepto: Number(body.concepto) || 2,
+      asociados,
       items: items.map(it => ({ precio: Number(it.precio) || 0, cantidad: Number(it.cantidad) || 1, alicuota: Number(it.alicuota) || 0 })),
     };
 

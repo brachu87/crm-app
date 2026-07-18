@@ -13,7 +13,11 @@ const ENDPOINTS = {
   },
 };
 
-const CBTE_TIPO = { 'FACTURA A': 1, 'FACTURA B': 6, 'FACTURA C': 11 };
+const CBTE_TIPO = {
+  'FACTURA A': 1, 'FACTURA B': 6, 'FACTURA C': 11,
+  'NOTA DE DEBITO A': 2, 'NOTA DE DEBITO B': 7, 'NOTA DE DEBITO C': 12,
+  'NOTA DE CREDITO A': 3, 'NOTA DE CREDITO B': 8, 'NOTA DE CREDITO C': 13,
+};
 const IVA_ID = { 0: 3, 10.5: 4, 21: 5, 27: 6, 5: 8, 2.5: 9 };
 
 function endpoints(env) { return ENDPOINTS[env === 'produccion' ? 'produccion' : 'homologacion']; }
@@ -169,7 +173,7 @@ async function solicitarCAE(env, auth, params) {
   const ptoVta = parseInt(String(params.ptoVta).replace(/\D/g, ''), 10) || 1;
   const last = await ultimoAutorizado(env, auth, params.cuit, ptoVta, cbteTipo);
   const nro = last + 1;
-  const isC = params.tipo === 'FACTURA C';
+  const isC = String(params.tipo).trim().slice(-1) === 'C';
   const hoy = new Date();
   const fch = ymd(hoy);
 
@@ -197,6 +201,13 @@ async function solicitarCAE(env, auth, params) {
     ? `<ar:FchServDesde>${fch}</ar:FchServDesde><ar:FchServHasta>${fch}</ar:FchServHasta><ar:FchVtoPago>${fch}</ar:FchVtoPago>`
     : '';
 
+  let asocXml = '';
+  if (Array.isArray(params.asociados) && params.asociados.length) {
+    asocXml = '<ar:CbtesAsoc>' + params.asociados.map((a) =>
+      `<ar:CbteAsoc><ar:Tipo>${a.tipo}</ar:Tipo><ar:PtoVta>${a.ptoVta}</ar:PtoVta><ar:Nro>${a.nro}</ar:Nro><ar:Cuit>${String(a.cuit).replace(/\D/g, '')}</ar:Cuit></ar:CbteAsoc>`
+    ).join('') + '</ar:CbtesAsoc>';
+  }
+
   let ivaXml = '';
   if (!isC && Object.keys(ivaGroups).length) {
     ivaXml = '<ar:Iva>' + Object.entries(ivaGroups).map(([id, g]) =>
@@ -220,6 +231,7 @@ async function solicitarCAE(env, auth, params) {
     fechasServ +
     `<ar:MonId>PES</ar:MonId><ar:MonCotiz>1</ar:MonCotiz>` +
     `<ar:CondicionIVAReceptorId>${params.condicionIvaReceptorId || 5}</ar:CondicionIVAReceptorId>` +
+    asocXml +
     ivaXml +
     `</ar:FECAEDetRequest>`;
 
