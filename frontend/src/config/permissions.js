@@ -194,6 +194,7 @@ export function useSectionPerms(section) {
 
   function can(action) {
     if (!user) return false;
+    if (user.role === 'owner' || user.role === 'admin') return true;
     const perms = user.permissions;
     if (!perms) return true; // sin restricciones (owner/admin/staff con permisos nulos)
     if (perms.includes(`${section}.${action}`)) return true;

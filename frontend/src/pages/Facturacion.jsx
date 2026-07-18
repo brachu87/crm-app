@@ -5,6 +5,17 @@ import { useSectionPerms } from '../config/permissions';
 const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(v || 0);
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : '-';
 
+async function downloadInvoicePdf(id) {
+  try {
+    const res = await api.get(`/facturacion/${id}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noreferrer';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { alert('No se pudo generar el PDF'); }
+}
+
 const TIPOS = ['FACTURA C', 'FACTURA B', 'FACTURA A'];
 const COND_IVA = [
   { id: 5, label: 'Consumidor Final' },
@@ -84,7 +95,7 @@ function ComprobantesTab({ invoices, loading }) {
     <div className="card" style={{ overflowX: 'auto' }}>
       <table className="table">
         <thead>
-          <tr><th>Fecha</th><th>Tipo</th><th>Número</th><th>Cliente</th><th style={{ textAlign: 'right' }}>Total</th><th>CAE</th><th>Estado</th></tr>
+          <tr><th>Fecha</th><th>Tipo</th><th>Número</th><th>Cliente</th><th style={{ textAlign: 'right' }}>Total</th><th>CAE</th><th>Estado</th><th>PDF</th></tr>
         </thead>
         <tbody>
           {invoices.map(inv => (
@@ -98,6 +109,9 @@ function ComprobantesTab({ invoices, loading }) {
               <td>{inv.status === 'issued'
                 ? <span className="pill pill-paid">Autorizada</span>
                 : <span className="pill pill-overdue" title={inv.errorMsg || ''}>Error</span>}</td>
+              <td>{inv.status === 'issued'
+                ? <button className="btn" style={{ padding: '4px 10px' }} onClick={() => downloadInvoicePdf(inv.id)}>PDF</button>
+                : '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -286,7 +300,8 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
           <h2>✅ Factura autorizada</h2>
           <p style={{ margin: '8px 0' }}>{inv.tipo} N° {inv.puntoVenta}-{inv.numero}</p>
           {inv.cae && <p style={{ fontSize: 14 }}><strong>CAE:</strong> {inv.cae}{inv.vencimientoCae ? ` (vence ${inv.vencimientoCae})` : ''}</p>}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+            {inv.id && <button className="btn btn-secondary" onClick={() => downloadInvoicePdf(inv.id)}>⬇ Ver PDF</button>}
             <button className="btn btn-primary" onClick={onSaved}>Listo</button>
           </div>
         </div>

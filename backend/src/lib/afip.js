@@ -237,7 +237,7 @@ async function solicitarCAE(env, auth, params) {
   return {
     resultado, cae: cae && cae !== '' ? cae : null,
     caeVto: caeVto || null, numero: nro, ptoVta, cbteTipo,
-    impTotal, mensajes: obs,
+    impTotal, impNeto, impIVA, mensajes: obs,
   };
 }
 

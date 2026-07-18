@@ -3,6 +3,7 @@ const forge = require('node-forge');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const afip = require('../lib/afip');
+const invoicePdf = require('../lib/invoicePdf');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -177,14 +178,33 @@ router.post('/emitir', async (req, res) => {
       return res.status(400).json({ error: msg, mensajes: result.mensajes });
     }
 
-    const inv = await prisma.invoice.create({ data: {
+    let inv = await prisma.invoice.create({ data: {
       businessId: b.id, clientId: clientRec ? clientRec.id : null, tipo, puntoVenta: String(result.ptoVta).padStart(4, '0'),
       numero: String(result.numero).padStart(8, '0'), cae: result.cae, vencimientoCae: result.caeVto,
       clienteNombre: razon, clienteDoc: docNro, total: result.impTotal, moneda: 'PES',
+      neto: result.impNeto, iva: result.impIVA, docTipoCode: docTipo, condReceptor: condId,
       status: 'issued', detalleJson: JSON.stringify(items),
     } });
+    // Generar y guardar la URL del QR de AFIP
+    try {
+      const qrUrl = invoicePdf.buildQrUrl(inv, b);
+      inv = await prisma.invoice.update({ where: { id: inv.id }, data: { qrUrl } });
+    } catch (e) { console.error('[fact] qr', e.message); }
     res.json({ ok: true, invoice: inv, mensajes: result.mensajes });
   } catch (e) { console.error('[fact] emitir', e); res.status(500).json({ error: 'Error interno al emitir el comprobante' }); }
+});
+
+// GET /api/facturacion/:id/pdf  -> PDF de la factura con QR de AFIP
+router.get('/:id/pdf', async (req, res) => {
+  try {
+    const inv = await prisma.invoice.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!inv) return res.status(404).json({ error: 'Comprobante no encontrado' });
+    const b = await prisma.business.findUnique({ where: { id: req.user.businessId } });
+    const pdf = await invoicePdf.generateInvoicePdf(inv, b);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="factura-${inv.puntoVenta || ''}-${inv.numero || ''}.pdf"`);
+    res.send(pdf);
+  } catch (e) { console.error('[fact] pdf', e); res.status(500).json({ error: 'Error al generar el PDF' }); }
 });
 
 module.exports = router;

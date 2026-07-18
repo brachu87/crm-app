@@ -526,6 +526,10 @@ model Invoice {
   clienteDoc     String?
   total          Float    @default(0)
   moneda         String   @default("PES")
+  neto           Float?
+  iva            Float?
+  docTipoCode    Int?
+  condReceptor   Int?
   status         String   @default("issued") // issued | error
   errorMsg       String?
   qrUrl          String?
