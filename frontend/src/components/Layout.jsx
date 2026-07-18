@@ -38,7 +38,7 @@ const NAV_GROUPS = [
       { to: '/reportes', label: 'Reportes',           module: 'reportes' },
       { to: '/gastos',   label: 'Gastos',             module: 'gastos' },
       { to: '/precios',  label: 'Grilla de precios',  module: 'precios' },
-      { to: '/comprobantes', label: 'Facturación AFIP',   module: 'comprobantes' },
+      { to: '/comprobantes', label: 'Facturación',        module: 'comprobantes' },
     ],
   },
   {

@@ -16,7 +16,7 @@ async function downloadInvoicePdf(id) {
   } catch (e) { alert('No se pudo generar el PDF'); }
 }
 
-const TIPOS = ['FACTURA C', 'FACTURA B', 'FACTURA A'];
+const TIPOS = ['FACTURA C', 'FACTURA B', 'FACTURA A', 'FACTURA X'];
 const COND_IVA = [
   { id: 5, label: 'Consumidor Final' },
   { id: 1, label: 'Responsable Inscripto' },
@@ -53,7 +53,7 @@ export default function Facturacion() {
           <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Facturas A, B y C directo con AFIP/ARCA. Sin costo por comprobante.</p>
         </div>
         {can.emitir && tab === 'comprobantes' && (
-          <button className="btn btn-primary" onClick={() => setShowNew(true)} disabled={!config?.configured}>🧾 Nueva factura</button>
+          <button className="btn btn-primary" onClick={() => setShowNew(true)}>🧾 Nueva factura</button>
         )}
       </div>
 
@@ -263,7 +263,7 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
   }, []);
   useEffect(() => { setCondIva(tipo === 'FACTURA A' ? 1 : 5); }, [tipo]);
 
-  const isC = tipo === 'FACTURA C';
+  const isC = tipo === 'FACTURA C' || tipo === 'FACTURA X';
   const total = items.reduce((s, it) => {
     const base = (Number(it.precio) || 0) * (Number(it.cantidad) || 1);
     const iva = isC ? 0 : base * ((Number(it.alicuota) || 0) / 100);
@@ -317,7 +317,7 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
         <form onSubmit={emitir}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <div className="field" style={{ flex: 1, minWidth: 150 }}><label>Tipo</label>
-              <select value={tipo} onChange={e => setTipo(e.target.value)}>{TIPOS.map(t => <option key={t}>{t}</option>)}</select></div>
+              <select value={tipo} onChange={e => setTipo(e.target.value)}>{TIPOS.map(t => <option key={t} value={t}>{t === 'FACTURA X' ? 'Factura X (no fiscal)' : t}</option>)}</select></div>
             <div className="field" style={{ flex: 1, minWidth: 180 }}><label>Condición IVA del cliente</label>
               <select value={condIva} onChange={e => setCondIva(e.target.value)}>{COND_IVA.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
           </div>
@@ -363,7 +363,7 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Emitiendo…' : 'Emitir factura'}</button>
             </div>
           </div>
-          {isC && <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 8 }}>Las Facturas C no discriminan IVA.</p>}
+          {isC && <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 8 }}>Las Facturas C y X no discriminan IVA. La Factura X es un comprobante interno no fiscal.</p>}
         </form>
       </div>
     </div>

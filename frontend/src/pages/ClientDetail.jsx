@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import confirmDialog from '../utils/confirm';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/client';
+import FacturarCobro from '../components/FacturarCobro';
 import { useSectionPerms } from '../config/permissions';
 import AuthImage from '../components/AuthImage';
 import ClientModal from './ClientModal';
@@ -992,6 +993,7 @@ function CobrarClienteModal({ client, onClose, onSaved }) {
   const [metodo, setMetodo] = useState('Efectivo');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [done, setDone] = useState(null);
 
   const cuotas = [];
   (client.enrollments || []).forEach((e) => {
@@ -1012,12 +1014,14 @@ function CobrarClienteModal({ client, onClose, onSaved }) {
     setSaving(true); setError('');
     try {
       await api.post(`/enrollments/cuotas/${selected.id}/pay`, { amount: Number(monto), method: metodo });
-      onSaved();
+      setDone({ clientId: client.id, descripcion: selected.activityName, total: Number(monto) });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);
     }
   }
+
+  if (done) return <FacturarCobro clientId={done.clientId} descripcion={done.descripcion} total={done.total} onClose={onSaved} />;
 
   return (
     <div className="modal-overlay" onClick={onClose}>

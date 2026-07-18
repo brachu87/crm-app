@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { sendWA } from '../lib/waSend';
 import { useAuth } from '../context/AuthContext';
+import FacturarCobro from '../components/FacturarCobro';
 import { useSectionPerms } from '../config/permissions';
 
 export const DEFAULT_TEMPLATES = [
@@ -477,6 +478,7 @@ function CobrarModal({ enrollment, business, onClose, onSaved }) {
   const [metodoPago, setMetodoPago] = useState('Efectivo');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [done, setDone] = useState(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -487,12 +489,14 @@ function CobrarModal({ enrollment, business, onClose, onSaved }) {
         amount: Number(monto),
         method: metodoPago,
       });
-      onSaved({ ...enrollment, ...res.data.cuota, metodoPago, amountDue: Number(monto) });
+      setDone({ data: { ...enrollment, ...res.data.cuota, metodoPago, amountDue: Number(monto) }, clientId: enrollment.client?.id, descripcion: enrollment.activity?.name, total: Number(monto) });
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);
     }
   }
+
+  if (done) return <FacturarCobro clientId={done.clientId} descripcion={done.descripcion} total={done.total} onClose={() => onSaved(done.data)} />;
 
   return (
     <div className="modal-overlay">

@@ -2,7 +2,7 @@ const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const fs = require('fs');
 
-const LETRA = { 'FACTURA A': 'A', 'FACTURA B': 'B', 'FACTURA C': 'C' };
+const LETRA = { 'FACTURA A': 'A', 'FACTURA B': 'B', 'FACTURA C': 'C', 'FACTURA X': 'X' };
 const CBTE_COD = { 'FACTURA A': 1, 'FACTURA B': 6, 'FACTURA C': 11 };
 const DOC_LABEL = { 80: 'CUIT', 96: 'DNI', 99: 'Consumidor Final' };
 
@@ -31,7 +31,7 @@ function buildQrUrl(inv, biz) {
 async function generateInvoicePdf(inv, biz, opts = {}) {
   let items = [];
   try { items = JSON.parse(inv.detalleJson || '[]'); } catch (_) {}
-  const isC = inv.tipo === 'FACTURA C';
+  const isC = inv.tipo === 'FACTURA C' || inv.tipo === 'FACTURA X';
   const qrUrl = inv.qrUrl || buildQrUrl(inv, biz);
   const qrBuf = inv.cae ? await QRCode.toBuffer(qrUrl, { margin: 1, width: 220 }) : null;
 
@@ -59,7 +59,7 @@ async function generateInvoicePdf(inv, biz, opts = {}) {
       // Recuadro con la letra (centro)
       doc.rect(boxX, boxY, boxW, boxH).lineWidth(1).strokeColor('#000').stroke();
       doc.font('Helvetica-Bold').fontSize(34).fillColor(DARK).text(LETRA[inv.tipo] || 'C', boxX, boxY + 10, { width: boxW, align: 'center' });
-      doc.font('Helvetica').fontSize(8).fillColor(GREY).text('COD. ' + String(CBTE_COD[inv.tipo] || '').padStart(2, '0'), boxX, boxY + boxH - 14, { width: boxW, align: 'center' });
+      doc.font('Helvetica').fontSize(8).fillColor(GREY).text(CBTE_COD[inv.tipo] ? 'COD. ' + String(CBTE_COD[inv.tipo]).padStart(2, '0') : 'NO FISCAL', boxX, boxY + boxH - 14, { width: boxW, align: 'center' });
 
       // Emisor (izquierda)
       const emW = boxX - emisorX - 12;
@@ -126,6 +126,8 @@ async function generateInvoicePdf(inv, biz, opts = {}) {
         doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text('CAE N°: ' + inv.cae, left + 110, y + 10, { width: W - 110 });
         doc.font('Helvetica').fontSize(10).fillColor(GREY).text('Vencimiento CAE: ' + fechaCae(inv.vencimientoCae), left + 110, doc.y + 2, { width: W - 110 });
         doc.fillColor('#999').fontSize(8).text('Comprobante autorizado electrónicamente por AFIP/ARCA', left + 110, doc.y + 6, { width: W - 110 });
+      } else if (inv.tipo === 'FACTURA X') {
+        doc.font('Helvetica').fontSize(9).fillColor('#777').text('Documento no fiscal — Comprobante X. Sin validez como factura ante AFIP/ARCA.', left, y, { width: W });
       } else {
         doc.font('Helvetica').fontSize(9).fillColor('#b00').text('Comprobante NO autorizado', left, y);
       }

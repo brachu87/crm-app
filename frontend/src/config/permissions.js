@@ -145,7 +145,7 @@ export const PERMISSION_TREE = [
     ],
   },
   {
-    key: 'comprobantes', label: 'Facturación AFIP', icon: '🧾',
+    key: 'comprobantes', label: 'Facturación', icon: '🧾',
     actions: [
       { key: 'ver',    label: 'Ver comprobantes' },
       { key: 'emitir', label: 'Emitir factura' },
