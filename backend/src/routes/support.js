@@ -27,12 +27,24 @@ MÓDULOS Y CÓMO USARLOS:
 - Reportes: métricas e indicadores + búsqueda global.
 - Grilla de precios, Sedes (varias sedes).
 - Usuarios y permisos: el propietario crea usuarios y les da permisos por módulo y por acción.
-- WhatsApp: se vincula el WhatsApp del negocio (escaneando un QR en Ajustes → WhatsApp). Sirve para enviar recordatorios y comprobantes de forma MANUAL (Cobranza → pestaña Recordatorios, botón "📱 Enviar" por cliente) y recibos en PDF. (El envío masivo/automático está desactivado por ahora.)
+- WhatsApp: se vincula el WhatsApp del negocio (escaneando un QR en Ajustes → WhatsApp). Envía recordatorios de cuotas por vencer (1/3/7 días), vencidas y turnos de mañana. Se puede activar el envío AUTOMÁTICO con un interruptor y elegir la HORA en Ajustes → WhatsApp → "Recordatorios automáticos". También hay envío manual (botón "Enviar recordatorios ahora") y envío de recibos/comprobantes en PDF.
 - Portal del socio (portal.gestumio.com): los clientes del negocio entran con su número de socio y DNI. Ven su saldo y actividades, reservan turnos de servicios y cupos en clases, y ven el estado de cada turno (pendiente/confirmado/cancelado). El número de socio y la contraseña (DNI la primera vez) se gestionan desde la ficha del cliente.
 - Reservas de turnos online: para que un servicio se pueda reservar desde el portal hay que (1) activarlo en Ajustes → Reservas online y (2) cargarle Horarios de atención en el servicio (días + franja horaria; se pueden agregar por rango: Lun a Vie, Lun a Sáb o todos los días). El socio ve un calendario con los horarios libres y los ocupados. Cada servicio se reserva de a uno por horario.
 - Confirmación de turnos por WhatsApp: cuando un socio reserva un turno queda PENDIENTE y al WhatsApp del negocio llega un aviso. El dueño confirma o rechaza respondiendo 'SI <código>' / 'NO <código>' por WhatsApp, o desde la app en el panel del servicio → pestaña Pendientes (Confirmar/Rechazar). Si el socio cancela su turno, también llega un aviso por WhatsApp. Esto aplica solo a servicios/turnos, no a las clases (que confirman por cupo).
 - Google Calendar: en Ajustes → Calendar se conecta una cuenta de Google y se sincronizan turnos, agenda y clases a un calendario "Gestumio".
-- Facturación/Suscripción: prueba gratis al registrarse y luego suscripción mensual con MercadoPago. Si vence, la cuenta se bloquea pero los datos se conservan.
+- Suscripción de Gestumio: prueba gratis al registrarse y luego suscripción mensual con MercadoPago. Si vence, la cuenta se bloquea pero los datos se conservan.
+
+NUEVAS FUNCIONES:
+- Facturación electrónica (AFIP/ARCA): menú Finanzas → Facturación. Emite Facturas A, B y C, Notas de Crédito y Débito (A/B/C), y "Factura X" (comprobante interno no fiscal, no requiere AFIP). Conexión DIRECTA con AFIP mediante certificado digital: en la pestaña Configuración hay un asistente que genera la clave y el CSR, se sube a AFIP y se pega el certificado; hay entorno de Homologación (pruebas) y Producción. Cada factura autorizada trae CAE + código QR, se puede ver/descargar el PDF (con logo y datos del negocio) y enviar por WhatsApp. Para notas de crédito/débito se elige el comprobante asociado.
+- Facturar al cobrar: al registrar un cobro (en Cobranza o en la ficha del cliente) aparece la opción de emitir la factura de ese cobro y elegir el tipo.
+- Libro IVA: en Facturación se exporta el "Libro IVA Ventas" y en Gastos el "Libro IVA Compras" (Excel/CSV/PDF).
+- Gastos con IA: en Gastos, botón "📷 Cargar factura" para subir una foto o PDF de una factura de compra; la IA extrae proveedor, CUIT, fecha, tipo, número, neto, IVA, percepciones y total, y precarga el gasto para revisar. Los gastos guardan datos fiscales completos del comprobante.
+- Reportes de facturación: en Reportes, pestaña "Facturación" (total facturado, IVA débito, cantidad de comprobantes, por tipo y por mes).
+- Pago online del socio (Mercado Pago): el dueño conecta su Mercado Pago en Ajustes → Negocio → "Cobros online (Mercado Pago)" pegando su Access Token de producción. Entonces, en el portal del socio, cada cuota impaga muestra un botón "Pagar" y el socio paga con Mercado Pago; el pago se registra solo (el dinero va a la cuenta del negocio).
+- Historial de actividad (auditoría): menú Configuración → Historial. Registra quién hizo qué y cuándo (cobros, facturas, bajas y eliminaciones).
+- Comprobantes en la ficha del cliente: la ficha muestra las facturas emitidas a ese cliente, con su PDF.
+- Cobrar desde la ficha del cliente: botón "Cobrar" para registrar el pago de una cuota directamente desde la ficha.
+- Onboarding: cada sección muestra un cartelito de ayuda la primera vez (una sola vez por usuario). El Dashboard tiene "Primeros pasos" con el progreso inicial.
 
 CIRCUITO PRINCIPAL: inscribir cliente → cobrar cuota → generar recibo → impacta en la caja del día.
 `.trim();
