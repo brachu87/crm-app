@@ -183,9 +183,21 @@ router.put('/mp-token', async (req, res) => {
 // ── Vinculación con Telegram ──────────────────────────────────
 const { generarCodigo } = require('../lib/telegramBot');
 
+// GET /api/business/telegram-status — indica si el add-on del bot está habilitado
+router.get('/telegram-status', async (req, res) => {
+  try {
+    const biz = await prisma.business.findUnique({ where: { id: req.user.businessId }, select: { telegramBotEnabled: true } });
+    res.json({ enabled: biz?.telegramBotEnabled === true, addonPrice: 30000 });
+  } catch (e) {
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
 // POST /api/business/telegram-code — genera un código de un solo uso para vincular Telegram
 router.post('/telegram-code', async (req, res) => {
   try {
+    const biz = await prisma.business.findUnique({ where: { id: req.user.businessId }, select: { telegramBotEnabled: true } });
+    if (!biz || biz.telegramBotEnabled !== true) return res.status(403).json({ error: 'El bot de Telegram no está habilitado en tu plan. Escribinos para activarlo (+$30.000/mes).' });
     const { code, expiresInMin } = generarCodigo(req.user.businessId, req.user.userId);
     res.json({ code, expiresInMin, botUsername: process.env.TELEGRAM_BOT_USERNAME || null });
   } catch (e) {

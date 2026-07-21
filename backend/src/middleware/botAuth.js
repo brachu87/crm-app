@@ -14,6 +14,10 @@ async function botLinkCheck(req, res, next) {
     if (link.businessId !== req.user.businessId) {
       return res.status(401).json({ error: 'Vinculación inconsistente' });
     }
+    const biz = await prisma.business.findUnique({ where: { id: link.businessId }, select: { telegramBotEnabled: true } });
+    if (!biz || biz.telegramBotEnabled !== true) {
+      return res.status(403).json({ error: 'El bot de Telegram está deshabilitado para este negocio.' });
+    }
     // marcar uso (sin bloquear la respuesta)
     prisma.telegramLink.update({ where: { telegramUserId: String(req.user.tg) }, data: { lastUsedAt: new Date() } }).catch(() => {});
     req.botLink = link;

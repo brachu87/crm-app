@@ -1382,6 +1382,7 @@ function ReservasOnlineCard() {
 function TelegramCard() {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [enabled, setEnabled] = useState(null);
   const [code, setCode] = useState(null);
   const [botUsername, setBotUsername] = useState(null);
   const [expira, setExpira] = useState(null);
@@ -1394,7 +1395,11 @@ function TelegramCard() {
       .catch(() => setLinks([]))
       .finally(() => setLoading(false));
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api.get('/business/telegram-status')
+      .then((r) => { setEnabled(!!r.data.enabled); if (r.data.enabled) load(); else setLoading(false); })
+      .catch(() => { setEnabled(false); setLoading(false); });
+  }, []);
 
   async function generar() {
     setGen(true); setMsg('');
@@ -1412,6 +1417,20 @@ function TelegramCard() {
     if (!(await confirmDialog('¿Revocar esta vinculación? El Telegram dejará de poder operar.'))) return;
     try { await api.delete('/business/telegram-links/' + id); load(); }
     catch { setMsg('No se pudo revocar'); }
+  }
+
+  if (enabled === false) {
+    return (
+      <div className="card">
+        <h2 style={{ fontSize: 16, marginBottom: 8 }}>🤖 Cargar datos por Telegram</h2>
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+          Cargá gastos (con foto de la factura), cobros, turnos y clientes, y consultá tu negocio hablándole a un bot de Telegram. Es un complemento opcional que se suma a tu plan por <strong>$30.000/mes</strong>.
+        </p>
+        <p style={{ fontSize: 14, color: 'var(--ink-soft)', marginTop: 8 }}>
+          Para activarlo, escribinos por WhatsApp o a <strong>equipo@gestumio.com</strong> y lo habilitamos en tu cuenta.
+        </p>
+      </div>
+    );
   }
 
   return (

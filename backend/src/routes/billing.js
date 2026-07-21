@@ -9,6 +9,7 @@ const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
 const APP_URL = process.env.APP_URL || 'https://crm-app-production-0669.up.railway.app';
 const BASE_PRICE = 55000;       // plan base (incluye 3 usuarios)
 const EXTRA_USER_PRICE = 20000; // por cada usuario adicional
+const BOT_ADDON_PRICE = 30000;  // add-on del bot de Telegram
 const INCLUDED_USERS = 3;
 const PRICE = BASE_PRICE;        // compatibilidad
 const PLAN_DAYS = 30;
@@ -17,7 +18,7 @@ const ANNUAL_DISCOUNT = 0.20; // 20% off pagando anual
 
 // Precio mensual del negocio segun sus usuarios extra
 function monthlyPriceFor(biz) {
-  return BASE_PRICE + EXTRA_USER_PRICE * (biz?.extraUsers || 0);
+  return BASE_PRICE + EXTRA_USER_PRICE * (biz?.extraUsers || 0) + (biz?.telegramBotEnabled ? BOT_ADDON_PRICE : 0);
 }
 
 // Precio anual (12 meses con 20% de descuento)
@@ -47,6 +48,8 @@ router.get('/status', authMiddleware, async (req, res) => {
       trialEnds: trialEnds.toISOString(),
       trialDaysLeft,
       extraUsers: biz.extraUsers || 0,
+      telegramBotEnabled: biz.telegramBotEnabled === true,
+      botAddonPrice: BOT_ADDON_PRICE,
       includedUsers: INCLUDED_USERS,
       userLimit: INCLUDED_USERS + (biz.extraUsers || 0),
       monthlyPrice: monthlyPriceFor(biz),

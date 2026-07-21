@@ -255,6 +255,9 @@ function renderTable(accounts) {
     const bonifBtn = a.bonificado
       ? `<button class="btn-sm btn-bonif-on" onclick="toggleBonif('${a.id}',false)" title="Quitar bonificación">🎁 Bonificada</button>`
       : `<button class="btn-sm btn-bonif-off" onclick="toggleBonif('${a.id}',true)" title="Marcar como bonificada">🎁 Bonificar</button>`;
+    const botBtn = a.telegramBotEnabled
+      ? `<button class="btn-sm" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd" onclick="toggleBot('${a.id}',false)" title="Quitar bot de Telegram (-$30.000/mes)">🤖 Bot ON</button>`
+      : `<button class="btn-sm" style="background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1" onclick="toggleBot('${a.id}',true)" title="Habilitar bot de Telegram (+$30.000/mes)">🤖 Bot OFF</button>`;
 
     const approveBtn = a.approved
       ? `<button class="btn-sm btn-reject" onclick="reject('${a.id}')">Revocar</button>`
@@ -286,7 +289,7 @@ function renderTable(accounts) {
       </td>
       <td style="text-align:center;white-space:nowrap">
         <span style="font-weight:700;font-size:14px">$${a.monthlyPrice.toLocaleString('es-AR')}</span>
-        ${a.extraUsers > 0 ? `<div style="font-size:10px;color:#94a3b8">50.000 + ${a.extraUsers}×20.000</div>` : '<div style="font-size:10px;color:#cbd5e1">plan base</div>'}
+        <div style="font-size:10px;color:#94a3b8">${[a.extraUsers > 0 ? `+${a.extraUsers}×20k` : '', a.telegramBotEnabled ? '+bot 30k' : ''].filter(Boolean).join(' ') || 'plan base'}</div>
       </td>
       <td style="color:#64748b;white-space:nowrap">${date}</td>
       <td>
@@ -296,6 +299,7 @@ function renderTable(accounts) {
       <td>
         <div class="actions">
           ${bonifBtn}
+          ${botBtn}
           ${approveBtn}
           ${extendBtn}
           <button class="btn-sm" style="background:#dcfce7;color:#166534" onclick="setWhatsApp('${a.id}','${(a.waPhoneId||'').replace(/'/g,"\\'")}','${(a.waPhoneNumber||'').replace(/'/g,"\\'")}')" title="Asignar numero de WhatsApp (Meta)">${a.waPhoneId ? '📱 WA ✓' : '📱 WA'}</button>
@@ -359,6 +363,17 @@ async function setWhatsApp(id, currentId, currentNum) {
   });
   if (r.ok) { loadAccounts(); }
   else { const e = await r.json().catch(()=>({})); alert('Error: ' + (e.error || 'no se pudo guardar')); }
+}
+
+async function toggleBot(id, val) {
+  const msg = val ? '¿Habilitar el bot de Telegram para esta cuenta? Suma $30.000/mes a su suscripción.' : '¿Deshabilitar el bot de Telegram de esta cuenta?';
+  if (!confirm(msg)) return;
+  await fetch(API + `/admin/accounts/${id}/telegram-bot`, {
+    method: 'PUT',
+    headers: { 'X-Admin-Secret': secret, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: val })
+  });
+  loadAccounts();
 }
 
 async function setExtra(id, n) {

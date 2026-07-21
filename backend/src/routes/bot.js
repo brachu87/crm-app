@@ -56,7 +56,8 @@ router.post('/link', async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { id: info.userId } });
     if (!user || user.businessId !== info.businessId) return res.status(400).json({ error: 'Usuario no encontrado' });
-    const business = await prisma.business.findUnique({ where: { id: info.businessId }, select: { name: true } });
+    const business = await prisma.business.findUnique({ where: { id: info.businessId }, select: { name: true, telegramBotEnabled: true } });
+    if (!business || business.telegramBotEnabled !== true) return res.status(403).json({ error: 'El bot de Telegram no está habilitado para este negocio. Pedí que lo activen desde Gestumio.' });
 
     await prisma.telegramLink.upsert({
       where: { telegramUserId: String(telegramUserId) },

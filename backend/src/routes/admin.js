@@ -7,6 +7,7 @@ const router = express.Router();
 const TRIAL_DAYS = 15;
 const BASE_PRICE = 55000;      // precio del plan base (incluye INCLUDED_USERS usuarios)
 const EXTRA_USER_PRICE = 20000; // costo por cada usuario adicional
+const BOT_ADDON_PRICE = 30000;  // add-on del bot de Telegram
 const INCLUDED_USERS = 3;      // usuarios incluidos en el plan base
 
 function adminAuth(req, res, next) {
@@ -64,8 +65,9 @@ router.get('/accounts', adminAuth, async (req, res) => {
         waPhoneId: b.waPhoneId || null,
         waPhoneNumber: b.waPhoneNumber || null,
         extraUsers: extra,
+        telegramBotEnabled: b.telegramBotEnabled === true,
         userLimit: INCLUDED_USERS + extra,
-        monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * extra,
+        monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * extra + (b.telegramBotEnabled ? BOT_ADDON_PRICE : 0),
         trialDaysLeft: trialDaysLeft(b.createdAt),
         owner: owner ? { name: owner.name, email: owner.email, lastAccessAt: owner.lastAccessAt } : null,
       };
@@ -146,6 +148,21 @@ router.put('/accounts/:id/extra-users', adminAuth, async (req, res) => {
       data: { extraUsers: n },
     });
     res.json({ ok: true, extraUsers: n, userLimit: INCLUDED_USERS + n, monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * n });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/admin/accounts/:id/telegram-bot — habilita/deshabilita el add-on del bot (+$30.000/mes)
+router.put('/accounts/:id/telegram-bot', adminAuth, async (req, res) => {
+  try {
+    const enabled = req.body.enabled === true || req.body.enabled === 'true';
+    const b = await prisma.business.update({
+      where: { id: req.params.id },
+      data: { telegramBotEnabled: enabled },
+    });
+    const extra = b.extraUsers || 0;
+    res.json({ ok: true, telegramBotEnabled: enabled, monthlyPrice: BASE_PRICE + EXTRA_USER_PRICE * extra + (enabled ? BOT_ADDON_PRICE : 0) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
