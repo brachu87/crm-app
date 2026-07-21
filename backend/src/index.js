@@ -45,6 +45,7 @@ const notificationsRoutes = require('./routes/notifications');
 const facturacionRoutes = require('./routes/facturacion');
 const auditRoutes = require('./routes/audit');
 const onboardingRoutes = require('./routes/onboarding');
+const botRoutes = require('./routes/bot');
 const { startReminderCron } = require('./lib/reminderCron');
 
 const app = express();
@@ -126,6 +127,7 @@ const PUBLIC_API_PATHS = [
   '/api/google-calendar/callback',
   '/api/whatsapp/webhook',
   '/api/legal',
+  '/api/bot/link',
 ];
 app.use('/api/', (req, res, next) => {
   const fullPath = '/api' + req.path;
@@ -143,6 +145,7 @@ const SUBSCRIPTION_EXEMPT = [
   '/api/google-calendar/',
   '/api/whatsapp/webhook',
   '/api/legal',
+  '/api/bot/link',
 ];
 app.use('/api/', (req, res, next) => {
   const fullPath = '/api' + req.path;
@@ -199,6 +202,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/facturacion', facturacionRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/bot', botRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {

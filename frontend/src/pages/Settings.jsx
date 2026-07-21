@@ -225,6 +225,7 @@ export default function Settings() {
     ...(isOwner ? [{ id: 'reservas', label: '🗓️ Reservas online' }] : []),
     ...(isOwner ? [{ id: 'cobros', label: '💳 Cobros online' }] : []),
     { id: 'facturacion', label: '💳 Facturación' },
+    { id: 'telegram',    label: '🤖 Telegram' },
   ];
 
   return (
@@ -474,6 +475,8 @@ export default function Settings() {
       )}
 
       {activeTab === 'calendar' && <GoogleCalendarCard />}
+
+      {activeTab === 'telegram' && <TelegramCard />}
 
       {activeTab === 'reservas' && isOwner && <ReservasOnlineCard />}
 
@@ -1371,6 +1374,97 @@ function ReservasOnlineCard() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+
+function TelegramCard() {
+  const [links, setLinks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [code, setCode] = useState(null);
+  const [botUsername, setBotUsername] = useState(null);
+  const [expira, setExpira] = useState(null);
+  const [gen, setGen] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  function load() {
+    api.get('/business/telegram-links')
+      .then((r) => setLinks(r.data || []))
+      .catch(() => setLinks([]))
+      .finally(() => setLoading(false));
+  }
+  useEffect(() => { load(); }, []);
+
+  async function generar() {
+    setGen(true); setMsg('');
+    try {
+      const r = await api.post('/business/telegram-code');
+      setCode(r.data.code);
+      setBotUsername(r.data.botUsername);
+      setExpira(r.data.expiresInMin);
+    } catch (e) {
+      setMsg(e.response?.data?.error || 'No se pudo generar el código');
+    } finally { setGen(false); }
+  }
+
+  async function revocar(id) {
+    if (!(await confirmDialog('¿Revocar esta vinculación? El Telegram dejará de poder operar.'))) return;
+    try { await api.delete('/business/telegram-links/' + id); load(); }
+    catch { setMsg('No se pudo revocar'); }
+  }
+
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 4 }}>🤖 Cargar datos por Telegram</h2>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
+          Vinculá tu Telegram para cargar gastos (con foto de la factura), registrar cobros, dar de alta clientes y consultar datos, todo por chat con el bot. El bot respeta tus permisos.
+        </p>
+
+        {!code && (
+          <button className="btn btn-primary" onClick={generar} disabled={gen}>
+            {gen ? 'Generando…' : 'Generar código de vinculación'}
+          </button>
+        )}
+
+        {code && (
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginTop: 8 }}>
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 6 }}>Tu código (válido {expira} min):</div>
+            <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: '0.15em', color: 'var(--primary)' }}>{code}</div>
+            <ol style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '12px 0 0', paddingLeft: 18, lineHeight: 1.7 }}>
+              <li>Abrí el chat con el bot{botUsername ? <> (<strong>@{botUsername}</strong>)</> : ''} en Telegram.</li>
+              <li>Enviá: <code>/vincular {code}</code></li>
+            </ol>
+            <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={generar} disabled={gen}>Generar otro</button>
+          </div>
+        )}
+
+        {msg && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--danger, #dc2626)' }}>{msg}</div>}
+      </div>
+
+      <div className="card">
+        <h2 style={{ fontSize: 16, marginBottom: 12 }}>Telegram vinculados</h2>
+        {loading ? <p style={{ color: 'var(--ink-soft)' }}>Cargando…</p> : links.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Todavía no hay ningún Telegram vinculado.</p>
+        ) : (
+          <div className="table-wrap"><table className="table">
+            <thead><tr><th>Telegram</th><th>Usuario</th><th>Último uso</th><th></th></tr></thead>
+            <tbody>
+              {links.map((l) => (
+                <tr key={l.id}>
+                  <td>{l.telegramName || '—'}</td>
+                  <td>{l.usuario || '—'}</td>
+                  <td>{l.lastUsedAt ? new Date(l.lastUsedAt).toLocaleDateString('es-AR') : '—'}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button className="btn btn-danger btn-sm" onClick={() => revocar(l.id)}>Revocar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        )}
+      </div>
     </div>
   );
 }

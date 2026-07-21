@@ -180,6 +180,53 @@ router.put('/mp-token', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error al guardar' }); }
 });
 
+// ── Vinculación con Telegram ──────────────────────────────────
+const { generarCodigo } = require('../lib/telegramBot');
+
+// POST /api/business/telegram-code — genera un código de un solo uso para vincular Telegram
+router.post('/telegram-code', async (req, res) => {
+  try {
+    const { code, expiresInMin } = generarCodigo(req.user.businessId, req.user.userId);
+    res.json({ code, expiresInMin, botUsername: process.env.TELEGRAM_BOT_USERNAME || null });
+  } catch (e) {
+    console.error('[telegram-code]', e.message);
+    res.status(500).json({ error: 'No se pudo generar el código' });
+  }
+});
+
+// GET /api/business/telegram-links — lista los Telegram vinculados a este negocio
+router.get('/telegram-links', async (req, res) => {
+  try {
+    const links = await prisma.telegramLink.findMany({
+      where: { businessId: req.user.businessId, revoked: false },
+      orderBy: { createdAt: 'desc' },
+    });
+    const users = await prisma.user.findMany({ where: { businessId: req.user.businessId }, select: { id: true, name: true } });
+    const nameOf = Object.fromEntries(users.map(u => [u.id, u.name]));
+    res.json(links.map(l => ({
+      id: l.id,
+      telegramName: l.telegramName,
+      usuario: nameOf[l.userId] || '',
+      createdAt: l.createdAt,
+      lastUsedAt: l.lastUsedAt,
+    })));
+  } catch (e) {
+    console.error('[telegram-links]', e.message);
+    res.status(500).json({ error: 'No se pudieron obtener las vinculaciones' });
+  }
+});
+
+// DELETE /api/business/telegram-links/:id — revoca una vinculación
+router.delete('/telegram-links/:id', async (req, res) => {
+  try {
+    const link = await prisma.telegramLink.findUnique({ where: { id: req.params.id } });
+    if (!link || link.businessId !== req.user.businessId) return res.status(404).json({ error: 'Vinculación no encontrada' });
+    await prisma.telegramLink.update({ where: { id: link.id }, data: { revoked: true } });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[telegram-links delete]', e.message);
+    res.status(500).json({ error: 'No se pudo revocar' });
+  }
+});
+
 module.exports = router;
-
-

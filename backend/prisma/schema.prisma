@@ -573,3 +573,18 @@ model AuditLog {
   @@index([businessId])
   @@index([createdAt])
 }
+
+model TelegramLink {
+  id             String   @id @default(cuid())
+  businessId     String
+  userId         String
+  telegramUserId String
+  telegramName   String?
+  revoked        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  lastUsedAt     DateTime?
+
+  @@unique([telegramUserId])
+  @@index([businessId])
+  @@index([userId])
+}
