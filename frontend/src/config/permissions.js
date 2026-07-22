@@ -45,6 +45,7 @@ export const PERMISSION_TREE = [
       { key: 'eliminar',    label: 'Eliminar inscripción' },
       { key: 'renovar',     label: 'Renovar cuotas del mes' },
       { key: 'otros',       label: 'Registrar otros ingresos' },
+      { key: 'facturar',    label: 'Facturar al cobrar' },
       { key: 'recordatorio',label: 'Enviar recordatorio / recibo WhatsApp' },
     ],
   },
@@ -61,8 +62,10 @@ export const PERMISSION_TREE = [
     actions: [
       { key: 'ver',      label: 'Ver gastos' },
       { key: 'crear',    label: 'Registrar gasto' },
+      { key: 'escanear', label: 'Cargar con IA (foto/PDF)' },
       { key: 'editar',   label: 'Editar' },
       { key: 'eliminar', label: 'Eliminar' },
+      { key: 'libro_iva',label: 'Exportar Libro IVA (compras)' },
       { key: 'importar', label: 'Importar Excel/CSV' },
       { key: 'exportar', label: 'Exportar Excel/CSV/PDF' },
     ],
@@ -149,18 +152,31 @@ export const PERMISSION_TREE = [
     actions: [ { key: 'ver', label: 'Ver historial' } ],
   },
   {
-    key: 'comprobantes', label: 'Facturación', icon: '🧾',
+    key: 'comprobantes', label: 'Facturación AFIP', icon: '🧾',
     actions: [
-      { key: 'ver',    label: 'Ver comprobantes' },
-      { key: 'emitir', label: 'Emitir factura' },
-      { key: 'config', label: 'Configurar AFIP' },
+      { key: 'ver',      label: 'Ver comprobantes' },
+      { key: 'emitir',   label: 'Emitir factura' },
+      { key: 'notas',    label: 'Notas de crédito/débito' },
+      { key: 'libro_iva',label: 'Exportar Libro IVA (ventas)' },
+      { key: 'config',   label: 'Configurar AFIP' },
     ],
   },
   {
-    key: 'facturacion', label: 'Facturación', icon: '🧾',
+    key: 'facturacion', label: 'Suscripción / Plan', icon: '💠',
     actions: [
       { key: 'ver',      label: 'Ver estado del plan' },
       { key: 'gestionar',label: 'Gestionar pago / renovar' },
+    ],
+  },
+  {
+    key: 'configuracion', label: 'Configuración (Ajustes)', icon: '⚙️',
+    actions: [
+      { key: 'negocio',       label: 'Datos y logo del negocio' },
+      { key: 'whatsapp',      label: 'Conexión de WhatsApp' },
+      { key: 'calendar',      label: 'Google Calendar' },
+      { key: 'reservas',      label: 'Reservas online' },
+      { key: 'cobros_online', label: 'Cobros online (Mercado Pago)' },
+      { key: 'telegram',      label: 'Bot de Telegram' },
     ],
   },
 ];

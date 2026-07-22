@@ -33,6 +33,9 @@ export default function Settings() {
   const toast = useToast();
   const { user, business, updateBusiness, updateUser } = useAuth();
   const isOwner = user?.role === 'owner';
+  const _perms = user?.permissions;
+  // Config delegable: dueño siempre; personal solo con el permiso explícito 'configuracion.<area>'
+  const canCfg = (k) => isOwner || (Array.isArray(_perms) && _perms.includes(`configuracion.${k}`));
   const [mpToken, setMpToken] = useState('');
   const [mpConnected, setMpConnected] = useState(false);
   const [savingMp, setSavingMp] = useState(false);
@@ -76,7 +79,7 @@ export default function Settings() {
   });
   const [bizLoaded, setBizLoaded] = useState(false);
   const [savingBiz, setSavingBiz] = useState(false);
-  const [activeTab, setActiveTab] = useState('negocio');
+  const [activeTab, setActiveTab] = useState(user?.role === 'owner' ? 'negocio' : 'usuarios');
   const [modules, setModules] = useState(() => {
     // Inicializar desde el business guardado en localStorage
     const biz = JSON.parse(localStorage.getItem('business') || '{}');
@@ -218,14 +221,14 @@ export default function Settings() {
   const roleLabel = { owner: 'Propietario', admin: 'Administrador', staff: 'Personal' };
 
   const TABS = [
-    { id: 'negocio',     label: '🏢 Negocio' },
+    ...(canCfg('negocio') ? [{ id: 'negocio', label: '🏢 Negocio' }] : []),
     { id: 'usuarios',    label: '👥 Usuarios' },
-    { id: 'whatsapp',    label: '💬 WhatsApp' },
-    { id: 'calendar',    label: '📅 Calendar' },
-    ...(isOwner ? [{ id: 'reservas', label: '🗓️ Reservas online' }] : []),
-    ...(isOwner ? [{ id: 'cobros', label: '💳 Cobros online' }] : []),
+    ...(canCfg('whatsapp') ? [{ id: 'whatsapp', label: '💬 WhatsApp' }] : []),
+    ...(canCfg('calendar') ? [{ id: 'calendar', label: '📅 Calendar' }] : []),
+    ...(canCfg('reservas') ? [{ id: 'reservas', label: '🗓️ Reservas online' }] : []),
+    ...(canCfg('cobros_online') ? [{ id: 'cobros', label: '💳 Cobros online' }] : []),
     { id: 'facturacion', label: '💳 Facturación' },
-    { id: 'telegram',    label: '🤖 Telegram' },
+    ...(canCfg('telegram') ? [{ id: 'telegram', label: '🤖 Telegram' }] : []),
   ];
 
   return (
@@ -268,7 +271,7 @@ export default function Settings() {
       </div>
 
       {/* ── NEGOCIO ── */}
-      {activeTab === 'negocio' && isOwner && (
+      {activeTab === 'negocio' && canCfg('negocio') && (
         <>
           <div className="card" style={{ marginBottom: 24 }}>
             <h2 style={{ fontSize: 16, marginBottom: 16 }}>Datos del negocio</h2>
@@ -356,7 +359,7 @@ export default function Settings() {
         </>
       )}
 
-      {activeTab === 'cobros' && isOwner && (
+      {activeTab === 'cobros' && canCfg('cobros_online') && (
         <>
           <div className="card">
             <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>💳 Cobros online (Mercado Pago)</h2>
@@ -467,18 +470,18 @@ export default function Settings() {
       )}
 
       {/* ── WHATSAPP ── */}
-      {activeTab === 'whatsapp' && (
+      {activeTab === 'whatsapp' && canCfg('whatsapp') && (
         <>
           <WhatsAppAuto />
           <WhatsAppTemplates />
         </>
       )}
 
-      {activeTab === 'calendar' && <GoogleCalendarCard />}
+      {activeTab === 'calendar' && canCfg('calendar') && <GoogleCalendarCard />}
 
-      {activeTab === 'telegram' && <TelegramCard />}
+      {activeTab === 'telegram' && canCfg('telegram') && <TelegramCard />}
 
-      {activeTab === 'reservas' && isOwner && <ReservasOnlineCard />}
+      {activeTab === 'reservas' && canCfg('reservas') && <ReservasOnlineCard />}
 
       {/* ── FACTURACIÓN ── */}
       {activeTab === 'facturacion' && (

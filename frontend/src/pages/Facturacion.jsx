@@ -105,7 +105,7 @@ function ComprobantesTab({ invoices, loading }) {
   const issued = invoices.filter((i) => i.status === 'issued');
   return (
     <>
-    {issued.length > 0 && (
+    {issued.length > 0 && can.libro_iva && (
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
         <ExportMenu label="📚 Libro IVA Ventas ▾" filename="libro-iva-ventas" title="Libro IVA Ventas" rows={issued}
           columns={[
@@ -370,7 +370,7 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
         <form onSubmit={emitir}>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <div className="field" style={{ flex: 1, minWidth: 150 }}><label>Tipo</label>
-              <select value={tipo} onChange={e => setTipo(e.target.value)}>{TIPOS.map(t => <option key={t} value={t}>{tipoLabel(t)}</option>)}</select></div>
+              <select value={tipo} onChange={e => setTipo(e.target.value)}>{TIPOS.filter(t => can.notas || !t.startsWith('NOTA')).map(t => <option key={t} value={t}>{tipoLabel(t)}</option>)}</select></div>
             <div className="field" style={{ flex: 1, minWidth: 180 }}><label>Condición IVA del cliente</label>
               <select value={condIva} onChange={e => setCondIva(e.target.value)}>{COND_IVA.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
           </div>

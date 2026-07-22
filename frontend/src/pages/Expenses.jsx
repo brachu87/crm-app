@@ -139,7 +139,7 @@ export default function Expenses() {
         <div style={{ display: 'flex', gap: 8 }}>
           {can.importar && <ImportMenu onPick={() => setShowImportModal(true)} />}
           {expenses.length > 0 && can.exportar && <ExportMenu rows={filtered} filename="gastos" title="Gastos" columns={[{ header: 'Fecha', value: (e) => e.date ? new Date(e.date).toLocaleDateString('es-AR') : '' }, { header: 'Categoría', value: (e) => e.category || '' }, { header: 'Descripción', value: (e) => e.description || '' }, { header: 'Proveedor', value: (e) => e.supplier?.name || '' }, { header: 'Método de pago', value: (e) => e.paymentMethod || '' }, { header: 'Monto', value: (e) => e.amount }]} />}
-          {can.exportar && filtered.some((e) => e.comprobanteTipo || e.comprobanteNumero || e.proveedorCuit) && (
+          {can.libro_iva && filtered.some((e) => e.comprobanteTipo || e.comprobanteNumero || e.proveedorCuit) && (
             <ExportMenu label="📚 Libro IVA ▾" filename="libro-iva-compras" title="Libro IVA Compras"
               rows={filtered.filter((e) => e.comprobanteTipo || e.comprobanteNumero || e.proveedorCuit)}
               columns={[
@@ -160,7 +160,7 @@ export default function Expenses() {
                 { header: 'Total', value: (e) => e.amount },
               ]} />
           )}
-          {can.crear && <>
+          {can.escanear && <>
             <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={onScanFile} />
             <button className="btn btn-secondary" onClick={() => fileRef.current && fileRef.current.click()} disabled={scanning} title="Sacá una foto o subí el PDF de una factura de compra">
               {scanning ? '⏳ Leyendo…' : '📷 Cargar factura'}

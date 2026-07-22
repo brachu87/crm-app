@@ -473,6 +473,7 @@ function CobrarApptModal({ appointment, onClose, onSaved }) {
 
 /* ── Cobrar Modal ──────────────────────────────────────────────── */
 function CobrarModal({ enrollment, business, onClose, onSaved }) {
+  const can = useSectionPerms('cobranza');
   const net = Math.max(0, (enrollment.amountDue || 0) - (enrollment.discount || 0));
   const [monto, setMonto] = useState(net);
   const [metodoPago, setMetodoPago] = useState('Efectivo');
@@ -489,7 +490,9 @@ function CobrarModal({ enrollment, business, onClose, onSaved }) {
         amount: Number(monto),
         method: metodoPago,
       });
-      setDone({ data: { ...enrollment, ...res.data.cuota, metodoPago, amountDue: Number(monto) }, clientId: enrollment.client?.id, cuotaId: enrollment.id, descripcion: enrollment.activity?.name, total: Number(monto) });
+      const payload = { data: { ...enrollment, ...res.data.cuota, metodoPago, amountDue: Number(monto) }, clientId: enrollment.client?.id, cuotaId: enrollment.id, descripcion: enrollment.activity?.name, total: Number(monto) };
+      if (can.facturar) setDone(payload);
+      else onSaved(payload.data); // sin permiso de facturar: registra el cobro y listo
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrar el cobro');
       setSaving(false);
