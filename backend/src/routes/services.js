@@ -42,6 +42,8 @@ router.post('/', async (req, res) => {
 // PUT /api/services/:id
 router.put('/:id', async (req, res) => {
   try {
+    const own = await prisma.service.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!own) return res.status(404).json({ error: 'Servicio no encontrado' });
     const { name, description, duration, price, employeeId, active, onlineBooking } = req.body;
     const s = await prisma.service.update({
       where: { id: req.params.id },
@@ -63,6 +65,8 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/services/:id
 router.delete('/:id', async (req, res) => {
   try {
+    const own = await prisma.service.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!own) return res.status(404).json({ error: 'Servicio no encontrado' });
     await prisma.service.delete({ where: { id: req.params.id } });
     res.json({ ok: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Error' }); }

@@ -55,7 +55,23 @@ app.set('trust proxy', 1);
 
 // ── Security headers ───────────────────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: false,              // app uses inline scripts/styles
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      // La app y el panel admin usan scripts/estilos inline; se permite inline pero
+      // se restringen orígenes peligrosos (object-src, base-uri, frame-ancestors).
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: ["'self'", 'https:'],
+      fontSrc: ["'self'", 'data:', 'https:'],
+      frameSrc: ["'self'", 'https:'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"],   // anti-clickjacking
+    },
+  },
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow logo/photo serving
   crossOriginEmbedderPolicy: false,          // avoid breaking image loads
   crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // permitir el popup de login con Google
@@ -70,8 +86,7 @@ const ALLOWED_ORIGINS = [
   'https://www.gestumio.com',
   'https://gestumio.app',
   'https://www.gestumio.app',
-  'http://localhost:5173',
-  'http://localhost:3000',
+  ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://localhost:3000'] : []),
 ].filter(Boolean);
 
 function corsAllowed(origin) {
@@ -163,6 +178,15 @@ const uploadLimiter = rateLimit({
   skip: (req) => req.method === 'GET', // las lecturas de fotos/logo NO cuentan como subida
 });
 
+// Limite específico para la vinculación del bot (evita fuerza bruta del código)
+const botLinkLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos de vinculación. Probá en un rato.' },
+});
+
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/legal', legalRoutes);
@@ -202,6 +226,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/facturacion', facturacionRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/bot/link', botLinkLimiter);
 app.use('/api/bot', botRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 

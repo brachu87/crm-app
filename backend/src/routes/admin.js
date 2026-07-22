@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const prisma = require('../prisma');
 const { sendTest } = require('../lib/mailer');
 const { buildBusinessZip } = require('../lib/exportBusiness');
@@ -10,14 +11,21 @@ const EXTRA_USER_PRICE = 20000; // costo por cada usuario adicional
 const BOT_ADDON_PRICE = 30000;  // add-on del bot de Telegram
 const INCLUDED_USERS = 3;      // usuarios incluidos en el plan base
 
-function adminAuth(req, res, next) {
+// Comparación en tiempo constante (evita timing attacks sobre el secreto)
+function secretoValido(recibido) {
   const envSecret = process.env.ADMIN_SECRET;
-  if (!envSecret || envSecret.length < 12) {
-    // Block all access if secret is not configured or too weak
+  if (!envSecret || envSecret.length < 12) return false;
+  const a = Buffer.from(String(recibido || ''));
+  const b = Buffer.from(envSecret);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+function adminAuth(req, res, next) {
+  if (!process.env.ADMIN_SECRET || process.env.ADMIN_SECRET.length < 12) {
     return res.status(503).json({ error: 'Panel de admin no configurado' });
   }
-  const secret = req.headers['x-admin-secret'];
-  if (!secret || secret !== envSecret) {
+  if (!secretoValido(req.headers['x-admin-secret'])) {
     // Slow down brute force attempts with a small delay
     return setTimeout(() => res.status(401).json({ error: 'No autorizado' }), 500);
   }
@@ -240,10 +248,8 @@ const MIGRATION_MODELS = [
 ];
 
 function migrationSecretOk(req) {
-  const envSecret = process.env.ADMIN_SECRET;
-  if (!envSecret || envSecret.length < 12) return false;
-  const s = req.headers['x-admin-secret'] || req.query.secret;
-  return s === envSecret;
+  // Solo por header (nunca por query string, para no filtrar el secreto en logs)
+  return secretoValido(req.headers['x-admin-secret']);
 }
 
 // GET /api/admin/export-db?secret=...  -> descarga un JSON con TODA la base
@@ -258,7 +264,7 @@ router.get('/export-db', async (req, res) => {
     res.json({ exportedAt: new Date().toISOString(), data });
   } catch (e) {
     console.error('[export-db]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error al exportar' });
   }
 });
 

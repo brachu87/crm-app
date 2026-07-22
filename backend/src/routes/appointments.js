@@ -111,6 +111,8 @@ router.post('/', validate(schemas.appointmentCreate), async (req, res) => {
 // PUT /api/appointments/:id
 router.put('/:id', async (req, res) => {
   try {
+    const own = await prisma.appointment.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!own) return res.status(404).json({ error: 'Turno no encontrado' });
     const { status, paymentStatus, price, notes, employeeId, date, startTime, endTime, description } = req.body;
     const data = {};
     if (status !== undefined) data.status = status;
@@ -137,7 +139,8 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/appointments/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const existing = await prisma.appointment.findUnique({ where: { id: req.params.id } });
+    const existing = await prisma.appointment.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!existing) return res.status(404).json({ error: 'Turno no encontrado' });
     await prisma.appointment.delete({ where: { id: req.params.id } });
     if (existing && existing.gcalEventId) gcal.removeEvent(req.user.businessId, existing.gcalEventId);
     res.json({ ok: true });

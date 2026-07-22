@@ -76,7 +76,7 @@ router.post('/register', validate(schemas.register), async (req, res) => {
     const existing = await prisma.user.findUnique({ where: { email: sEmail } });
     if (existing) return res.status(409).json({ error: 'El email ya está registrado' });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
     const business = await prisma.business.create({ data: { name: businessName, category: category || 'otro', phone: sPhone || null } });
 
     // Auto-approve: la cuenta empieza con acceso inmediato en período de prueba
@@ -276,7 +276,7 @@ router.post('/reset-password', async (req, res) => {
     const secret = process.env.JWT_SECRET + (user.password || '');
     try { jwt.verify(token, secret); }
     catch { return res.status(400).json({ error: 'El enlace expiró o ya fue usado. Pedí uno nuevo.' }); }
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 12);
     await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
     res.json({ ok: true });
   } catch (e) {

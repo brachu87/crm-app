@@ -52,6 +52,8 @@ router.post('/', async (req, res) => {
 // PUT /notes/:id
 router.put('/:id', async (req, res) => {
   try {
+    const own = await prisma.note.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!own) return res.status(404).json({ error: 'Nota no encontrada' });
     const { title, content, dueDate, completed, priority, startAt, endAt, allDay, color } = req.body;
     const data = {};
     if (title !== undefined) data.title = title;
@@ -77,7 +79,8 @@ router.put('/:id', async (req, res) => {
 // DELETE /notes/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const existing = await prisma.note.findUnique({ where: { id: req.params.id } });
+    const existing = await prisma.note.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!existing) return res.status(404).json({ error: 'Nota no encontrada' });
     await prisma.note.delete({ where: { id: req.params.id } });
     if (existing && existing.gcalEventId) gcal.removeEvent(req.user.businessId, existing.gcalEventId);
     res.json({ ok: true });

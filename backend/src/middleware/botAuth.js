@@ -18,6 +18,13 @@ async function botLinkCheck(req, res, next) {
     if (!biz || biz.telegramBotEnabled !== true) {
       return res.status(403).json({ error: 'El bot de Telegram está deshabilitado para este negocio.' });
     }
+    // Revalidar el usuario contra la base (por si fue dado de baja o cambió de rol):
+    // el token dura 180 días y no debe seguir operando con datos viejos.
+    const user = await prisma.user.findUnique({ where: { id: link.userId }, select: { id: true, role: true, businessId: true } });
+    if (!user || user.businessId !== link.businessId) {
+      return res.status(401).json({ error: 'El usuario ya no existe o cambió de negocio. Volvé a vincular.' });
+    }
+    req.user.role = user.role; // usar el rol ACTUAL, no el del token
     // marcar uso (sin bloquear la respuesta)
     prisma.telegramLink.update({ where: { telegramUserId: String(req.user.tg) }, data: { lastUsedAt: new Date() } }).catch(() => {});
     req.botLink = link;
