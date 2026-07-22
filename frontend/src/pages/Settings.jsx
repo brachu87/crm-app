@@ -490,7 +490,7 @@ export default function Settings() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ fontSize: 36 }}>📖</div>
               <div style={{ flex: 1 }}>
-                <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Manual de usuario <span style={{ fontSize: 11, background: 'var(--primary)', color: '#fff', borderRadius: 8, padding: '1px 7px', marginLeft: 6 }}>v3.1</span></h2>
+                <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Manual de usuario <span style={{ fontSize: 11, background: 'var(--primary)', color: '#fff', borderRadius: 8, padding: '1px 7px', marginLeft: 6 }}>v4.0</span></h2>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-soft)' }}>
                   Guía completa actualizada: portal del socio, reservas de turnos online con calendario, confirmación de turnos por WhatsApp y más.
                 </p>
