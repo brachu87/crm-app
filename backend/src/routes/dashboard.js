@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/auth');
 const { markOverdueCuotas } = require('../lib/overdue');
 const { autoRenewCuotas } = require('../lib/autoRenew');
 const { shouldRun, markRan } = require('../lib/renewThrottle');
+const cache = require('../lib/cache');
 
 const router = express.Router();
 
@@ -13,6 +14,8 @@ router.use(authMiddleware);
 router.get('/', async (req, res) => {
   try {
     const businessId = req.user.businessId;
+    const _cached = cache.get('dash:' + businessId);
+    if (_cached) return res.json(_cached);
 
     // Auto-generar cuotas vencidas al abrir el dashboard (throttled: máx 1 vez/5min por negocio)
     if (shouldRun(businessId)) {
@@ -184,7 +187,7 @@ router.get('/', async (req, res) => {
     const currKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const currData = trendMap[currKey] || { income: 0, expenses: 0 };
 
-    res.json({
+    const _payload = {
       clientsCount,
       activitiesCount,
       servicesCount,
@@ -200,7 +203,9 @@ router.get('/', async (req, res) => {
       monthlyTrend: Object.values(trendMap),
       prevMonth: prevData,
       currMonth: currData,
-    });
+    };
+    cache.set('dash:' + businessId, _payload, 15000);
+    res.json(_payload);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener dashboard' });

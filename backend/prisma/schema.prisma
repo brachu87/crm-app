@@ -197,6 +197,8 @@ model Cuota {
 
   @@unique([enrollmentId, period])
   @@index([enrollmentId])
+  @@index([paymentStatus])
+  @@index([dueDate])
 }
 
 model Payment {
@@ -318,6 +320,7 @@ model Expense {
   createdAt     DateTime  @default(now())
 
   @@index([businessId])
+  @@index([businessId, date])
   @@index([supplierId])
 }
 
@@ -475,6 +478,8 @@ model Appointment {
   updatedAt     DateTime  @updatedAt
 
   @@index([businessId])
+  @@index([businessId, date])
+  @@index([status])
   @@index([serviceId])
   @@index([clientId])
   @@index([employeeId])

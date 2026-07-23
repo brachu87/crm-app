@@ -1,4 +1,5 @@
 const express = require('express');
+const cache = require('../lib/cache');
 const prisma = require('../prisma');
 const authMiddleware = require('../middleware/auth');
 const { markOverdueCuotas } = require('../lib/overdue');
@@ -23,6 +24,10 @@ router.get('/summary', async (req, res) => {
       since = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
       until = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     }
+
+    const _ckey = 'rep:' + bId + ':' + since.toISOString().slice(0,10) + ':' + until.toISOString().slice(0,10);
+    const _cached = cache.get(_ckey);
+    if (_cached) return res.json(_cached);
 
     // All payments in range (cuotas + turnos + manuales)
     const [payments, apptPayments, manualIncomes] = await Promise.all([
@@ -160,7 +165,7 @@ router.get('/summary', async (req, res) => {
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
 
-    res.json({
+    const _payload = {
       monthlyData: Object.values(monthlyMap),
       expensesByCategory,
       manualIncomesByCategory,
@@ -169,7 +174,9 @@ router.get('/summary', async (req, res) => {
       topClients,
       topSuppliers,
       employees,
-    });
+    };
+    cache.set(_ckey, _payload, 45000);
+    res.json(_payload);
   } catch (err) {
     console.error('[reports/summary]', err);
     res.status(500).json({ error: 'Error al generar reporte', detail: err.message });
