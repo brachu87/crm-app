@@ -52,6 +52,9 @@ router.post('/', auth, async (req, res) => {
   if (!activityId || dayOfWeek === undefined || !startTime || !endTime) {
     return res.status(400).json({ error: 'activityId, dayOfWeek, startTime y endTime son requeridos' });
   }
+  if (startTime >= endTime) {
+    return res.status(400).json({ error: 'La hora de fin debe ser posterior a la de inicio.' });
+  }
   try {
     const schedule = await prisma.classSchedule.create({
       data: {

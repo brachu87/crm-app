@@ -50,6 +50,8 @@ router.post('/', validate(schemas.appointmentCreate), async (req, res) => {
       // Quick work: just needs client, description, price, date
       if (!clientId || !date)
         return res.status(400).json({ error: 'Faltan campos requeridos' });
+      if (startTime && endTime && startTime >= endTime)
+        return res.status(400).json({ error: 'La hora de fin debe ser posterior a la de inicio.' });
       const a = await prisma.appointment.create({
         data: {
           businessId: req.user.businessId,
@@ -75,6 +77,8 @@ router.post('/', validate(schemas.appointmentCreate), async (req, res) => {
     // Regular appointment
     if (!serviceId || !clientId || !date || !startTime || !endTime)
       return res.status(400).json({ error: 'Faltan campos requeridos' });
+    if (startTime >= endTime)
+      return res.status(400).json({ error: 'La hora de fin debe ser posterior a la de inicio.' });
 
     // Evitar que el cliente quede con turnos superpuestos el mismo día
     const overlap = await prisma.appointment.findFirst({
@@ -114,6 +118,11 @@ router.put('/:id', async (req, res) => {
     const own = await prisma.appointment.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
     if (!own) return res.status(404).json({ error: 'Turno no encontrado' });
     const { status, paymentStatus, price, notes, employeeId, date, startTime, endTime, description } = req.body;
+    {
+      const st = startTime !== undefined ? startTime : own.startTime;
+      const et = endTime !== undefined ? endTime : own.endTime;
+      if (st && et && st >= et) return res.status(400).json({ error: 'La hora de fin debe ser posterior a la de inicio.' });
+    }
     const data = {};
     if (status !== undefined) data.status = status;
     if (paymentStatus !== undefined) {
