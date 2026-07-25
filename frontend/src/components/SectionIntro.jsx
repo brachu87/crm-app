@@ -32,13 +32,13 @@ export default function SectionIntro({ sectionKey, title, text }) {
 
   if (!show) return null;
   return (
-    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '14px 16px', marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+    <div style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.30)', borderRadius: 12, padding: '14px 16px', marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
       <span style={{ fontSize: 22, lineHeight: 1 }}>💡</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{title}</p>
+        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>{title}</p>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.5 }}>{text}</p>
       </div>
-      <button onClick={dismiss} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Entendido ✕</button>
+      <button onClick={dismiss} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Entendido ✕</button>
     </div>
   );
 }
