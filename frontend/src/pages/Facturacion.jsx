@@ -100,6 +100,7 @@ function TabBtn({ active, onClick, children }) {
 
 const COND_LABEL = { 1: 'Responsable Inscripto', 4: 'Exento', 5: 'Consumidor Final', 6: 'Monotributo' };
 function ComprobantesTab({ invoices, loading }) {
+  const can = useSectionPerms('comprobantes');
   if (loading) return <p style={{ color: 'var(--ink-soft)' }}>Cargando…</p>;
   if (!invoices.length) return <p style={{ color: 'var(--ink-soft)', padding: '20px 0' }}>Todavía no emitiste comprobantes.</p>;
   const issued = invoices.filter((i) => i.status === 'issued');
@@ -281,6 +282,7 @@ function ConfigTab({ config, onChange }) {
 }
 
 function NuevaFacturaModal({ config, onClose, onSaved }) {
+  const can = useSectionPerms('comprobantes');
   const defaultTipo = (config?.fiscalCondicion === 'RI') ? 'FACTURA B' : 'FACTURA C';
   const [tipo, setTipo] = useState(defaultTipo);
   const [clients, setClients] = useState([]);

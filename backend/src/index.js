@@ -62,6 +62,7 @@ app.use(helmet({
       // La app y el panel admin usan scripts/estilos inline; se permite inline pero
       // se restringen orígenes peligrosos (object-src, base-uri, frame-ancestors).
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
+      scriptSrcAttr: ["'unsafe-inline'"],   // permitir onclick inline (panel admin HTML)
       styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
       connectSrc: ["'self'", 'https:'],
