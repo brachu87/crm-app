@@ -202,6 +202,15 @@ router.post('/webhook', express.json(), async (req, res) => {
     const [businessId, cycleRef] = ref.split('|');
     if (!businessId) return;
 
+    // Idempotencia: Mercado Pago reenvía el webhook varias veces por el mismo pago.
+    // Registramos el id del pago; si ya existe, es un duplicado y no volvemos a sumar días.
+    try {
+      await prisma.mpPayment.create({ data: { id: String(payment.id), businessId, cycle: cycleRef || 'monthly' } });
+    } catch (dup) {
+      console.log('[billing] pago', payment.id, 'ya procesado; ignoro webhook duplicado');
+      return;
+    }
+
     const now = new Date();
     const days = cycleRef === 'annual' ? ANNUAL_MONTHS * 30 : PLAN_DAYS;
     const current = await prisma.business.findUnique({ where: { id: businessId }, select: { subscriptionExpires: true } });

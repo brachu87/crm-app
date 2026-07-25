@@ -595,3 +595,12 @@ model TelegramLink {
   @@index([businessId])
   @@index([userId])
 }
+
+model MpPayment {
+  id         String   @id            // id del pago de Mercado Pago (evita procesar duplicados del webhook)
+  businessId String
+  cycle      String?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+}
