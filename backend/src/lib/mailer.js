@@ -94,7 +94,7 @@ async function sendWelcomeEmail({ toEmail, toName, businessName }) {
           <td style="padding:36px 40px 12px;">
             <p style="margin:0 0 8px;font-size:21px;font-weight:700;color:#111;">¡Bienvenido${nombre ? ', ' + nombre : ''}! 👋</p>
             <p style="margin:0 0 18px;font-size:15px;color:#4B5563;line-height:1.7;">
-              Tu cuenta en Gestumio para <strong>${negocio}</strong> ya está activa. Tenés <strong>15 días de prueba</strong>
+              Tu cuenta en Gestumio para <strong>${negocio}</strong> ya está activa. Tenés <strong>1 mes de prueba</strong>
               para usar todo el sistema: clientes, cobranzas, caja diaria, agenda de turnos, actividades, empleados y reportes.
             </p>
 

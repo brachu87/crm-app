@@ -289,7 +289,7 @@ const FAQ = [
     id: 'trial',
     keywords: ['trial','prueba gratis','periodo de prueba','cuando vence','dias gratis','15 dias'],
     q: '¿Cuánto dura el período de prueba?',
-    a: 'El período de prueba es de 15 días gratis desde que te registrás. Podés usar todas las funciones sin restricciones.\n\nAl vencer, la cuenta se suspende hasta activar una suscripción.',
+    a: 'El período de prueba es de 1 mes gratis (30 días) desde que te registrás. Podés usar todas las funciones sin restricciones.\n\nAl vencer, la cuenta se suspende hasta activar una suscripción.',
   },
   {
     id: 'subscription',

@@ -264,7 +264,7 @@ function renderTable(accounts) {
       : `<button class="btn-sm btn-approve" onclick="approve('${a.id}')">Aprobar</button>`;
 
     const extendBtn = (a.subscriptionStatus === 'trial' || a.subscriptionStatus === 'expired')
-      ? `<button class="btn-sm btn-extend" onclick="extendTrial('${a.id}')" title="Resetear trial a 14 días">+14d</button>`
+      ? `<button class="btn-sm btn-extend" onclick="extendTrial('${a.id}')" title="Resetear trial a 30 días">+30d</button>`
       : '';
 
     return `<tr>
@@ -344,7 +344,7 @@ async function toggleBonif(id, val) {
 }
 
 async function extendTrial(id) {
-  if (!confirm('¿Resetear el trial a 14 días desde hoy?')) return;
+  if (!confirm('¿Resetear el trial a 30 días desde hoy?')) return;
   await fetch(API + `/admin/accounts/${id}/extend-trial`, { method:'PUT', headers:{'X-Admin-Secret':secret} });
   loadAccounts();
 }

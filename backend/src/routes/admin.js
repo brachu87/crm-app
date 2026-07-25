@@ -5,7 +5,7 @@ const { sendTest } = require('../lib/mailer');
 const { buildBusinessZip } = require('../lib/exportBusiness');
 const router = express.Router();
 
-const TRIAL_DAYS = 15;
+const TRIAL_DAYS = 30;
 const BASE_PRICE = 55000;      // precio del plan base (incluye INCLUDED_USERS usuarios)
 const EXTRA_USER_PRICE = 20000; // costo por cada usuario adicional
 const BOT_ADDON_PRICE = 30000;  // add-on del bot de Telegram
@@ -132,7 +132,7 @@ router.put('/accounts/:id/bonificado', adminAuth, async (req, res) => {
   }
 });
 
-// PUT /api/admin/accounts/:id/extend-trial — extiende trial 14 días más
+// PUT /api/admin/accounts/:id/extend-trial — reinicia el trial (30 días desde hoy)
 router.put('/accounts/:id/extend-trial', adminAuth, async (req, res) => {
   try {
     await prisma.business.update({

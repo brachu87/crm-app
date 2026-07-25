@@ -35,7 +35,7 @@ router.get('/status', authMiddleware, async (req, res) => {
   try {
     const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
     if (!biz) return res.status(404).json({ error: 'Negocio no encontrado' });
-    const TRIAL_DAYS = 15;
+    const TRIAL_DAYS = 30;
     const createdAt = new Date(biz.createdAt);
     const trialEnds = new Date(createdAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
     const now = new Date();
@@ -129,7 +129,7 @@ router.get('/public-checkout', async (req, res) => {
           {
             id: 'gestumio-plan-publico',
             title: 'Gestumio — Plan Mensual',
-            description: 'Gestión completa de tu negocio. 15 días de prueba gratuita incluidos.',
+            description: 'Gestión completa de tu negocio. 1 mes de prueba gratis incluido.',
             quantity: 1,
             currency_id: 'ARS',
             unit_price: PRICE,

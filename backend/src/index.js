@@ -469,9 +469,8 @@ async function ensureWATemplateColumns() {
 
 async function sweepExpiredTrials() {
   try {
-    // Trial = 15 days from createdAt. Auto-expire and block access.
-    // Trial vencido = creado hace más de 15 días. Prisma (agnóstico a la base).
-    const cutoff = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+    // Trial = 30 días desde createdAt. Auto-expira y bloquea acceso.
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const result = await prisma.business.updateMany({
       where: {
         subscriptionStatus: 'trial',
