@@ -6,7 +6,7 @@ try { ({ Prisma } = require('@prisma/client')); } catch (_) {}
 const AdmZip = require('adm-zip');
 
 // Campos sensibles que NO se exportan (auth/tokens)
-const SENSITIVE = new Set(['password', 'portalPassword', 'waToken', 'googleCalendarToken', 'googleCalendarId', 'afipCertPem', 'afipKeyPem', 'afipToken', 'afipSign', 'mpAccessToken']);
+const SENSITIVE = new Set(['password', 'portalPassword', 'waToken', 'googleCalendarToken', 'googleCalendarId', 'afipCertPem', 'afipKeyPem', 'afipCsrPem', 'afipToken', 'afipSign', 'mpAccessToken']);
 
 // Nombres amigables de archivo por modelo
 const FRIENDLY = {
