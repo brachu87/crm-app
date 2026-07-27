@@ -5,6 +5,7 @@ const fs = require('fs');
 const authMiddleware = require('../middleware/auth');
 const prisma = require('../prisma');
 const { buildBusinessZip } = require('../lib/exportBusiness');
+const { runBackupForBusiness } = require('../lib/backupCron');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -78,6 +79,9 @@ router.get('/info', async (req, res) => {
       email: biz.email || '',
       website: biz.website || '',
       instagram: biz.instagram || '',
+      dailyBackupEnabled: biz.dailyBackupEnabled === true,
+      dailyBackupHour: biz.dailyBackupHour ?? 8,
+      dailyBackupEmail: biz.dailyBackupEmail || '',
     });
   } catch (err) {
     console.error(err);
@@ -113,6 +117,9 @@ router.put('/', async (req, res) => {
       email: biz.email || '',
       website: biz.website || '',
       instagram: biz.instagram || '',
+      dailyBackupEnabled: biz.dailyBackupEnabled === true,
+      dailyBackupHour: biz.dailyBackupHour ?? 8,
+      dailyBackupEmail: biz.dailyBackupEmail || '',
     });
   } catch (err) {
     console.error(err);
@@ -238,6 +245,37 @@ router.delete('/telegram-links/:id', async (req, res) => {
   } catch (e) {
     console.error('[telegram-links delete]', e.message);
     res.status(500).json({ error: 'No se pudo revocar' });
+  }
+});
+
+// ── Backup diario de clientes por email ───────────────────────
+// PUT /api/business/backup-config { enabled, hour, email }
+router.put('/backup-config', async (req, res) => {
+  try {
+    const enabled = req.body.enabled === true || req.body.enabled === 'true';
+    let hour = parseInt(req.body.hour, 10);
+    if (isNaN(hour) || hour < 0 || hour > 23) hour = 8;
+    const email = (req.body.email || '').trim() || null;
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Email inválido' });
+    await prisma.business.update({
+      where: { id: req.user.businessId },
+      data: { dailyBackupEnabled: enabled, dailyBackupHour: hour, dailyBackupEmail: email },
+    });
+    res.json({ ok: true, enabled, hour, email: email || '' });
+  } catch (e) {
+    console.error('[backup-config]', e.message);
+    res.status(500).json({ error: 'No se pudo guardar la configuración de backup' });
+  }
+});
+
+// POST /api/business/backup-config/test — envía el backup ahora (prueba)
+router.post('/backup-config/test', async (req, res) => {
+  try {
+    const r = await runBackupForBusiness(req.user.businessId, { force: true });
+    res.json({ ok: true, to: r.to, tablas: r.tablas });
+  } catch (e) {
+    console.error('[backup-test]', e.message);
+    res.status(400).json({ error: e.message || 'No se pudo enviar el backup' });
   }
 });
 

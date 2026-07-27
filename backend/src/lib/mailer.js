@@ -39,7 +39,7 @@ function isEmailConfigured() {
 }
 
 // Envío unificado: prioriza la API HTTP de Brevo (HTTPS, no usa puertos SMTP), luego SMTP.
-async function deliver({ to, subject, html }) {
+async function deliver({ to, subject, html, attachments }) {
   if (process.env.BREVO_API_KEY) {
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -53,6 +53,7 @@ async function deliver({ to, subject, html }) {
         to: [{ email: to }],
         subject,
         htmlContent: html,
+        ...(attachments && attachments.length ? { attachment: attachments.map(a => ({ name: a.name, content: a.content })) } : {}),
       }),
     });
     if (!(res.status >= 200 && res.status < 300)) {
@@ -63,7 +64,7 @@ async function deliver({ to, subject, html }) {
   }
   const transporter = getTransporter();
   if (!transporter) throw new Error('Email no configurado (falta BREVO_API_KEY o SMTP_*)');
-  await transporter.sendMail({ from: mailFrom(), to, subject, html });
+  await transporter.sendMail({ from: mailFrom(), to, subject, html, attachments: (attachments || []).map(a => ({ filename: a.name, content: Buffer.from(a.content, 'base64') })) });
   return true;
 }
 
@@ -196,4 +197,19 @@ async function sendTest(toEmail) {
   }
 }
 
-module.exports = { sendWelcomeEmail, sendPasswordResetEmail, sendTest, sendEmail: deliver };
+// Envía el backup diario de clientes (CSV adjunto).
+async function sendBackupEmail({ toEmail, businessName, contentBase64, filename, fecha, resumen }) {
+  const detalle = Array.isArray(resumen) && resumen.length
+    ? `<p style="color:#6b7280;font-size:12px">Incluye: ${resumen.join(' · ')}</p>` : '';
+  const html = `<!DOCTYPE html><html lang="es"><body style="font-family:Arial,sans-serif;color:#1a1a1a">
+    <p>Hola 👋</p>
+    <p>Adjuntamos el <strong>respaldo completo de la base de datos</strong> de <strong>${businessName || 'tu negocio'}</strong> al ${fecha}, en formato SQL.</p>
+    <p>Incluye clientes, inscripciones, cuotas, pagos, facturas de venta, gastos/facturas de compra, empleados, turnos y más. Guardalo en un lugar seguro: sirve para recuperar tus datos ante cualquier imprevisto.</p>
+    ${detalle}
+    <p style="color:#6b7280;font-size:13px">Este correo es automático (Gestumio). Podés cambiar la hora o desactivarlo en Ajustes → Negocio. No se incluyen contraseñas ni tokens por seguridad.</p>
+  </body></html>`;
+  await deliver({ to: toEmail, subject: `Respaldo de tu base — ${businessName || 'Gestumio'} (${fecha})`, html, attachments: [{ name: filename, content: contentBase64 }] });
+  return true;
+}
+
+module.exports = { sendWelcomeEmail, sendPasswordResetEmail, sendTest, sendEmail: deliver, sendBackupEmail };

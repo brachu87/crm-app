@@ -355,6 +355,7 @@ export default function Settings() {
             </div>
           </div>
 
+          <BackupCard />
 
         </>
       )}
@@ -1487,6 +1488,61 @@ function TelegramCard() {
           </table></div>
         )}
       </div>
+    </div>
+  );
+}
+
+
+function BackupCard() {
+  const [cfg, setCfg] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    api.get('/business/info')
+      .then(r => setCfg({ enabled: !!r.data.dailyBackupEnabled, hour: r.data.dailyBackupHour ?? 8, email: r.data.dailyBackupEmail || '' }))
+      .catch(() => setCfg({ enabled: false, hour: 8, email: '' }));
+  }, []);
+  async function save() {
+    setSaving(true); setMsg('');
+    try { await api.put('/business/backup-config', { enabled: cfg.enabled, hour: cfg.hour, email: cfg.email }); setMsg('✅ Configuración guardada'); }
+    catch (e) { setMsg(e.response?.data?.error || 'Error al guardar'); }
+    finally { setSaving(false); }
+  }
+  async function enviarAhora() {
+    setSending(true); setMsg('');
+    try { const r = await api.post('/business/backup-config/test'); setMsg(`✅ Backup enviado a ${r.data.to}`); }
+    catch (e) { setMsg(e.response?.data?.error || 'No se pudo enviar'); }
+    finally { setSending(false); }
+  }
+  if (!cfg) return null;
+  return (
+    <div className="card" style={{ marginTop: 24 }}>
+      <h2 style={{ fontSize: 16, marginBottom: 4 }}>💾 Respaldo automático por email</h2>
+      <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>
+        Todos los días, a la hora que elijas, te enviamos por email un respaldo completo de tu base de datos (archivo SQL): clientes, cuotas y pagos, facturas de venta y de compra, gastos, empleados, turnos y más. Así podés recuperar tus datos ante cualquier imprevisto.
+      </p>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 14 }}>
+        <input type="checkbox" checked={cfg.enabled} onChange={e => setCfg(c => ({ ...c, enabled: e.target.checked }))} />
+        <span style={{ fontSize: 14 }}>Enviar respaldo diario de mi base de datos</span>
+      </label>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', opacity: cfg.enabled ? 1 : 0.5, pointerEvents: cfg.enabled ? 'auto' : 'none' }}>
+        <div className="field" style={{ width: 130 }}>
+          <label>Hora</label>
+          <select value={cfg.hour} onChange={e => setCfg(c => ({ ...c, hour: parseInt(e.target.value, 10) }))}>
+            {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}
+          </select>
+        </div>
+        <div className="field" style={{ flex: 1, minWidth: 220 }}>
+          <label>Email de destino</label>
+          <input value={cfg.email} onChange={e => setCfg(c => ({ ...c, email: e.target.value }))} placeholder="Por defecto, el mail del dueño" />
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+        <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
+        <button className="btn btn-secondary" onClick={enviarAhora} disabled={sending}>{sending ? 'Enviando…' : '📤 Enviar ahora (prueba)'}</button>
+      </div>
+      {msg && <div style={{ marginTop: 12, fontSize: 13, color: 'var(--ink-soft)' }}>{msg}</div>}
     </div>
   );
 }

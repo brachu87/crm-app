@@ -80,6 +80,12 @@ model Business {
   serviceSchedules ServiceSchedule[]
   telegramBotEnabled Boolean @default(false)  // add-on pago del bot de Telegram (+$30.000/mes)
 
+  // Backup diario de clientes por email
+  dailyBackupEnabled Boolean  @default(false)
+  dailyBackupHour    Int      @default(8)
+  dailyBackupEmail   String?
+  dailyBackupLastSent String?  // YYYY-MM-DD (idempotencia)
+
   invoices         Invoice[]
 }
 

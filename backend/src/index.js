@@ -47,6 +47,7 @@ const auditRoutes = require('./routes/audit');
 const onboardingRoutes = require('./routes/onboarding');
 const botRoutes = require('./routes/bot');
 const { startReminderCron } = require('./lib/reminderCron');
+const { startBackupCron } = require('./lib/backupCron');
 
 const app = express();
 
@@ -520,6 +521,7 @@ setTimeout(() => { try { if (!backupExistsToday()) runBackup('startup'); } catch
 
 // Recordatorios por WhatsApp (Meta Cloud API) — envío manual desde la app.
 startReminderCron(); // Barrido automático por hora (cada negocio elige hora y si lo activa)
+startBackupCron(); // Backup diario de clientes por email (por negocio, según su hora)
 
 // Sentry: capturar errores de request que se propaguen a Express (después de las rutas).
 if (Sentry && process.env.SENTRY_DSN && typeof Sentry.setupExpressErrorHandler === 'function') {

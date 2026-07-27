@@ -6,7 +6,7 @@ try { ({ Prisma } = require('@prisma/client')); } catch (_) {}
 const AdmZip = require('adm-zip');
 
 // Campos sensibles que NO se exportan (auth/tokens)
-const SENSITIVE = new Set(['password', 'portalPassword', 'waToken', 'googleCalendarToken', 'googleCalendarId']);
+const SENSITIVE = new Set(['password', 'portalPassword', 'waToken', 'googleCalendarToken', 'googleCalendarId', 'afipCertPem', 'afipKeyPem', 'afipToken', 'afipSign', 'mpAccessToken']);
 
 // Nombres amigables de archivo por modelo
 const FRIENDLY = {
@@ -87,4 +87,72 @@ async function buildBusinessZip(businessId) {
   return zip.toBuffer();
 }
 
-module.exports = { buildBusinessZip };
+// ── Backup en SQL (INSERTs) de todos los datos del negocio ─────────────────
+function sqlVal(v) {
+  if (v === null || v === undefined) return 'NULL';
+  if (v instanceof Date) return "'" + v.toISOString() + "'";
+  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : 'NULL';
+  if (typeof v === 'object') v = JSON.stringify(v);
+  return "'" + String(v).replace(/'/g, "''") + "'";
+}
+
+// Orden de tablas pensado para restaurar respetando dependencias (FKs)
+const SQL_ORDER = [
+  'Business', 'User', 'Branch', 'Client', 'Supplier', 'Employee', 'Activity', 'Service',
+  'ClientNote', 'Enrollment', 'Cuota', 'Payment', 'ClassSchedule', 'ServiceSchedule',
+  'Appointment', 'Attendance', 'PayrollRecord', 'Expense', 'ManualIncome', 'DailyCash',
+  'AccountMovement', 'Note', 'ClassReservation', 'ActivityEmployee', 'Invoice',
+];
+
+async function buildBusinessSql(businessId) {
+  const models = (Prisma && Prisma.dmmf && Prisma.dmmf.datamodel.models) || [];
+  const byName = {}; models.forEach((m) => { byName[m.name] = m; });
+  const ordered = [...SQL_ORDER.filter((n) => byName[n]), ...models.map((m) => m.name).filter((n) => !SQL_ORDER.includes(n))];
+
+  const now = new Date();
+  let out = '-- Backup de datos — Gestumio\n';
+  out += '-- Negocio: ' + businessId + '\n';
+  out += '-- Fecha: ' + now.toISOString() + '\n';
+  out += '-- Incluye clientes, inscripciones, cuotas, pagos, facturas de venta, gastos/facturas de compra, empleados, turnos y mas.\n';
+  out += '-- No incluye contrasenas ni tokens/certificados por seguridad.\n';
+  out += '-- Para restaurar: ejecutar sobre una base con el esquema de Gestumio.\n\n';
+  out += 'BEGIN;\n\n';
+  const resumen = [];
+
+  for (const name of ordered) {
+    const m = byName[name];
+    if (!m) continue;
+    const key = name.charAt(0).toLowerCase() + name.slice(1);
+    const delegate = prisma[key];
+    if (!delegate || typeof delegate.findMany !== 'function') continue;
+
+    const hasBiz = m.fields.some((f) => f.name === 'businessId');
+    let where = null;
+    if (name === 'Business') where = { id: businessId };
+    else if (hasBiz) where = { businessId };
+    else where = relationalWhere(name, businessId);
+    if (!where) continue;
+
+    let rows = [];
+    try { rows = await delegate.findMany({ where }); }
+    catch (e) { console.warn('[sql-backup] no se pudo exportar', name, e.message); continue; }
+    if (!rows.length) continue;
+
+    // columnas escalares (excluye relaciones y campos sensibles)
+    const scalarFields = m.fields.filter((f) => f.kind !== 'object' && !SENSITIVE.has(f.name)).map((f) => f.name);
+    const cols = scalarFields.filter((c) => c in rows[0]);
+    out += `-- ${FRIENDLY[name] || name} (${rows.length})\n`;
+    for (const r of rows) {
+      const vals = cols.map((c) => sqlVal(r[c])).join(', ');
+      out += `INSERT INTO "${name}" (${cols.map((c) => '"' + c + '"').join(', ')}) VALUES (${vals});\n`;
+    }
+    out += '\n';
+    resumen.push(`${name}: ${rows.length}`);
+  }
+
+  out += 'COMMIT;\n';
+  return { sql: out, resumen };
+}
+
+module.exports = { buildBusinessZip, buildBusinessSql };
