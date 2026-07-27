@@ -1520,7 +1520,7 @@ function BackupCard() {
     <div className="card" style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: 16, marginBottom: 4 }}>💾 Respaldo automático por email</h2>
       <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 16px' }}>
-        Todos los días, a la hora que elijas, te enviamos por email un respaldo completo de tu base de datos (archivo SQL): clientes, cuotas y pagos, facturas de venta y de compra, gastos, empleados, turnos y más. Así podés recuperar tus datos ante cualquier imprevisto.
+        Todos los días, a la hora que elijas, te enviamos por email un respaldo completo de tu base de datos (SQL comprimido en ZIP): clientes, cuotas y pagos, facturas de venta y de compra, gastos, empleados, turnos y más. Así podés recuperar tus datos ante cualquier imprevisto.
       </p>
       <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 14 }}>
         <input type="checkbox" checked={cfg.enabled} onChange={e => setCfg(c => ({ ...c, enabled: e.target.checked }))} />

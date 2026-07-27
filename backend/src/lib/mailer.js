@@ -203,7 +203,7 @@ async function sendBackupEmail({ toEmail, businessName, contentBase64, filename,
     ? `<p style="color:#6b7280;font-size:12px">Incluye: ${resumen.join(' · ')}</p>` : '';
   const html = `<!DOCTYPE html><html lang="es"><body style="font-family:Arial,sans-serif;color:#1a1a1a">
     <p>Hola 👋</p>
-    <p>Adjuntamos el <strong>respaldo completo de la base de datos</strong> de <strong>${businessName || 'tu negocio'}</strong> al ${fecha}, en formato SQL.</p>
+    <p>Adjuntamos el <strong>respaldo completo de la base de datos</strong> de <strong>${businessName || 'tu negocio'}</strong> al ${fecha}, en un archivo ZIP con el volcado SQL adentro.</p>
     <p>Incluye clientes, inscripciones, cuotas, pagos, facturas de venta, gastos/facturas de compra, empleados, turnos y más. Guardalo en un lugar seguro: sirve para recuperar tus datos ante cualquier imprevisto.</p>
     ${detalle}
     <p style="color:#6b7280;font-size:13px">Este correo es automático (Gestumio). Podés cambiar la hora o desactivarlo en Ajustes → Negocio. No se incluyen contraseñas ni tokens por seguridad.</p>

@@ -4,6 +4,7 @@ const cron = require('node-cron');
 const prisma = require('../prisma');
 const { sendBackupEmail } = require('./mailer');
 const { buildBusinessSql } = require('./exportBusiness');
+const AdmZip = require('adm-zip');
 
 function hoyAR() {
   return new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
@@ -30,9 +31,12 @@ async function runBackupForBusiness(businessId, { force = false } = {}) {
   if (!to) throw new Error('No hay email de destino configurado');
 
   const { sql, resumen } = await buildBusinessSql(businessId);
-  const contentBase64 = Buffer.from(sql, 'utf8').toString('base64');
   const slug = biz.name ? biz.name.replace(/[^\w.-]+/g, '_') : 'gestumio';
-  const filename = `backup-${slug}-${hoy}.sql`;
+  // Brevo no permite adjuntar .sql, así que lo mandamos comprimido en un .zip
+  const zip = new AdmZip();
+  zip.addFile(`backup-${slug}-${hoy}.sql`, Buffer.from(sql, 'utf8'));
+  const contentBase64 = zip.toBuffer().toString('base64');
+  const filename = `backup-${slug}-${hoy}.zip`;
 
   await sendBackupEmail({ toEmail: to, businessName: biz.name, contentBase64, filename, fecha: hoy, resumen });
   await prisma.business.update({ where: { id: businessId }, data: { dailyBackupLastSent: hoy } });
