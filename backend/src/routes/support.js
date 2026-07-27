@@ -6,7 +6,7 @@ router.use(auth);
 
 // Base de conocimiento de Gestumio (cerebro del asistente).
 const KB = `
-Gestumio es un sistema de gestión (CRM) web para negocios que cobran cuotas o turnos:
+Gestumio es un sistema ERP web para negocios que cobran cuotas o turnos:
 gimnasios, academias, estudios (danza, pilates, yoga, artes marciales), escuelas deportivas,
 estética, consultorios y profesionales de servicios. Se usa desde el navegador (compu o celular).
 
