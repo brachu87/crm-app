@@ -161,6 +161,7 @@ export const PERMISSION_TREE = [
       { key: 'eliminar',     label: 'Eliminar' },
       { key: 'enviar',       label: 'Enviar por WhatsApp' },
       { key: 'convertir_ot', label: 'Convertir en orden de trabajo' },
+      { key: 'facturar',     label: 'Facturar (AFIP)' },
     ],
   },
   {

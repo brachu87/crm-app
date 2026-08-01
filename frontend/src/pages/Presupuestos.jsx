@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
 import confirmDialog from '../utils/confirm';
@@ -25,6 +26,7 @@ async function downloadPdf(id, numero) {
 
 export default function Presupuestos() {
   const can = useSectionPerms('presupuestos');
+  const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -62,6 +64,14 @@ export default function Presupuestos() {
     try { await api.post(`/work-orders/from-budget/${b.id}`); alert('✅ Orden de trabajo creada. La ves en Comprobantes → Órdenes de trabajo.'); load(); }
     catch (e) { alert(e.response?.data?.error || 'No se pudo crear la orden'); load(); }
   }
+  function facturar(b) {
+    // Abre Facturación con la factura precargada con el cliente y los ítems del presupuesto
+    navigate('/comprobantes', { state: { prefillFactura: {
+      razonSocial: b.clienteNombre || '',
+      docNro: (b.clienteDoc || '').replace(/\D/g, ''),
+      items: (b.items || []).map(it => ({ descripcion: it.descripcion, cantidad: Number(it.cantidad) || 1, precio: Number(it.precio) || 0, alicuota: 21 })),
+    } } });
+  }
 
   return (
     <div className="page">
@@ -95,6 +105,7 @@ export default function Presupuestos() {
                       {can.editar && b.status !== 'aceptado' && <button className="btn btn-sm" onClick={() => setStatus(b, 'aceptado')} title="Marcar aceptado" style={{ color: '#15803d' }}>✓</button>}
                       {can.convertir_ot && b.status === 'aceptado' && !b.tieneOT && <button className="btn btn-sm" onClick={() => convertirOT(b)} title="Convertir en orden de trabajo">🛠️ OT</button>}
                       {b.tieneOT && <span className="pill pill-paid" title="Ya tiene orden de trabajo">OT ✓</span>}
+                      {can.facturar && b.status === 'aceptado' && <button className="btn btn-sm" onClick={() => facturar(b)} title="Facturar (AFIP)">🧾 Facturar</button>}
                       {can.editar && b.status !== 'rechazado' && <button className="btn btn-sm" onClick={() => setStatus(b, 'rechazado')} title="Marcar rechazado" style={{ color: '#b91c1c' }}>✕</button>}
                       {can.editar && <button className="btn btn-sm" onClick={() => { setEditing(b); setShowModal(true); }} title="Editar">✎</button>}
                       {can.eliminar && <button className="btn btn-sm" onClick={() => del(b)} title="Eliminar">🗑</button>}
