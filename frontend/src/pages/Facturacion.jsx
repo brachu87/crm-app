@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
 import WhatsAppInvoiceButton from '../components/WhatsAppInvoiceButton';
@@ -36,11 +37,34 @@ const COND_IVA = [
 
 export default function Facturacion() {
   const can = useSectionPerms('comprobantes');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [tab, setTab] = useState('comprobantes');
   const [invoices, setInvoices] = useState([]);
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const [prefill, setPrefill] = useState(null);
+
+  // Si venimos desde una Orden de trabajo con "Facturar", abrimos el modal precargado
+  useEffect(() => {
+    const pf = location.state?.prefillFactura;
+    if (pf) {
+      setPrefill(pf);
+      setTab('comprobantes');
+      setShowNew(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, []); // eslint-disable-line
+
+  async function afterSaved(invoice) {
+    if (prefill?.workOrderId) {
+      try { await api.post(`/work-orders/${prefill.workOrderId}/marcar-facturada`, { invoiceId: invoice?.id }); } catch {}
+    }
+    setPrefill(null);
+    setShowNew(false);
+    loadAll();
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -82,7 +106,7 @@ export default function Facturacion() {
       {tab === 'config' && can.config && <ConfigTab config={config} onChange={loadAll} />}
 
       {showNew && (
-        <NuevaFacturaModal config={config} onClose={() => setShowNew(false)} onSaved={() => { setShowNew(false); loadAll(); }} />
+        <NuevaFacturaModal config={config} initial={prefill} onClose={() => { setShowNew(false); setPrefill(null); }} onSaved={afterSaved} />
       )}
     </div>
   );
@@ -281,16 +305,20 @@ function ConfigTab({ config, onChange }) {
   );
 }
 
-function NuevaFacturaModal({ config, onClose, onSaved }) {
+function NuevaFacturaModal({ config, onClose, onSaved, initial }) {
   const can = useSectionPerms('comprobantes');
   const defaultTipo = (config?.fiscalCondicion === 'RI') ? 'FACTURA B' : 'FACTURA C';
   const [tipo, setTipo] = useState(defaultTipo);
   const [clients, setClients] = useState([]);
   const [clientId, setClientId] = useState('');
-  const [razonSocial, setRazonSocial] = useState('');
-  const [docNro, setDocNro] = useState('');
+  const [razonSocial, setRazonSocial] = useState(initial?.razonSocial || '');
+  const [docNro, setDocNro] = useState(initial?.docNro || '');
   const [condIva, setCondIva] = useState(5);
-  const [items, setItems] = useState([{ descripcion: '', cantidad: 1, precio: '', alicuota: 21 }]);
+  const [items, setItems] = useState(
+    (Array.isArray(initial?.items) && initial.items.length)
+      ? initial.items.map(it => ({ descripcion: it.descripcion || '', cantidad: Number(it.cantidad) || 1, precio: it.precio ?? '', alicuota: it.alicuota ?? 21 }))
+      : [{ descripcion: '', cantidad: 1, precio: '', alicuota: 21 }]
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState(null);
@@ -349,7 +377,7 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
   if (ok) {
     const inv = ok.invoice || {};
     return (
-      <div className="modal-overlay" onClick={onSaved}>
+      <div className="modal-overlay" onClick={() => onSaved(inv)}>
         <div className="modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
           <h2>✅ Factura autorizada</h2>
           <p style={{ margin: '8px 0' }}>{inv.tipo} N° {inv.puntoVenta}-{inv.numero}</p>
@@ -357,7 +385,7 @@ function NuevaFacturaModal({ config, onClose, onSaved }) {
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
             {inv.id && <button className="btn btn-secondary" onClick={() => downloadInvoicePdf(inv.id)}>⬇ Ver PDF</button>}
             {inv.id && <WhatsAppInvoiceButton invoiceId={inv.id} />}
-            <button className="btn btn-primary" onClick={onSaved}>Listo</button>
+            <button className="btn btn-primary" onClick={() => onSaved(inv)}>Listo</button>
           </div>
         </div>
       </div>

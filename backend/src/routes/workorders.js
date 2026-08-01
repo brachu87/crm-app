@@ -90,6 +90,38 @@ router.put('/:id', async (req, res) => {
   } catch (e) { console.error('[wo] update', e.message); res.status(500).json({ error: 'No se pudo actualizar' }); }
 });
 
+// POST /api/work-orders/:id/cobrar  -> registra un ingreso por el total de la OT
+router.post('/:id/cobrar', async (req, res) => {
+  try {
+    const own = await prisma.workOrder.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!own) return res.status(404).json({ error: 'Orden no encontrada' });
+    if (own.status !== 'terminada') return res.status(400).json({ error: 'Solo se pueden cobrar órdenes terminadas' });
+    if (own.cobrada) return res.status(400).json({ error: 'Esta orden ya fue cobrada' });
+    if (!(own.total > 0)) return res.status(400).json({ error: 'La orden no tiene un total a cobrar' });
+    const hoy = new Date().toISOString().slice(0, 10);
+    const desc = `OT N° ${String(own.numero).padStart(6, '0')}${own.titulo ? ' · ' + own.titulo : (own.clienteNombre ? ' · ' + own.clienteNombre : '')}`;
+    const inc = await prisma.manualIncome.create({ data: {
+      businessId: req.user.businessId, clientId: own.clientId || null,
+      amount: own.total, description: desc.slice(0, 240), category: 'Orden de trabajo', date: hoy,
+    } });
+    const wo = await prisma.workOrder.update({ where: { id: own.id }, data: { cobrada: true, manualIncomeId: inc.id } });
+    logAudit(req, { action: 'cobro_orden_trabajo', entity: 'orden_trabajo', entityId: wo.id, detail: `#${wo.numero} · $${own.total}` });
+    res.json(parse(wo));
+  } catch (e) { console.error('[wo] cobrar', e.message); res.status(500).json({ error: 'No se pudo registrar el cobro' }); }
+});
+
+// POST /api/work-orders/:id/marcar-facturada  -> se llama luego de emitir la factura desde la OT
+router.post('/:id/marcar-facturada', async (req, res) => {
+  try {
+    const own = await prisma.workOrder.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
+    if (!own) return res.status(404).json({ error: 'Orden no encontrada' });
+    const { invoiceId } = req.body || {};
+    const wo = await prisma.workOrder.update({ where: { id: own.id }, data: { facturada: true, invoiceId: invoiceId || own.invoiceId || null } });
+    logAudit(req, { action: 'facturo_orden_trabajo', entity: 'orden_trabajo', entityId: wo.id, detail: `#${wo.numero}` });
+    res.json(parse(wo));
+  } catch (e) { console.error('[wo] marcar-facturada', e.message); res.status(500).json({ error: 'No se pudo marcar como facturada' }); }
+});
+
 // DELETE /api/work-orders/:id
 router.delete('/:id', async (req, res) => {
   try {

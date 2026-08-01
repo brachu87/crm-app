@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
 import confirmDialog from '../utils/confirm';
@@ -14,6 +15,7 @@ const ESTADOS = {
 
 export default function OrdenesTrabajo() {
   const can = useSectionPerms('ordenes');
+  const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -26,6 +28,18 @@ export default function OrdenesTrabajo() {
 
   async function setStatus(w, status) {
     try { await api.put(`/work-orders/${w.id}`, { status }); load(); } catch (e) { alert(e.response?.data?.error || 'Error'); }
+  }
+  async function cobrar(w) {
+    if (!(await confirmDialog(`¿Registrar el cobro de ${fmt(w.total)} por la orden N° ${String(w.numero).padStart(6, '0')}? Se sumará como ingreso en la caja.`))) return;
+    try { await api.post(`/work-orders/${w.id}/cobrar`); load(); } catch (e) { alert(e.response?.data?.error || 'No se pudo cobrar'); }
+  }
+  function facturar(w) {
+    // Abre Facturación con el modal de Nueva factura ya cargado con los datos de la OT
+    navigate('/comprobantes', { state: { prefillFactura: {
+      workOrderId: w.id,
+      razonSocial: w.clienteNombre || '',
+      items: (w.items || []).map(it => ({ descripcion: it.descripcion, cantidad: Number(it.cantidad) || 1, precio: Number(it.precio) || 0, alicuota: 21 })),
+    } } });
   }
   async function del(w) {
     if (!(await confirmDialog(`¿Eliminar la orden N° ${String(w.numero).padStart(6, '0')}?`))) return;
@@ -56,12 +70,18 @@ export default function OrdenesTrabajo() {
                   <td data-label="Cliente">{w.clienteNombre || '—'}</td>
                   <td data-label="Asignado">{w.employeeName || '—'}</td>
                   <td data-label="Total" style={{ textAlign: 'right' }}>{fmt(w.total)}</td>
-                  <td data-label="Estado"><span className={(ESTADOS[w.status] || ESTADOS.pendiente).cls}>{(ESTADOS[w.status] || ESTADOS.pendiente).label}</span></td>
+                  <td data-label="Estado">
+                    <span className={(ESTADOS[w.status] || ESTADOS.pendiente).cls}>{(ESTADOS[w.status] || ESTADOS.pendiente).label}</span>
+                    {w.facturada && <span className="pill pill-paid" style={{ marginLeft: 4 }}>Facturada</span>}
+                    {w.cobrada && <span className="pill pill-paid" style={{ marginLeft: 4 }}>Cobrada</span>}
+                  </td>
                   <td data-label="Fecha">{w.scheduledDate ? fdate(w.scheduledDate) : '—'}</td>
                   <td data-label="" className="actions-cell">
                     <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
                       {can.editar && w.status === 'pendiente' && <button className="btn btn-sm" onClick={() => setStatus(w, 'en_curso')} title="Marcar en curso">▶</button>}
                       {can.editar && (w.status === 'pendiente' || w.status === 'en_curso') && <button className="btn btn-sm" onClick={() => setStatus(w, 'terminada')} title="Marcar terminada" style={{ color: '#15803d' }}>✓</button>}
+                      {w.status === 'terminada' && !w.facturada && <button className="btn btn-sm" onClick={() => facturar(w)} title="Facturar (AFIP)">🧾 Facturar</button>}
+                      {can.editar && w.status === 'terminada' && !w.cobrada && <button className="btn btn-sm" onClick={() => cobrar(w)} title="Registrar cobro" style={{ color: '#15803d' }}>💵 Cobrar</button>}
                       {can.editar && <button className="btn btn-sm" onClick={() => { setEditing(w); setShowModal(true); }} title="Editar">✎</button>}
                       {can.editar && w.status !== 'cancelada' && w.status !== 'terminada' && <button className="btn btn-sm" onClick={() => setStatus(w, 'cancelada')} title="Cancelar" style={{ color: '#b91c1c' }}>✕</button>}
                       {can.eliminar && <button className="btn btn-sm" onClick={() => del(w)} title="Eliminar">🗑</button>}

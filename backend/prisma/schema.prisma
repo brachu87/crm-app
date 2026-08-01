@@ -646,6 +646,10 @@ model WorkOrder {
   scheduledDate String?  // YYYY-MM-DD
   notas         String?
   completedAt   DateTime?
+  facturada     Boolean  @default(false)
+  cobrada       Boolean  @default(false)
+  invoiceId     String?
+  manualIncomeId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
