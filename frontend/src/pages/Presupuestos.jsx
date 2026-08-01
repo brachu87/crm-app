@@ -57,6 +57,11 @@ export default function Presupuestos() {
       } else { alert(msg || 'No se pudo enviar'); }
     }
   }
+  async function convertirOT(b) {
+    if (!(await confirmDialog(`¿Convertir el presupuesto N° ${String(b.numero).padStart(6,'0')} en una orden de trabajo?`))) return;
+    try { await api.post(`/work-orders/from-budget/${b.id}`); alert('✅ Orden de trabajo creada. La ves en Comprobantes → Órdenes de trabajo.'); }
+    catch (e) { alert(e.response?.data?.error || 'No se pudo crear la orden'); }
+  }
 
   return (
     <div className="page">
@@ -88,6 +93,7 @@ export default function Presupuestos() {
                       <button className="btn btn-sm" onClick={() => downloadPdf(b.id, b.numero)} title="Descargar PDF">PDF</button>
                       {can.enviar && <button className="btn btn-sm" onClick={() => sendWa(b)} title="Enviar por WhatsApp">📲</button>}
                       {can.editar && b.status !== 'aceptado' && <button className="btn btn-sm" onClick={() => setStatus(b, 'aceptado')} title="Marcar aceptado" style={{ color: '#15803d' }}>✓</button>}
+                      {b.status === 'aceptado' && <button className="btn btn-sm" onClick={() => convertirOT(b)} title="Convertir en orden de trabajo">🛠️ OT</button>}
                       {can.editar && b.status !== 'rechazado' && <button className="btn btn-sm" onClick={() => setStatus(b, 'rechazado')} title="Marcar rechazado" style={{ color: '#b91c1c' }}>✕</button>}
                       {can.editar && <button className="btn btn-sm" onClick={() => { setEditing(b); setShowModal(true); }} title="Editar">✎</button>}
                       {can.eliminar && <button className="btn btn-sm" onClick={() => del(b)} title="Eliminar">🗑</button>}

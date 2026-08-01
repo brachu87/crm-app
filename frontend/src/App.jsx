@@ -20,6 +20,7 @@ import Reports from './pages/Reports';
 import Prices from './pages/Prices';
 import Facturacion from './pages/Facturacion';
 import Presupuestos from './pages/Presupuestos';
+import OrdenesTrabajo from './pages/OrdenesTrabajo';
 import Auditoria from './pages/Auditoria';
 import Suppliers from './pages/Suppliers';
 import SupplierDetail from './pages/SupplierDetail';
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="precios" element={<Prices />} />
             <Route path="comprobantes" element={<Facturacion />} />
             <Route path="presupuestos" element={<Presupuestos />} />
+            <Route path="ordenes" element={<OrdenesTrabajo />} />
             <Route path="historial" element={<Auditoria />} />
             <Route path="proveedores" element={<Suppliers />} />
             <Route path="proveedores/:id" element={<SupplierDetail />} />

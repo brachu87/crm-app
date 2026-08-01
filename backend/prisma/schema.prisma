@@ -630,3 +630,27 @@ model Budget {
   @@index([businessId])
   @@index([clientId])
 }
+
+model WorkOrder {
+  id            String   @id @default(cuid())
+  businessId    String
+  budgetId      String?
+  clientId      String?
+  clienteNombre String?
+  numero        Int
+  titulo        String?
+  employeeId    String?
+  itemsJson     String   @default("[]")
+  total         Float    @default(0)
+  status        String   @default("pendiente") // pendiente | en_curso | terminada | cancelada
+  scheduledDate String?  // YYYY-MM-DD
+  notas         String?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([budgetId])
+  @@index([clientId])
+  @@index([employeeId])
+}

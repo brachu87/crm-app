@@ -162,6 +162,15 @@ export const PERMISSION_TREE = [
     ],
   },
   {
+    key: 'ordenes', label: 'Órdenes de trabajo', icon: '🛠️',
+    actions: [
+      { key: 'ver',      label: 'Ver órdenes' },
+      { key: 'crear',    label: 'Crear orden' },
+      { key: 'editar',   label: 'Editar / estado / asignar' },
+      { key: 'eliminar', label: 'Eliminar' },
+    ],
+  },
+  {
     key: 'comprobantes', label: 'Facturación AFIP', icon: '🧾',
     actions: [
       { key: 'ver',      label: 'Ver comprobantes' },
@@ -209,6 +218,7 @@ export const ROUTE_MODULE = {
   '/sedes': 'sedes',
   '/comprobantes': 'comprobantes',
   '/presupuestos': 'presupuestos',
+  '/ordenes': 'ordenes',
   '/historial': 'auditoria',
 };
 
