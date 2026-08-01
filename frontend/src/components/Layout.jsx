@@ -31,15 +31,21 @@ const NAV_GROUPS = [
     ],
   },
   {
+    label: 'Comprobantes',
+    icon: '🧾',
+    links: [
+      { to: '/cobranza',     label: 'Cobros' },
+      { to: '/comprobantes', label: 'Facturas',    module: 'comprobantes' },
+    ],
+  },
+  {
     label: 'Finanzas',
     icon: '💰',
     links: [
-      { to: '/cobranza', label: 'Cobranza' },
       { to: '/caja',     label: 'Caja del día',      module: 'caja' },
       { to: '/reportes', label: 'Reportes',           module: 'reportes' },
       { to: '/gastos',   label: 'Gastos',             module: 'gastos' },
       { to: '/precios',  label: 'Grilla de precios',  module: 'precios' },
-      { to: '/comprobantes', label: 'Facturación',        module: 'comprobantes' },
     ],
   },
   {
