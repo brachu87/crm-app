@@ -485,4 +485,69 @@ router.get('/class-occupancy', async (req, res) => {
   }
 });
 
+// GET /api/reports/comprobantes?months=6 OR ?from&to  → Presupuestos y Órdenes de trabajo
+router.get('/comprobantes', async (req, res) => {
+  try {
+    const bId = req.user.businessId;
+    const months = parseInt(req.query.months) || 6;
+    let since, until;
+    if (req.query.from && req.query.to) {
+      since = new Date(req.query.from + 'T00:00:00');
+      until = new Date(req.query.to + 'T23:59:59');
+    } else {
+      const now = new Date();
+      since = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+      until = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
+    const range = { createdAt: { gte: since, lte: until } };
+    const mesKey = (d) => new Date(d).toISOString().slice(0, 7);
+
+    const [budgets, workorders] = await Promise.all([
+      prisma.budget.findMany({ where: { businessId: bId, ...range }, select: { status: true, total: true, createdAt: true } }),
+      prisma.workOrder.findMany({ where: { businessId: bId, ...range }, select: { status: true, total: true, facturada: true, cobrada: true, createdAt: true } }),
+    ]);
+
+    // ── Presupuestos ──
+    const bEstados = ['borrador', 'enviado', 'aceptado', 'rechazado'];
+    const bPorEstado = bEstados.map(e => {
+      const arr = budgets.filter(b => b.status === e);
+      return { estado: e, count: arr.length, total: arr.reduce((s, b) => s + (b.total || 0), 0) };
+    });
+    const bMesMap = {};
+    for (const b of budgets) { const k = mesKey(b.createdAt); (bMesMap[k] ||= { mes: k, count: 0, total: 0 }); bMesMap[k].count++; bMesMap[k].total += b.total || 0; }
+    const aceptados = budgets.filter(b => b.status === 'aceptado').length;
+    const presupuestos = {
+      total: budgets.length,
+      montoTotal: budgets.reduce((s, b) => s + (b.total || 0), 0),
+      montoAceptado: budgets.filter(b => b.status === 'aceptado').reduce((s, b) => s + (b.total || 0), 0),
+      aceptados,
+      tasaAceptacion: budgets.length ? Math.round((aceptados / budgets.length) * 100) : 0,
+      porEstado: bPorEstado,
+      porMes: Object.values(bMesMap).sort((a, b) => a.mes.localeCompare(b.mes)),
+    };
+
+    // ── Órdenes de trabajo ──
+    const wEstados = ['pendiente', 'en_curso', 'terminada', 'cancelada'];
+    const wPorEstado = wEstados.map(e => {
+      const arr = workorders.filter(w => w.status === e);
+      return { estado: e, count: arr.length, total: arr.reduce((s, w) => s + (w.total || 0), 0) };
+    });
+    const cobradas = workorders.filter(w => w.cobrada);
+    const ordenes = {
+      total: workorders.length,
+      montoTotal: workorders.reduce((s, w) => s + (w.total || 0), 0),
+      facturadas: workorders.filter(w => w.facturada).length,
+      cobradas: cobradas.length,
+      montoCobrado: cobradas.reduce((s, w) => s + (w.total || 0), 0),
+      terminadasSinFacturar: workorders.filter(w => w.status === 'terminada' && !w.facturada && !w.cobrada).length,
+      porEstado: wPorEstado,
+    };
+
+    res.json({ presupuestos, ordenes });
+  } catch (err) {
+    console.error('[reports/comprobantes]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

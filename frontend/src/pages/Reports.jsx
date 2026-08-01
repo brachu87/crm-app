@@ -278,6 +278,7 @@ export default function Reports() {
   const [comparison, setComparison] = useState(null);
   const [occupancy, setOccupancy] = useState(null);
   const [facturacion, setFacturacion] = useState(null);
+  const [comprobantes, setComprobantes] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -298,6 +299,7 @@ export default function Reports() {
       comparativo: () => api.get('/reports/monthly-comparison').then(r => setComparison(r.data)),
       horarios: () => api.get('/reports/class-occupancy').then(r => setOccupancy(r.data)),
       facturacion: () => api.get('/facturacion').then(r => setFacturacion(buildFactStats(r.data))),
+      comprobantes: () => api.get(`/reports/comprobantes?${p}`).then(r => setComprobantes(r.data)),
     };
     (calls[tab] || calls['resumen'])()
       .catch(() => setError('Error cargando reporte.'))
@@ -322,9 +324,10 @@ export default function Reports() {
     { id:'comparativo', label:'📅 Comparativo' },
     { id:'horarios', label:'🕐 Horarios' },
     { id:'facturacion', label:'🧾 Facturación' },
+    { id:'comprobantes', label:'📄 Presupuestos y OT' },
   ];
 
-  const dateAffected = ['resumen','actividades','retencion','comparativo'];
+  const dateAffected = ['resumen','actividades','retencion','comparativo','comprobantes'];
   const showDateBar = dateAffected.includes(activeTab);
 
   // ── Export helpers per tab ─────────────────────────────────────────────────
@@ -448,6 +451,15 @@ export default function Reports() {
       ];
       return { title: 'Reporte de Facturación', subtitle: `${facturacion.cantidad} comprobantes`, sheets };
     }
+    if (activeTab === 'comprobantes' && comprobantes) {
+      const P = comprobantes.presupuestos, O = comprobantes.ordenes;
+      const sheets = [
+        { name: 'Presupuestos por estado', headers: ['Estado', 'Cantidad', 'Monto'], rows: P.porEstado.map(e => [e.estado, e.count, fmtRaw(e.total)]) },
+        { name: 'Presupuestos por mes', headers: ['Mes', 'Cantidad', 'Monto'], rows: P.porMes.map(m => [m.mes, m.count, fmtRaw(m.total)]) },
+        { name: 'Órdenes por estado', headers: ['Estado', 'Cantidad', 'Monto'], rows: O.porEstado.map(e => [e.estado, e.count, fmtRaw(e.total)]) },
+      ];
+      return { title: 'Reporte de Presupuestos y Órdenes de trabajo', subtitle: `${P.total} presupuestos · ${O.total} órdenes`, sheets };
+    }
     return null;
   }
 
@@ -471,7 +483,8 @@ export default function Reports() {
     (activeTab === 'proyeccion' && cashProj) ||
     (activeTab === 'comparativo' && comparison) ||
     (activeTab === 'horarios' && occupancy) ||
-    (activeTab === 'facturacion' && facturacion)
+    (activeTab === 'facturacion' && facturacion) ||
+    (activeTab === 'comprobantes' && comprobantes)
   );
 
   return (
@@ -527,6 +540,9 @@ export default function Reports() {
 
           {/* ── FACTURACIÓN ── */}
           {activeTab === 'facturacion' && facturacion && <FacturacionTab data={facturacion} />}
+
+          {/* ── PRESUPUESTOS Y OT ── */}
+          {activeTab === 'comprobantes' && comprobantes && <ComprobantesTab data={comprobantes} />}
         </>
       )}
     </div>
@@ -564,6 +580,43 @@ function FacturacionTab({ data }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function ComprobantesTab({ data }) {
+  const P = data.presupuestos, O = data.ordenes;
+  const bLabel = { borrador: 'Borrador', enviado: 'Enviado', aceptado: 'Aceptado', rechazado: 'Rechazado' };
+  const wLabel = { pendiente: 'Pendiente', en_curso: 'En curso', terminada: 'Terminada', cancelada: 'Cancelada' };
+  return (
+    <div>
+      <h3 style={{ margin: '4px 0 10px' }}>Presupuestos</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 16 }}>
+        <KPICard label="Presupuestos" value={P.total} color="#2563eb" />
+        <KPICard label="Aceptados" value={P.aceptados} color="#1BA84C" hint={`Tasa ${P.tasaAceptacion}%`} />
+        <KPICard label="Monto total" value={fmt(P.montoTotal)} color="#6b7280" />
+        <KPICard label="Monto aceptado" value={fmt(P.montoAceptado)} color="#1BA84C" />
+      </div>
+      <div className="card" style={{ overflowX: 'auto', marginBottom: 24 }}>
+        <table className="table">
+          <thead><tr><th>Estado</th><th style={{ textAlign: 'right' }}>Cantidad</th><th style={{ textAlign: 'right' }}>Monto</th></tr></thead>
+          <tbody>{P.porEstado.map(e => <tr key={e.estado}><td>{bLabel[e.estado] || e.estado}</td><td style={{ textAlign: 'right' }}>{e.count}</td><td style={{ textAlign: 'right' }}>{fmt(e.total)}</td></tr>)}</tbody>
+        </table>
+      </div>
+
+      <h3 style={{ margin: '4px 0 10px' }}>Órdenes de trabajo</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 16 }}>
+        <KPICard label="Órdenes" value={O.total} color="#2563eb" />
+        <KPICard label="Facturadas" value={O.facturadas} color="#1BA84C" />
+        <KPICard label="Cobradas" value={O.cobradas} color="#1BA84C" hint={fmt(O.montoCobrado)} />
+        <KPICard label="Sin facturar/cobrar" value={O.terminadasSinFacturar} color="#D4A656" hint="terminadas" />
+      </div>
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <table className="table">
+          <thead><tr><th>Estado</th><th style={{ textAlign: 'right' }}>Cantidad</th><th style={{ textAlign: 'right' }}>Monto</th></tr></thead>
+          <tbody>{O.porEstado.map(e => <tr key={e.estado}><td>{wLabel[e.estado] || e.estado}</td><td style={{ textAlign: 'right' }}>{e.count}</td><td style={{ textAlign: 'right' }}>{fmt(e.total)}</td></tr>)}</tbody>
+        </table>
+      </div>
     </div>
   );
 }
