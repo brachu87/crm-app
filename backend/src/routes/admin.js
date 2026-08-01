@@ -6,7 +6,7 @@ const { buildBusinessZip } = require('../lib/exportBusiness');
 const router = express.Router();
 
 const TRIAL_DAYS = 30;
-const BASE_PRICE = 55000;      // precio del plan base (incluye INCLUDED_USERS usuarios)
+const BASE_PRICE = 19900;      // precio del plan base (incluye INCLUDED_USERS usuarios)
 const EXTRA_USER_PRICE = 20000; // costo por cada usuario adicional
 const BOT_ADDON_PRICE = 30000;  // add-on del bot de Telegram
 const INCLUDED_USERS = 3;      // usuarios incluidos en el plan base
