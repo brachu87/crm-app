@@ -309,9 +309,9 @@ router.post('/renew-month', async (req, res) => {
       markRan(bId);
     }
 
-    // Inscripciones activas cuya última cuota está pagada
+    // Inscripciones activas (de actividades activas) cuya última cuota está pagada
     const enrollments = await prisma.enrollment.findMany({
-      where: { activity: { businessId: bId }, active: true },
+      where: { activity: { businessId: bId, active: true }, active: true },
       include: { cuotas: { orderBy: { period: 'desc' }, take: 1 } },
     });
     const toRenew = enrollments.filter((e) => e.cuotas[0]?.paymentStatus === 'paid');
