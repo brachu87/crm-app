@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useSectionPerms } from '../config/permissions';
 import confirmDialog from '../utils/confirm';
+import NotasHistorial from '../components/NotasHistorial';
 
 const fmt = (v) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(v || 0);
 const fdate = (d) => d ? new Date(d + (String(d).length === 10 ? 'T12:00:00' : '')).toLocaleDateString('es-AR') : '-';
