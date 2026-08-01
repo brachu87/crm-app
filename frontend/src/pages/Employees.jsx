@@ -49,6 +49,7 @@ export default function Employees() {
       <div className="page-header">
         <div>
           <h1>Empleados</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Legajos de tu equipo: roles, sueldos, asistencias y liquidaciones.</p>
           <p className="page-subtitle">Gestión del equipo de trabajo</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

@@ -233,6 +233,7 @@ export default function Payroll() {
     <div style={{ padding: '24px 20px', maxWidth: 900, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
         <h1 style={{ fontSize: 26, fontWeight: 800 }}>Liquidaciones</h1>
+        <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Calculá y registrá los sueldos de tu equipo.</p>
         {can.generar && <button className="btn btn-primary" style={{ marginLeft: 'auto' }}
           onClick={() => { setShowForm(true); setPreview(null); setNewRecord(null); setForm({ employeeId: '', from: '', to: '' }); }}>
           + Nueva liquidación

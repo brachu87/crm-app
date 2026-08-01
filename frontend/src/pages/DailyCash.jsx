@@ -113,6 +113,7 @@ export default function DailyCash() {
       <div className="page-header">
         <div>
           <h1>Caja</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Ingresos y egresos del día; los cobros se registran automáticamente.</p>
           <p className="page-subtitle">{new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

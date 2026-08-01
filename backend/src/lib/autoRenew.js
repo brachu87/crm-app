@@ -20,7 +20,7 @@ async function autoRenewCuotas({ businessId }) {
   const enrollments = await prisma.enrollment.findMany({
     where: {
       active: true,
-      activity: { businessId },
+      activity: { businessId, active: true },
     },
     include: {
       cuotas: { orderBy: { period: 'desc' } },

@@ -95,6 +95,7 @@ export default function Attendance() {
   return (
     <div style={{ padding: '24px 20px', maxWidth: 900, margin: '0 auto' }}>
       <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Asistencias</h1>
+      <p style={{ color: 'var(--ink-soft)', margin: '0 0 4px' }}>Control semanal de asistencia de tu equipo.</p>
       <p style={{ color: 'var(--muted)', marginBottom: 20, fontSize: 14 }}>Registrá la asistencia y horas trabajadas de cada empleado</p>
 
       {/* Employee selector */}

@@ -23,6 +23,7 @@ export const PERMISSION_TREE = [
       { key: 'crear',  label: 'Crear actividad/servicio' },
       { key: 'editar', label: 'Editar' },
       { key: 'baja',   label: 'Activar / desactivar' },
+      { key: 'eliminar', label: 'Eliminar (borrado real)' },
       { key: 'inscribir', label: 'Inscribir clientes' },
     ],
   },

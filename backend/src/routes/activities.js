@@ -121,7 +121,24 @@ router.delete('/:id', async (req, res) => {
     });
     if (!existing) return res.status(404).json({ error: 'Actividad no encontrada' });
 
-    await prisma.activity.delete({ where: { id: req.params.id } });
+    // Guarda: no permitir borrar si hay cuotas ya cobradas (protege la contabilidad)
+    const pagadas = await prisma.cuota.count({
+      where: { paymentStatus: 'paid', enrollment: { activityId: req.params.id } },
+    });
+    if (pagadas > 0) {
+      return res.status(409).json({ error: 'Esta actividad tiene cuotas cobradas, no se puede eliminar (se perdería el historial de pagos). Podés inactivarla en su lugar.' });
+    }
+
+    // Borrado en cascada manual (las relaciones no son ON DELETE CASCADE)
+    const clases = await prisma.classSchedule.findMany({ where: { activityId: req.params.id }, select: { id: true } });
+    const claseIds = clases.map(c => c.id);
+    await prisma.$transaction([
+      ...(claseIds.length ? [prisma.classReservation.deleteMany({ where: { classScheduleId: { in: claseIds } } })] : []),
+      prisma.classSchedule.deleteMany({ where: { activityId: req.params.id } }),
+      prisma.enrollment.deleteMany({ where: { activityId: req.params.id } }), // cuotas (y pagos) caen por cascade
+      prisma.activityEmployee.deleteMany({ where: { activityId: req.params.id } }),
+      prisma.activity.delete({ where: { id: req.params.id } }),
+    ]);
 
     res.json({ ok: true });
   } catch (err) {

@@ -658,3 +658,18 @@ model WorkOrder {
   @@index([clientId])
   @@index([employeeId])
 }
+
+// Notas tipo "sucesos con historial" para clientes, proveedores y órdenes de trabajo
+model EntityNote {
+  id         String   @id @default(cuid())
+  businessId String
+  entityType String   // client | supplier | workorder
+  entityId   String
+  tipo       String   @default("nota") // nota | llamado | visita | reclamo | pago | otro
+  texto      String
+  userId     String?
+  userName   String?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, entityType, entityId])
+}

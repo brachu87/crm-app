@@ -236,6 +236,7 @@ export default function Settings() {
       <div className="page-header">
         <div>
           <h1>Ajustes</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Configurá tu negocio, WhatsApp, facturación e integraciones.</p>
           <p className="page-subtitle">Configuración del negocio</p>
         </div>
         {activeTab === 'usuarios' && isOwner && (

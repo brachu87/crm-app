@@ -6,6 +6,7 @@ import FacturarCobro from '../components/FacturarCobro';
 import { useSectionPerms } from '../config/permissions';
 import AuthImage from '../components/AuthImage';
 import ClientModal from './ClientModal';
+import NotasHistorial from '../components/NotasHistorial';
 
 const statusLabels = {
   paid: 'Pagado',
@@ -355,37 +356,10 @@ export default function ClientDetail() {
         )}
       </div>
 
-      {/* Notas del cliente */}
-      <h2 style={{ fontSize: 16, marginBottom: 12, marginTop: 24, fontWeight: 700, letterSpacing: '-0.01em' }}>Notas</h2>
+      {/* Notas / historial del cliente */}
+      <h2 style={{ fontSize: 16, marginBottom: 12, marginTop: 24, fontWeight: 700, letterSpacing: '-0.01em' }}>Notas e historial</h2>
       <div className="card" style={{ marginBottom: 24 }}>
-        <form onSubmit={addNote} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <input
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            placeholder="Agregar nota..."
-            style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, background: 'var(--surface)' }}
-          />
-          <button type="submit" className="btn btn-primary" disabled={savingNote || !newNote.trim()}>
-            {savingNote ? '...' : 'Agregar'}
-          </button>
-        </form>
-        {notes.length === 0 ? (
-          <p style={{ color: 'var(--ink-soft)', fontSize: 14, textAlign: 'center', padding: '12px 0' }}>Sin notas aún.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {notes.map((n) => (
-              <div key={n.id} style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 14 }}>{n.content}</p>
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--ink-soft)' }}>
-                    {new Date(n.createdAt).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}
-                  </p>
-                </div>
-                <button onClick={() => deleteNote(n.id)} title="Eliminar" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 16, padding: '0 4px', lineHeight: 1 }}>×</button>
-              </div>
-            ))}
-          </div>
-        )}
+        <NotasHistorial entityType="client" entityId={id} title="" />
       </div>
 
 

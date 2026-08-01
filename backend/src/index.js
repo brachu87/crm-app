@@ -47,6 +47,7 @@ const auditRoutes = require('./routes/audit');
 const onboardingRoutes = require('./routes/onboarding');
 const botRoutes = require('./routes/bot');
 const budgetsRoutes = require('./routes/budgets');
+const entityNotesRoutes = require('./routes/entity-notes');
 const workOrdersRoutes = require('./routes/workorders');
 const { startReminderCron } = require('./lib/reminderCron');
 const { startBackupCron } = require('./lib/backupCron');
@@ -234,6 +235,7 @@ app.use('/api/bot/link', botLinkLimiter);
 app.use('/api/bot', botRoutes);
 app.use('/api/budgets', budgetsRoutes);
 app.use('/api/work-orders', workOrdersRoutes);
+app.use('/api/entity-notes', entityNotesRoutes);
 app.use('/api/clients/:id/account', accountMovementsRoutes);
 
 app.get('/api/health', (req, res) => {

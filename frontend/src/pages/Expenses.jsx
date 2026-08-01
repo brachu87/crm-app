@@ -134,6 +134,7 @@ export default function Expenses() {
       <div className="page-header">
         <div>
           <h1>Gastos</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Registrá y clasificá los gastos del negocio; podés cargarlos por foto o PDF.</p>
           <p className="page-subtitle">Control de egresos del negocio</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

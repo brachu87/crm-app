@@ -56,6 +56,7 @@ export default function Suppliers() {
       <div className="page-header">
         <div>
           <h1>Proveedores</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Tus proveedores y su cuenta corriente, todo en un solo lugar.</p>
           <p className="page-subtitle">Gestión de proveedores y contactos comerciales</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import confirmDialog from '../utils/confirm';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/client';
+import NotasHistorial from '../components/NotasHistorial';
 
 const fmt = (n) => '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-AR') : '-';
@@ -168,6 +169,11 @@ export default function SupplierDetail() {
             )}
           </>
         )}
+      </div>
+
+      <h2 style={{ fontSize: 16, marginBottom: 12, marginTop: 24, fontWeight: 700, letterSpacing: '-0.01em' }}>Notas e historial</h2>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <NotasHistorial entityType="supplier" entityId={id} title="" />
       </div>
 
       {showModal && (

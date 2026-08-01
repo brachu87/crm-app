@@ -130,6 +130,7 @@ export default function Collections() {
       <div className="page-header">
         <div>
           <h1>Cobranza</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Cuotas por cobrar, cobradas y vencidas, con recibos automáticos.</p>
           <p className="page-subtitle" style={{ fontSize: 13 }}>
             {view === 'pending'
               ? `${filtered.length} ${filtered.length === 1 ? 'cliente' : 'clientes'} con deuda`

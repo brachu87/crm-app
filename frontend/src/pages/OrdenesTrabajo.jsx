@@ -175,6 +175,11 @@ function OrdenModal({ wo, onClose, onSaved }) {
           <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 18, margin: '12px 0' }}>Total: {fmt(total)}</div>
 
           <div className="field"><label>Notas (opcional)</label><textarea rows="2" value={notas} onChange={e => setNotas(e.target.value)} /></div>
+          {isEdit && wo?.id && (
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+              <NotasHistorial entityType="workorder" entityId={wo.id} title="Historial de la orden" />
+            </div>
+          )}
           {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
         </div>
         <div className="modal-footer">

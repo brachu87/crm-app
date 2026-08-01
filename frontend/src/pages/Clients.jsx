@@ -83,6 +83,7 @@ export default function Clients() {
       <div className="page-header">
         <div>
           <h1>Clientes</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Tu base de clientes: contacto, historial y cuenta corriente.</p>
           <p className="page-subtitle">Tu base de clientes</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

@@ -48,6 +48,7 @@ export default function Sedes() {
       <div className="page-header">
         <div>
           <h1>Sedes</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Administrá las sucursales o sedes de tu negocio.</p>
           <p className="page-subtitle">Gestioná las sucursales o locales del negocio</p>
         </div>
         {can.crear && <button className="btn btn-primary" onClick={openNew}>+ Nueva sede</button>}

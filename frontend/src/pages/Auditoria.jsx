@@ -47,6 +47,7 @@ export default function Auditoria() {
       <div className="page-header">
         <div>
           <h1>Historial de actividad</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Registro de quién hizo qué y cuándo dentro del sistema.</p>
           <p className="page-subtitle">Quién hizo qué y cuándo — cobros, facturas, bajas y eliminaciones.</p>
         </div>
       </div>

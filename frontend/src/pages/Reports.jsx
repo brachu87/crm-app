@@ -479,6 +479,7 @@ export default function Reports() {
       <div className="page-header">
         <div>
           <h1>Reportes</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Métricas e indicadores del negocio y búsqueda global.</p>
           <p className="page-subtitle">Análisis financiero y operativo del negocio</p>
         </div>
       </div>

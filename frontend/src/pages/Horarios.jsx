@@ -84,6 +84,7 @@ export default function Horarios() {
       <div className="page-header">
         <div>
           <h1>Horarios</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Definí los días y horarios de cada actividad y clase.</p>
           <p className="page-subtitle">Grilla semanal de clases y actividades</p>
         </div>
         {can.editar && <button className="btn btn-primary" onClick={() => openNew()}>+ Nuevo horario</button>}

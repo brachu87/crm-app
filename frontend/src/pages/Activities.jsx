@@ -654,6 +654,13 @@ export default function Activities() {
     await api.put(`/activities/${act.id}`, { active: !act.active });
     setActivities(prev => prev.map(a => a.id === act.id ? { ...a, active: !a.active } : a));
   }
+  async function deleteActivity(act) {
+    if (!await confirmDialog(`¿ELIMINAR definitivamente la actividad "${act.name}"?\n\nSe borran sus inscripciones y las cuotas sin pagar. Esto no se puede deshacer.\n\n(Si tiene cuotas ya cobradas, se bloquea; en ese caso conviene inactivarla.)`)) return;
+    try {
+      await api.delete(`/activities/${act.id}`);
+      setActivities(prev => prev.filter(a => a.id !== act.id));
+    } catch (e) { alert(e.response?.data?.error || 'No se pudo eliminar la actividad'); }
+  }
   async function toggleService(svc) {
     await api.put(`/services/${svc.id}`, { active: !svc.active });
     setServices(prev => prev.map(s => s.id === svc.id ? { ...s, active: !s.active } : s));
@@ -672,6 +679,7 @@ export default function Activities() {
       <div className="page-header">
         <div>
           <h1>Actividades y Servicios</h1>
+          <p style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>Actividades por cuota mensual y servicios por turno.</p>
           <p className="page-subtitle">Gestioná tus actividades con cuota mensual y servicios por turno</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -719,6 +727,7 @@ export default function Activities() {
                           <div style={{ display: 'flex', gap: 6 }}>
                             {can.editar && <button className="btn btn-secondary btn-sm" onClick={() => { setEditingAct(act); setShowActModal(true); }}>Editar</button>}
                             {can.baja && <button className="btn btn-secondary btn-sm" style={{ color: act.active !== false ? '#ef4444' : '#10b981' }} onClick={() => toggleActivity(act)}>{act.active !== false ? 'Desactivar' : 'Activar'}</button>}
+                            {can.eliminar && <button className="btn btn-secondary btn-sm" style={{ color: '#b91c1c' }} onClick={() => deleteActivity(act)} title="Eliminar definitivamente">🗑</button>}
                           </div>
                         </td>
                       </tr>
