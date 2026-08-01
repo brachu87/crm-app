@@ -484,6 +484,57 @@ input, select, textarea { font-family: var(--font-body); }
   flex-wrap: wrap;
 }
 
+/* ── Modal con header / body / footer ────────────────── */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 { margin: 0; font-size: 22px; }
+.modal-close {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 20px;
+  line-height: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.modal-close:hover { background: var(--bg); color: var(--ink); }
+.modal-body { display: block; }
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+/* Botón "fantasma" (Cancelar) */
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid transparent;
+}
+.btn-ghost:hover { background: var(--bg); color: var(--ink); }
+
+/* Pill ámbar (estados intermedios: enviado / en curso) */
+.pill-amber { background: var(--warn-soft); color: #8A6A26; }
+.pill-amber::before { background: var(--warn); }
+
 /* ── Hamburger button ────────────────────────────────── */
 
 .hamburger-btn {
