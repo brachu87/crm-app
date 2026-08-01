@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
     const biz = await prisma.business.findUnique({ where: { id: req.user.businessId }, select: { extraUsers: true } });
     const limit = 3 + (biz?.extraUsers || 0);
     const count = await prisma.user.count({ where: { businessId: req.user.businessId } });
-    if (count >= limit) return res.status(400).json({ error: `Límite alcanzado: máximo ${limit} usuario(s). Escribinos para habilitar más usuarios (+$20.000/mes c/u).` });
+    if (count >= limit) return res.status(400).json({ error: `Límite alcanzado: máximo ${limit} usuario(s). Escribinos para habilitar más usuarios (+$10.000/mes c/u).` });
 
     const { name, email, password, role } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'Nombre, email y contraseña son obligatorios' });
