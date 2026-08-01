@@ -165,14 +165,17 @@ function OrdenModal({ wo, onClose, onSaved }) {
 
           <label style={{ fontWeight: 600, fontSize: 14, display: 'block', margin: '10px 0 6px' }}>Ítems / tareas (opcional)</label>
           {items.map((it, i) => (
-            <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-              <input style={{ flex: 3 }} placeholder="Descripción" value={it.descripcion} onChange={e => setItem(i, 'descripcion', e.target.value)} />
-              <input style={{ flex: 1 }} type="number" min="0" placeholder="Cant." value={it.cantidad} onChange={e => setItem(i, 'cantidad', e.target.value)} />
-              <input style={{ flex: 1.4 }} type="number" min="0" step="0.01" placeholder="Precio" value={it.precio} onChange={e => setItem(i, 'precio', e.target.value)} />
-              <button type="button" className="btn btn-sm" onClick={() => delItem(i)} title="Quitar">✕</button>
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 8, flexWrap: 'wrap' }}>
+              <div className="field" style={{ flex: 3, minWidth: 150, margin: 0 }}>
+                <input placeholder="Descripción" value={it.descripcion} onChange={e => setItem(i, 'descripcion', e.target.value)} /></div>
+              <div className="field" style={{ width: 66, margin: 0 }}>
+                <input type="number" min="0" placeholder="Cant." value={it.cantidad} onChange={e => setItem(i, 'cantidad', e.target.value)} /></div>
+              <div className="field" style={{ width: 120, margin: 0 }}>
+                <input type="number" min="0" step="0.01" placeholder="Precio" value={it.precio} onChange={e => setItem(i, 'precio', e.target.value)} /></div>
+              <button type="button" className="btn" onClick={() => delItem(i)} title="Quitar" style={{ padding: '8px 10px' }}>✕</button>
             </div>
           ))}
-          <button type="button" className="btn btn-secondary btn-sm" onClick={addItem}>+ Agregar ítem</button>
+          <button type="button" className="btn btn-secondary" onClick={addItem}>+ Agregar ítem</button>
           <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 18, margin: '12px 0' }}>Total: {fmt(total)}</div>
 
           <div className="field"><label>Notas (opcional)</label><textarea rows="2" value={notas} onChange={e => setNotas(e.target.value)} /></div>
