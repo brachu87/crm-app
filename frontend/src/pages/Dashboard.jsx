@@ -33,7 +33,7 @@ function BigKPI({ label, value, color, sparkData, sparkField, change, hint, icon
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
         {icon && <span style={{ width:38, height:38, borderRadius:10, background:color+'1a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:19 }}>{icon}</span>}
         {change && (
-          <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:20, background:(change.up?'#10b981':'#ef4444')+'18', color: change.up ? '#10b981' : '#ef4444' }}>
+          <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:20, background:(change.up?'#1BA84C':'#DC2626')+'18', color: change.up ? '#1BA84C' : '#DC2626' }}>
             {change.up ? '↑' : '↓'} {change.value}%
           </span>
         )}
@@ -50,7 +50,7 @@ function BigKPI({ label, value, color, sparkData, sparkField, change, hint, icon
 function Donut({ paid, pending, overdue }) {
   const total = paid + pending + overdue;
   if (total === 0) return <p style={{ color:'var(--ink-soft)', textAlign:'center' }}>Sin inscripciones activas</p>;
-  const COLORS = { paid:'#10b981', pending:'#f59e0b', overdue:'#ef4444' };
+  const COLORS = { paid:'#1BA84C', pending:'#D4A656', overdue:'#DC2626' };
   const labels = { paid:'Al día', pending:'Pendientes', overdue:'Vencidas' };
   const cx=90, cy=90, r=70, innerR=44;
   let angle = -Math.PI/2;
@@ -107,15 +107,15 @@ function MiniBarChart({ data }) {
         const label = MONTH_NAMES[parseInt(mo)-1];
         return (
           <g key={d.month}>
-            <rect x={x} y={scaleY(d.income||0)} width={barW} height={(H-PAD)-scaleY(d.income||0)} fill="#10b981" rx="2" opacity="0.9" />
-            <rect x={x+barW+gap} y={scaleY(d.expenses||0)} width={barW} height={(H-PAD)-scaleY(d.expenses||0)} fill="#ef4444" rx="2" opacity="0.9" />
+            <rect x={x} y={scaleY(d.income||0)} width={barW} height={(H-PAD)-scaleY(d.income||0)} fill="#1BA84C" rx="2" opacity="0.9" />
+            <rect x={x+barW+gap} y={scaleY(d.expenses||0)} width={barW} height={(H-PAD)-scaleY(d.expenses||0)} fill="#DC2626" rx="2" opacity="0.9" />
             <text x={x+barW+gap/2} y={H+14} textAnchor="middle" fontSize="9" fill="#9ca3af">{label}</text>
           </g>
         );
       })}
-      <rect x={PAD} y={H+18} width={8} height={8} fill="#10b981" rx="1" />
+      <rect x={PAD} y={H+18} width={8} height={8} fill="#1BA84C" rx="1" />
       <text x={PAD+11} y={H+26} fontSize="9" fill="#6b7280">Ing.</text>
-      <rect x={PAD+36} y={H+18} width={8} height={8} fill="#ef4444" rx="1" />
+      <rect x={PAD+36} y={H+18} width={8} height={8} fill="#DC2626" rx="1" />
       <text x={PAD+47} y={H+26} fontSize="9" fill="#6b7280">Gas.</text>
     </svg>
   );
@@ -135,6 +135,11 @@ function HBar({ label, value, max, color }) {
       </div>
     </div>
   );
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+function SectionLabel({ children }) {
+  return <p style={{ margin:'0 0 12px', fontSize:12, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--ink-soft)' }}>{children}</p>;
 }
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
@@ -258,11 +263,12 @@ export default function Dashboard() {
       )}
 
       {/* ── Row 1: Big KPIs ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:20 }}>
+      <SectionLabel>Resumen del mes</SectionLabel>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:24 }}>
         <BigKPI
           label="Ingresos este mes"
           value={fmt(data.ingresosDelMes)}
-          color="#10b981"
+          color="#1BA84C"
           icon="💰"
           sparkData={data.monthlyTrend}
           sparkField="income"
@@ -271,7 +277,7 @@ export default function Dashboard() {
         <BigKPI
           label="Gastos este mes"
           value={fmt(data.gastosDelMes)}
-          color="#ef4444"
+          color="#DC2626"
           icon="💸"
           sparkData={data.monthlyTrend}
           sparkField="expenses"
@@ -280,27 +286,28 @@ export default function Dashboard() {
         <BigKPI
           label="Resultado del mes"
           value={fmt(balance)}
-          color={balance>=0?'#10b981':'#ef4444'}
+          color={balance>=0?'#1BA84C':'#DC2626'}
           icon="📊"
           hint={balance>=0?'Positivo ✓':'Déficit — revisá gastos'}
         />
         <BigKPI
           label="Cuotas vencidas"
           value={data.overdue.count}
-          color={data.overdue.count>0?'#f59e0b':'#10b981'}
+          color={data.overdue.count>0?'#D4A656':'#1BA84C'}
           icon="⚠️"
           hint={data.overdue.count>0 ? fmt(data.overdue.total)+' pendiente' : 'Todo al día ✓'}
         />
       </div>
 
       {/* ── Row 2: Entity counts ── */}
-      <div className="entity-count-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))', gap:10, marginBottom:20 }}>
+      <SectionLabel>Tu negocio</SectionLabel>
+      <div className="entity-count-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))', gap:10, marginBottom:24 }}>
         {[
-          { label:'Clientes activos', value:data.clientsCount, color:'#6366f1', link:'/clientes', icon:'👤' },
-          { label:'Actividades',      value:data.activitiesCount, color:'#3b82f6', link:'/actividades', icon:'🏃' },
-          { label:'Turnos del mes',   value:data.servicesCount, color:'#8b5cf6', link:'/agenda', icon:'📅' },
-          { label:'Empleados',        value:data.employeesCount, color:'#0891b2', link:'/empleados', icon:'👥' },
-          { label:'Proveedores',      value:data.suppliersCount, color:'#059669', link:'/proveedores', icon:'🏭' },
+          { label:'Clientes activos', value:data.clientsCount, color:'#1E2A38', link:'/clientes', icon:'👤' },
+          { label:'Actividades',      value:data.activitiesCount, color:'#1E2A38', link:'/actividades', icon:'🏃' },
+          { label:'Turnos del mes',   value:data.servicesCount, color:'#1E2A38', link:'/agenda', icon:'📅' },
+          { label:'Empleados',        value:data.employeesCount, color:'#1E2A38', link:'/empleados', icon:'👥' },
+          { label:'Proveedores',      value:data.suppliersCount, color:'#1E2A38', link:'/proveedores', icon:'🏭' },
         ].map(item => (
           <Link key={item.label} to={item.link} style={{ textDecoration:'none' }}>
             <div className="card dash-entity" style={{ padding:'14px 16px', textAlign:'center', cursor:'pointer' }}>
@@ -313,11 +320,12 @@ export default function Dashboard() {
       </div>
 
       {/* ── Row 2b: Presupuestos y Órdenes de trabajo ── */}
-      <div className="entity-count-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:10, marginBottom:20 }}>
+      <SectionLabel>Comprobantes y trabajos</SectionLabel>
+      <div className="entity-count-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:10, marginBottom:24 }}>
         {[
           { label:'Presupuestos pendientes', value:data.presupuestosPendientes?.count || 0, hint:fmt(data.presupuestosPendientes?.total || 0), color:'#2563eb', link:'/presupuestos', icon:'📄' },
-          { label:'Órdenes en curso',        value:data.ordenesEnCurso?.count || 0, hint:'por hacer', color:'#7c3aed', link:'/ordenes', icon:'🛠️' },
-          { label:'OTs sin facturar/cobrar', value:data.ordenesSinCobrar?.count || 0, hint:fmt(data.ordenesSinCobrar?.total || 0), color:'#f59e0b', link:'/ordenes', icon:'💵' },
+          { label:'Órdenes en curso',        value:data.ordenesEnCurso?.count || 0, hint:'por hacer', color:'#1E2A38', link:'/ordenes', icon:'🛠️' },
+          { label:'OTs sin facturar/cobrar', value:data.ordenesSinCobrar?.count || 0, hint:fmt(data.ordenesSinCobrar?.total || 0), color:'#D4A656', link:'/ordenes', icon:'💵' },
         ].map(item => (
           <Link key={item.label} to={item.link} style={{ textDecoration:'none' }}>
             <div className="card dash-entity" style={{ padding:'14px 16px', textAlign:'center', cursor:'pointer' }}>
@@ -366,11 +374,11 @@ export default function Dashboard() {
           </div>
           <div style={{ padding:'12px 14px', background:'var(--bg)', borderRadius:10 }}>
             <p style={{ margin:0, fontSize:11, color:'var(--ink-soft)', textTransform:'uppercase', letterSpacing:'.04em' }}>IVA débito</p>
-            <p style={{ margin:'4px 0 0', fontSize:22, fontWeight:800, color:'#d97706' }}>{fmt(ivaMes)}</p>
+            <p style={{ margin:'4px 0 0', fontSize:22, fontWeight:800, color:'#D4A656' }}>{fmt(ivaMes)}</p>
           </div>
           <div style={{ padding:'12px 14px', background:'var(--bg)', borderRadius:10 }}>
             <p style={{ margin:0, fontSize:11, color:'var(--ink-soft)', textTransform:'uppercase', letterSpacing:'.04em' }}>Comprobantes</p>
-            <p style={{ margin:'4px 0 0', fontSize:22, fontWeight:800, color:'#6366f1' }}>{mesInv.length}</p>
+            <p style={{ margin:'4px 0 0', fontSize:22, fontWeight:800, color:'#1E2A38' }}>{mesInv.length}</p>
           </div>
         </div>
         {ultimasInv.length === 0 ? (
@@ -413,7 +421,7 @@ export default function Dashboard() {
                   label={`${c.client.name} · ${c.activity.name}`}
                   value={c.amountDue}
                   max={maxOverdueAmt}
-                  color="#ef4444"
+                  color="#DC2626"
                 />
               ))}
               {data.overdue.count > 5 && (
@@ -439,13 +447,13 @@ export default function Dashboard() {
               return (
                 <div key={c.id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
                   <div style={{ width:36, height:36, borderRadius:8, background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:days<=3?'#f59e0b':'var(--ink-soft)' }}>{days}d</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:days<=3?'#D4A656':'var(--ink-soft)' }}>{days}d</span>
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <p style={{ margin:0, fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.client.name}</p>
                     <p style={{ margin:0, fontSize:11, color:'var(--ink-soft)' }}>{c.activity.name}</p>
                   </div>
-                  <span style={{ fontSize:13, fontWeight:700, color:'#6366f1', flexShrink:0 }}>{fmt(c.amountDue)}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#1E2A38', flexShrink:0 }}>{fmt(c.amountDue)}</span>
                 </div>
               );
             })
@@ -453,7 +461,7 @@ export default function Dashboard() {
           {data.pending.count > 0 && (
             <div style={{ marginTop:12, padding:'10px 14px', background:'var(--bg)', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span style={{ fontSize:13, color:'var(--ink-soft)' }}>Total pendiente</span>
-              <span style={{ fontSize:15, fontWeight:700, color:'#6366f1' }}>{fmt(data.pending.total)}</span>
+              <span style={{ fontSize:15, fontWeight:700, color:'#1E2A38' }}>{fmt(data.pending.total)}</span>
             </div>
           )}
         </div>
