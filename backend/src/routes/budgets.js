@@ -32,7 +32,10 @@ router.get('/', async (req, res) => {
       where: { businessId: req.user.businessId },
       orderBy: { numero: 'desc' },
     });
-    res.json(rows.map(r => ({ ...r, items: (() => { try { return JSON.parse(r.itemsJson || '[]'); } catch { return []; } })() })));
+    // Presupuestos que ya se convirtieron en orden de trabajo
+    const ots = await prisma.workOrder.findMany({ where: { businessId: req.user.businessId, budgetId: { not: null } }, select: { budgetId: true } });
+    const conOT = new Set(ots.map(o => o.budgetId));
+    res.json(rows.map(r => ({ ...r, tieneOT: conOT.has(r.id), items: (() => { try { return JSON.parse(r.itemsJson || '[]'); } catch { return []; } })() })));
   } catch (e) { console.error('[budgets] list', e.message); res.status(500).json({ error: 'Error al listar presupuestos' }); }
 });
 

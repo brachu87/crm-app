@@ -53,6 +53,8 @@ router.post('/from-budget/:budgetId', async (req, res) => {
   try {
     const b = await prisma.budget.findFirst({ where: { id: req.params.budgetId, businessId: req.user.businessId } });
     if (!b) return res.status(404).json({ error: 'Presupuesto no encontrado' });
+    const yaExiste = await prisma.workOrder.findFirst({ where: { businessId: req.user.businessId, budgetId: b.id }, select: { numero: true } });
+    if (yaExiste) return res.status(409).json({ error: `Este presupuesto ya se convirtió en la orden N° ${String(yaExiste.numero).padStart(6, '0')}.` });
     const wo = await prisma.workOrder.create({ data: {
       businessId: req.user.businessId, budgetId: b.id, clientId: b.clientId, clienteNombre: b.clienteNombre,
       titulo: `Presupuesto N° ${String(b.numero).padStart(6, '0')}`, numero: await nextNumero(req.user.businessId),
