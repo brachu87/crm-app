@@ -154,11 +154,12 @@ export const PERMISSION_TREE = [
   {
     key: 'presupuestos', label: 'Presupuestos', icon: '📄',
     actions: [
-      { key: 'ver',      label: 'Ver presupuestos' },
-      { key: 'crear',    label: 'Crear presupuesto' },
-      { key: 'editar',   label: 'Editar / cambiar estado' },
-      { key: 'eliminar', label: 'Eliminar' },
-      { key: 'enviar',   label: 'Enviar por WhatsApp' },
+      { key: 'ver',          label: 'Ver presupuestos' },
+      { key: 'crear',        label: 'Crear presupuesto' },
+      { key: 'editar',       label: 'Editar / cambiar estado' },
+      { key: 'eliminar',     label: 'Eliminar' },
+      { key: 'enviar',       label: 'Enviar por WhatsApp' },
+      { key: 'convertir_ot', label: 'Convertir en orden de trabajo' },
     ],
   },
   {
@@ -168,6 +169,8 @@ export const PERMISSION_TREE = [
       { key: 'crear',    label: 'Crear orden' },
       { key: 'editar',   label: 'Editar / estado / asignar' },
       { key: 'eliminar', label: 'Eliminar' },
+      { key: 'facturar', label: 'Facturar OT terminada (AFIP)' },
+      { key: 'cobrar',   label: 'Cobrar OT terminada (ingreso)' },
     ],
   },
   {

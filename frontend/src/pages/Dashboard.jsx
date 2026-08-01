@@ -312,6 +312,24 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* ── Row 2b: Presupuestos y Órdenes de trabajo ── */}
+      <div className="entity-count-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:10, marginBottom:20 }}>
+        {[
+          { label:'Presupuestos pendientes', value:data.presupuestosPendientes?.count || 0, hint:fmt(data.presupuestosPendientes?.total || 0), color:'#2563eb', link:'/presupuestos', icon:'📄' },
+          { label:'Órdenes en curso',        value:data.ordenesEnCurso?.count || 0, hint:'por hacer', color:'#7c3aed', link:'/ordenes', icon:'🛠️' },
+          { label:'OTs sin facturar/cobrar', value:data.ordenesSinCobrar?.count || 0, hint:fmt(data.ordenesSinCobrar?.total || 0), color:'#f59e0b', link:'/ordenes', icon:'💵' },
+        ].map(item => (
+          <Link key={item.label} to={item.link} style={{ textDecoration:'none' }}>
+            <div className="card dash-entity" style={{ padding:'14px 16px', textAlign:'center', cursor:'pointer' }}>
+              <span style={{ fontSize:18 }}>{item.icon}</span>
+              <p style={{ margin:'2px 0 0', fontSize:26, fontWeight:800, color:item.color }}>{item.value}</p>
+              <p style={{ margin:'2px 0 0', fontSize:11, color:'var(--ink-soft)' }}>{item.label}</p>
+              <p style={{ margin:'1px 0 0', fontSize:11, fontWeight:600, color:item.color }}>{item.hint}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+
       {/* ── Row 3: Flujo de caja + Inscripciones ── */}
       <div className="two-col-grid" style={{ gap:16, marginBottom:16 }}>
         <div className="card">

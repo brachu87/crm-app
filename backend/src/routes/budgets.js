@@ -88,6 +88,8 @@ router.put('/:id', async (req, res) => {
       data.validezDias = dias; data.validoHasta = dias > 0 ? new Date((own.createdAt ? new Date(own.createdAt).getTime() : Date.now()) + dias * 86400000) : null;
     }
     const b = await prisma.budget.update({ where: { id: own.id }, data });
+    const detalleEstado = (status !== undefined && status !== own.status) ? ` · estado: ${status}` : '';
+    logAudit(req, { action: 'edito_presupuesto', entity: 'presupuesto', entityId: b.id, detail: `#${b.numero}${detalleEstado}` });
     res.json(b);
   } catch (e) { console.error('[budgets] update', e.message); res.status(500).json({ error: 'No se pudo actualizar' }); }
 });
@@ -98,6 +100,7 @@ router.delete('/:id', async (req, res) => {
     const own = await prisma.budget.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
     if (!own) return res.status(404).json({ error: 'Presupuesto no encontrado' });
     await prisma.budget.delete({ where: { id: own.id } });
+    logAudit(req, { action: 'elimino_presupuesto', entity: 'presupuesto', entityId: own.id, detail: `#${own.numero}` });
     res.json({ ok: true });
   } catch (e) { console.error('[budgets] delete', e.message); res.status(500).json({ error: 'No se pudo eliminar' }); }
 });
@@ -137,6 +140,7 @@ router.post('/:id/whatsapp', async (req, res) => {
     await evo.sendDocument(req.user.businessId, phone, pdf, filename, caption);
     // al enviar, si estaba en borrador pasa a "enviado"
     if (b.status === 'borrador') await prisma.budget.update({ where: { id: b.id }, data: { status: 'enviado' } });
+    logAudit(req, { action: 'envio_presupuesto', entity: 'presupuesto', entityId: b.id, detail: `#${String(b.numero).padStart(6, '0')} → ${phone}` });
     res.json({ ok: true });
   } catch (e) { console.error('[budgets] whatsapp', e.message); res.status(502).json({ error: 'No se pudo enviar por WhatsApp: ' + (e.message || 'error') }); }
 });

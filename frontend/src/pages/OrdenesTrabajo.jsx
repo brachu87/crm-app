@@ -80,8 +80,8 @@ export default function OrdenesTrabajo() {
                     <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
                       {can.editar && w.status === 'pendiente' && <button className="btn btn-sm" onClick={() => setStatus(w, 'en_curso')} title="Marcar en curso">▶</button>}
                       {can.editar && (w.status === 'pendiente' || w.status === 'en_curso') && <button className="btn btn-sm" onClick={() => setStatus(w, 'terminada')} title="Marcar terminada" style={{ color: '#15803d' }}>✓</button>}
-                      {w.status === 'terminada' && !w.facturada && <button className="btn btn-sm" onClick={() => facturar(w)} title="Facturar (AFIP)">🧾 Facturar</button>}
-                      {can.editar && w.status === 'terminada' && !w.cobrada && <button className="btn btn-sm" onClick={() => cobrar(w)} title="Registrar cobro" style={{ color: '#15803d' }}>💵 Cobrar</button>}
+                      {can.facturar && w.status === 'terminada' && !w.facturada && <button className="btn btn-sm" onClick={() => facturar(w)} title="Facturar (AFIP)">🧾 Facturar</button>}
+                      {can.cobrar && w.status === 'terminada' && !w.cobrada && <button className="btn btn-sm" onClick={() => cobrar(w)} title="Registrar cobro" style={{ color: '#15803d' }}>💵 Cobrar</button>}
                       {can.editar && <button className="btn btn-sm" onClick={() => { setEditing(w); setShowModal(true); }} title="Editar">✎</button>}
                       {can.editar && w.status !== 'cancelada' && w.status !== 'terminada' && <button className="btn btn-sm" onClick={() => setStatus(w, 'cancelada')} title="Cancelar" style={{ color: '#b91c1c' }}>✕</button>}
                       {can.eliminar && <button className="btn btn-sm" onClick={() => del(w)} title="Eliminar">🗑</button>}

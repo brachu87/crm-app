@@ -86,6 +86,8 @@ router.put('/:id', async (req, res) => {
       data.completedAt = status === 'terminada' ? (own.completedAt || new Date()) : null;
     }
     const wo = await prisma.workOrder.update({ where: { id: own.id }, data });
+    const detalleEstado = (status !== undefined && status !== own.status) ? ` · estado: ${status}` : '';
+    logAudit(req, { action: 'edito_orden_trabajo', entity: 'orden_trabajo', entityId: wo.id, detail: `#${wo.numero}${detalleEstado}` });
     res.json(parse(wo));
   } catch (e) { console.error('[wo] update', e.message); res.status(500).json({ error: 'No se pudo actualizar' }); }
 });
@@ -128,6 +130,7 @@ router.delete('/:id', async (req, res) => {
     const own = await prisma.workOrder.findFirst({ where: { id: req.params.id, businessId: req.user.businessId } });
     if (!own) return res.status(404).json({ error: 'Orden no encontrada' });
     await prisma.workOrder.delete({ where: { id: own.id } });
+    logAudit(req, { action: 'elimino_orden_trabajo', entity: 'orden_trabajo', entityId: own.id, detail: `#${own.numero}` });
     res.json({ ok: true });
   } catch (e) { console.error('[wo] delete', e.message); res.status(500).json({ error: 'No se pudo eliminar' }); }
 });

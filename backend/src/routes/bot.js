@@ -453,4 +453,153 @@ router.post('/delete', async (req, res) => {
   }
 });
 
+// ───────────────────────── Presupuestos y Órdenes de trabajo ─────────────────────────
+const { logAudit } = require('../lib/audit');
+const _calcTotal = (items) => Array.isArray(items) ? items.reduce((s, it) => s + (Number(it.cantidad) || 0) * (Number(it.precio) || 0), 0) : 0;
+const _normItems = (items) => Array.isArray(items)
+  ? items.map(it => ({ descripcion: String(it.descripcion || '').slice(0, 300), cantidad: Number(it.cantidad) || 1, precio: Number(it.precio) || 0 })).filter(it => it.descripcion)
+  : [];
+const BUDGET_ESTADOS = ['borrador', 'enviado', 'aceptado', 'rechazado'];
+const WO_ESTADOS = ['pendiente', 'en_curso', 'terminada', 'cancelada'];
+// Busca por numero (lo natural para el usuario) o por id
+async function findBudget(bId, ref) {
+  const n = parseInt(String(ref).replace(/\D/g, ''), 10);
+  if (!isNaN(n)) { const b = await prisma.budget.findFirst({ where: { businessId: bId, numero: n } }); if (b) return b; }
+  return prisma.budget.findFirst({ where: { businessId: bId, id: String(ref) } });
+}
+async function findWO(bId, ref) {
+  const n = parseInt(String(ref).replace(/\D/g, ''), 10);
+  if (!isNaN(n)) { const w = await prisma.workOrder.findFirst({ where: { businessId: bId, numero: n } }); if (w) return w; }
+  return prisma.workOrder.findFirst({ where: { businessId: bId, id: String(ref) } });
+}
+
+// GET /api/bot/budgets?status=&limit=
+router.get('/budgets', async (req, res) => {
+  try {
+    const where = { businessId: req.user.businessId };
+    if (req.query.status && BUDGET_ESTADOS.includes(req.query.status)) where.status = req.query.status;
+    const rows = await prisma.budget.findMany({ where, orderBy: { numero: 'desc' }, take: Math.min(parseInt(req.query.limit, 10) || 10, 25) });
+    res.json(rows.map(b => ({ numero: b.numero, cliente: b.clienteNombre || 's/cliente', total: b.total, estado: b.status })));
+  } catch (e) { console.error('[bot/budgets]', e.message); res.status(500).json({ error: 'No pude listar presupuestos' }); }
+});
+
+// POST /api/bot/budget  { clientName?, clienteNombre?, items:[{descripcion,cantidad,precio}], notas?, validezDias? }
+router.post('/budget', async (req, res) => {
+  try {
+    const { clientName, clienteNombre, items, notas, validezDias } = req.body || {};
+    const its = _normItems(items);
+    if (!its.length) return res.status(400).json({ error: 'Agregá al menos un ítem (descripción y precio)' });
+    let nombre = (clienteNombre || '').trim(), cid = null, doc = null;
+    if (clientName && String(clientName).trim()) {
+      const c = await buscarCliente(req.user.businessId, clientName);
+      if (c) { cid = c.id; nombre = nombre || c.name; doc = c.cuit || c.dni || null; }
+      else if (!nombre) nombre = String(clientName).trim();
+    }
+    const max = await prisma.budget.aggregate({ where: { businessId: req.user.businessId }, _max: { numero: true } });
+    const numero = (max._max.numero || 0) + 1;
+    const dias = (validezDias == null || validezDias === '') ? 15 : parseInt(validezDias, 10);
+    const b = await prisma.budget.create({ data: {
+      businessId: req.user.businessId, clientId: cid, clienteNombre: nombre || null, clienteDoc: doc,
+      numero, status: 'borrador', itemsJson: JSON.stringify(its), total: _calcTotal(its),
+      validezDias: dias || null, validoHasta: dias > 0 ? new Date(Date.now() + dias * 86400000) : null, notas: (notas || '').trim() || null,
+    } });
+    logAudit(req, { action: 'creo_presupuesto', entity: 'presupuesto', entityId: b.id, detail: `#${numero} · ${nombre || 's/cliente'} · $${b.total} (bot)` });
+    res.status(201).json({ ok: true, numero: b.numero, total: b.total, cliente: nombre || 's/cliente' });
+  } catch (e) { console.error('[bot/budget]', e.message); res.status(500).json({ error: 'No se pudo crear el presupuesto' }); }
+});
+
+// POST /api/bot/budget/status  { ref, status }
+router.post('/budget/status', async (req, res) => {
+  try {
+    const { ref, status } = req.body || {};
+    if (!BUDGET_ESTADOS.includes(status)) return res.status(400).json({ error: 'Estado inválido (borrador, enviado, aceptado, rechazado)' });
+    const b = await findBudget(req.user.businessId, ref);
+    if (!b) return res.status(404).json({ error: 'No encontré ese presupuesto' });
+    await prisma.budget.update({ where: { id: b.id }, data: { status } });
+    logAudit(req, { action: 'edito_presupuesto', entity: 'presupuesto', entityId: b.id, detail: `#${b.numero} · estado: ${status} (bot)` });
+    res.json({ ok: true, numero: b.numero, estado: status });
+  } catch (e) { console.error('[bot/budget/status]', e.message); res.status(500).json({ error: 'No se pudo cambiar el estado' }); }
+});
+
+// GET /api/bot/workorders?status=&limit=
+router.get('/workorders', async (req, res) => {
+  try {
+    const where = { businessId: req.user.businessId };
+    if (req.query.status && WO_ESTADOS.includes(req.query.status)) where.status = req.query.status;
+    const rows = await prisma.workOrder.findMany({ where, orderBy: { numero: 'desc' }, take: Math.min(parseInt(req.query.limit, 10) || 10, 25) });
+    res.json(rows.map(w => ({ numero: w.numero, titulo: w.titulo || '—', cliente: w.clienteNombre || 's/cliente', total: w.total, estado: w.status, facturada: w.facturada, cobrada: w.cobrada })));
+  } catch (e) { console.error('[bot/workorders]', e.message); res.status(500).json({ error: 'No pude listar las órdenes' }); }
+});
+
+// POST /api/bot/workorder  { clientName?, titulo?, items?, employeeName?, notas?, scheduledDate? }
+router.post('/workorder', async (req, res) => {
+  try {
+    const { clientName, titulo, items, employeeName, notas, scheduledDate } = req.body || {};
+    const its = _normItems(items);
+    let nombre = '', cid = null;
+    if (clientName && String(clientName).trim()) {
+      const c = await buscarCliente(req.user.businessId, clientName);
+      if (c) { cid = c.id; nombre = c.name; } else nombre = String(clientName).trim();
+    }
+    let eid = null;
+    if (employeeName && String(employeeName).trim()) { const e = await buscarEmpleado(req.user.businessId, employeeName); if (e) eid = e.id; }
+    const max = await prisma.workOrder.aggregate({ where: { businessId: req.user.businessId }, _max: { numero: true } });
+    const numero = (max._max.numero || 0) + 1;
+    const w = await prisma.workOrder.create({ data: {
+      businessId: req.user.businessId, clientId: cid, clienteNombre: nombre || null, titulo: (titulo || '').trim() || null,
+      employeeId: eid, numero, itemsJson: JSON.stringify(its), total: _calcTotal(its),
+      status: 'pendiente', scheduledDate: (scheduledDate || '').trim() || null, notas: (notas || '').trim() || null,
+    } });
+    logAudit(req, { action: 'creo_orden_trabajo', entity: 'orden_trabajo', entityId: w.id, detail: `#${numero} · ${nombre || 's/cliente'} (bot)` });
+    res.status(201).json({ ok: true, numero: w.numero, total: w.total, cliente: nombre || 's/cliente' });
+  } catch (e) { console.error('[bot/workorder]', e.message); res.status(500).json({ error: 'No se pudo crear la orden' }); }
+});
+
+// POST /api/bot/workorder/status  { ref, status }
+router.post('/workorder/status', async (req, res) => {
+  try {
+    const { ref, status } = req.body || {};
+    if (!WO_ESTADOS.includes(status)) return res.status(400).json({ error: 'Estado inválido (pendiente, en_curso, terminada, cancelada)' });
+    const w = await findWO(req.user.businessId, ref);
+    if (!w) return res.status(404).json({ error: 'No encontré esa orden' });
+    await prisma.workOrder.update({ where: { id: w.id }, data: { status, completedAt: status === 'terminada' ? (w.completedAt || new Date()) : null } });
+    logAudit(req, { action: 'edito_orden_trabajo', entity: 'orden_trabajo', entityId: w.id, detail: `#${w.numero} · estado: ${status} (bot)` });
+    res.json({ ok: true, numero: w.numero, estado: status });
+  } catch (e) { console.error('[bot/workorder/status]', e.message); res.status(500).json({ error: 'No se pudo cambiar el estado' }); }
+});
+
+// POST /api/bot/workorder/from-budget  { ref }   (convierte un presupuesto en OT)
+router.post('/workorder/from-budget', async (req, res) => {
+  try {
+    const b = await findBudget(req.user.businessId, (req.body || {}).ref);
+    if (!b) return res.status(404).json({ error: 'No encontré ese presupuesto' });
+    const max = await prisma.workOrder.aggregate({ where: { businessId: req.user.businessId }, _max: { numero: true } });
+    const numero = (max._max.numero || 0) + 1;
+    const w = await prisma.workOrder.create({ data: {
+      businessId: req.user.businessId, budgetId: b.id, clientId: b.clientId, clienteNombre: b.clienteNombre,
+      titulo: `Presupuesto N° ${String(b.numero).padStart(6, '0')}`, numero, itemsJson: b.itemsJson, total: b.total, status: 'pendiente',
+    } });
+    logAudit(req, { action: 'convirtio_presupuesto_ot', entity: 'orden_trabajo', entityId: w.id, detail: `#${numero} desde presupuesto #${b.numero} (bot)` });
+    res.status(201).json({ ok: true, numero: w.numero, desdePresupuesto: b.numero });
+  } catch (e) { console.error('[bot/wo/from-budget]', e.message); res.status(500).json({ error: 'No se pudo convertir' }); }
+});
+
+// POST /api/bot/workorder/cobrar  { ref }   (registra el ingreso por una OT terminada)
+router.post('/workorder/cobrar', async (req, res) => {
+  try {
+    const w = await findWO(req.user.businessId, (req.body || {}).ref);
+    if (!w) return res.status(404).json({ error: 'No encontré esa orden' });
+    if (w.status !== 'terminada') return res.status(400).json({ error: 'Solo se cobran órdenes terminadas' });
+    if (w.cobrada) return res.status(400).json({ error: 'Esa orden ya fue cobrada' });
+    if (!(w.total > 0)) return res.status(400).json({ error: 'La orden no tiene un total a cobrar' });
+    const desc = `OT N° ${String(w.numero).padStart(6, '0')}${w.titulo ? ' · ' + w.titulo : (w.clienteNombre ? ' · ' + w.clienteNombre : '')}`;
+    const inc = await prisma.manualIncome.create({ data: {
+      businessId: req.user.businessId, clientId: w.clientId || null, amount: w.total, description: desc.slice(0, 240), category: 'Orden de trabajo', date: hoyAR(),
+    } });
+    await prisma.workOrder.update({ where: { id: w.id }, data: { cobrada: true, manualIncomeId: inc.id } });
+    logAudit(req, { action: 'cobro_orden_trabajo', entity: 'orden_trabajo', entityId: w.id, detail: `#${w.numero} · $${w.total} (bot)` });
+    res.json({ ok: true, numero: w.numero, total: w.total });
+  } catch (e) { console.error('[bot/wo/cobrar]', e.message); res.status(500).json({ error: 'No se pudo cobrar' }); }
+});
+
 module.exports = router;

@@ -187,12 +187,31 @@ router.get('/', async (req, res) => {
     const currKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const currData = trendMap[currKey] || { income: 0, expenses: 0 };
 
+    // ── Presupuestos y Órdenes de trabajo ──
+    const [budgetsPend, otsEnCurso, otsSinCobrar] = await Promise.all([
+      prisma.budget.findMany({
+        where: { businessId, status: { in: ['borrador', 'enviado'] } },
+        select: { total: true },
+      }),
+      prisma.workOrder.count({ where: { businessId, status: { in: ['pendiente', 'en_curso'] } } }),
+      prisma.workOrder.findMany({
+        where: { businessId, status: 'terminada', facturada: false, cobrada: false },
+        select: { total: true },
+      }),
+    ]);
+    const presupuestosPendientes = { count: budgetsPend.length, total: budgetsPend.reduce((s, b) => s + (b.total || 0), 0) };
+    const ordenesEnCurso = { count: otsEnCurso };
+    const ordenesSinCobrar = { count: otsSinCobrar.length, total: otsSinCobrar.reduce((s, o) => s + (o.total || 0), 0) };
+
     const _payload = {
       clientsCount,
       activitiesCount,
       servicesCount,
       employeesCount,
       suppliersCount,
+      presupuestosPendientes,
+      ordenesEnCurso,
+      ordenesSinCobrar,
       ingresosDelMes: (paymentThisMonth._sum?.amount || 0) + (apptPaidThisMonth._sum?.price || 0) + (manualIncomeThisMonth._sum?.amount || 0),
       gastosDelMes: expensesThisMonth._sum?.amount || 0,
       pending,

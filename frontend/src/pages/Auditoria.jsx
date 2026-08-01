@@ -8,6 +8,18 @@ const ACTIONS = {
   reactivo_cliente:  { label: 'Reactivó cliente', icon: '⬆️', color: '#16a34a' },
   elimino_cliente:   { label: 'Eliminó cliente', icon: '🗑️', color: '#dc2626' },
   elimino_gasto:     { label: 'Eliminó gasto', icon: '🗑️', color: '#dc2626' },
+  // Presupuestos
+  creo_presupuesto:       { label: 'Creó presupuesto', icon: '📄', color: '#2563eb' },
+  edito_presupuesto:      { label: 'Editó presupuesto', icon: '✏️', color: '#d97706' },
+  elimino_presupuesto:    { label: 'Eliminó presupuesto', icon: '🗑️', color: '#dc2626' },
+  envio_presupuesto:      { label: 'Envió presupuesto (WhatsApp)', icon: '📲', color: '#16a34a' },
+  convirtio_presupuesto_ot:{ label: 'Convirtió presupuesto en OT', icon: '🛠️', color: '#7c3aed' },
+  // Órdenes de trabajo
+  creo_orden_trabajo:     { label: 'Creó orden de trabajo', icon: '🛠️', color: '#2563eb' },
+  edito_orden_trabajo:    { label: 'Editó orden de trabajo', icon: '✏️', color: '#d97706' },
+  elimino_orden_trabajo:  { label: 'Eliminó orden de trabajo', icon: '🗑️', color: '#dc2626' },
+  cobro_orden_trabajo:    { label: 'Cobró orden de trabajo', icon: '💵', color: '#16a34a' },
+  facturo_orden_trabajo:  { label: 'Facturó orden de trabajo', icon: '🧾', color: '#2563eb' },
 };
 const fmtDT = (d) => d ? new Date(d).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
