@@ -34,6 +34,7 @@ const NAV_GROUPS = [
     label: 'Comprobantes',
     icon: '🧾',
     links: [
+      { to: '/presupuestos', label: 'Presupuestos', module: 'presupuestos' },
       { to: '/cobranza',     label: 'Cobros' },
       { to: '/comprobantes', label: 'Facturas',    module: 'comprobantes' },
     ],
@@ -74,6 +75,7 @@ const SECTION_INTRO = {
   '/reportes':     { key: 'reportes', title: 'Reportes', text: 'Ingresos, gastos, morosos, facturación y más. Todo exportable a Excel o PDF.' },
   '/gastos':       { key: 'gastos', title: 'Gastos', text: 'Cargá gastos a mano o sacale una foto a la factura de compra y la IA completa los datos.' },
   '/precios':      { key: 'precios', title: 'Grilla de precios', text: 'Definí y actualizá los precios de tus actividades y servicios en un solo lugar.' },
+  '/presupuestos': { key: 'presupuestos', title: 'Presupuestos', text: 'Armá presupuestos con ítems y precio, mandalos por WhatsApp en PDF y marcá cuando el cliente los acepta.' },
   '/comprobantes': { key: 'comprobantes', title: 'Facturación', text: 'Emití facturas A/B/C, notas de crédito/débito o Factura X. Configurá AFIP en la pestaña Configuración.' },
   '/historial':    { key: 'historial', title: 'Historial de actividad', text: 'Acá queda registrado quién hizo qué y cuándo: cobros, facturas, bajas y eliminaciones.' },
   '/ajustes':      { key: 'ajustes', title: 'Ajustes', text: 'Datos del negocio, logo, usuarios y permisos, WhatsApp y más.' },

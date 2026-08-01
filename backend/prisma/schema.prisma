@@ -610,3 +610,23 @@ model MpPayment {
 
   @@index([businessId])
 }
+
+model Budget {
+  id            String   @id @default(cuid())
+  businessId    String
+  clientId      String?
+  clienteNombre String?
+  clienteDoc    String?
+  numero        Int
+  status        String   @default("borrador") // borrador | enviado | aceptado | rechazado
+  itemsJson     String   @default("[]")        // [{descripcion, cantidad, precio}]
+  total         Float    @default(0)
+  validezDias   Int?     @default(15)
+  validoHasta   DateTime?
+  notas         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([clientId])
+}

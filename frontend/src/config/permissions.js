@@ -152,6 +152,16 @@ export const PERMISSION_TREE = [
     actions: [ { key: 'ver', label: 'Ver historial' } ],
   },
   {
+    key: 'presupuestos', label: 'Presupuestos', icon: '📄',
+    actions: [
+      { key: 'ver',      label: 'Ver presupuestos' },
+      { key: 'crear',    label: 'Crear presupuesto' },
+      { key: 'editar',   label: 'Editar / cambiar estado' },
+      { key: 'eliminar', label: 'Eliminar' },
+      { key: 'enviar',   label: 'Enviar por WhatsApp' },
+    ],
+  },
+  {
     key: 'comprobantes', label: 'Facturación AFIP', icon: '🧾',
     actions: [
       { key: 'ver',      label: 'Ver comprobantes' },
@@ -198,6 +208,7 @@ export const ROUTE_MODULE = {
   '/precios': 'precios',
   '/sedes': 'sedes',
   '/comprobantes': 'comprobantes',
+  '/presupuestos': 'presupuestos',
   '/historial': 'auditoria',
 };
 
