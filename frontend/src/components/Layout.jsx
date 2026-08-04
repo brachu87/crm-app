@@ -38,6 +38,7 @@ const NAV_GROUPS = [
       { to: '/ordenes',      label: 'Órdenes de trabajo', module: 'ordenes' },
       { to: '/cobranza',     label: 'Cobros' },
       { to: '/comprobantes', label: 'Facturas',    module: 'comprobantes' },
+      { to: '/gastos',       label: 'Gastos',      module: 'gastos' },
     ],
   },
   {
@@ -46,7 +47,6 @@ const NAV_GROUPS = [
     links: [
       { to: '/caja',     label: 'Caja del día',      module: 'caja' },
       { to: '/reportes', label: 'Reportes',           module: 'reportes' },
-      { to: '/gastos',   label: 'Gastos',             module: 'gastos' },
       { to: '/precios',  label: 'Grilla de precios',  module: 'precios' },
     ],
   },
