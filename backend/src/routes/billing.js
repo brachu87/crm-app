@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
+const { MercadoPagoConfig, Preference, Payment, PreApproval } = require('mercadopago');
 const authMiddleware = require('../middleware/auth');
 
 const prisma = require('../prisma');
@@ -45,6 +45,7 @@ router.get('/status', authMiddleware, async (req, res) => {
       status: biz.subscriptionStatus || 'trial',
       expires: biz.subscriptionExpires || null,
       bonificado: biz.bonificado || false,
+      autoDebit: biz.autoDebit === true,
       trialEnds: trialEnds.toISOString(),
       trialDaysLeft,
       extraUsers: biz.extraUsers || 0,
@@ -116,6 +117,77 @@ router.post('/preference', authMiddleware, async (req, res) => {
   }
 });
 
+
+// Extiende la suscripción del negocio +days (idempotente por pago lo maneja quien llama)
+async function extendSubscription(businessId, days) {
+  const now = new Date();
+  const current = await prisma.business.findUnique({ where: { id: businessId }, select: { subscriptionExpires: true } });
+  const base = (current?.subscriptionExpires && new Date(current.subscriptionExpires) > now) ? new Date(current.subscriptionExpires) : now;
+  const expires = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  await prisma.business.update({ where: { id: businessId }, data: { subscriptionStatus: 'active', subscriptionExpires: expires } });
+  await prisma.business.updateMany({ where: { id: businessId, approved: false }, data: { approved: true, approvedAt: new Date() } });
+  return expires;
+}
+
+// POST /api/billing/subscribe — activa el débito automático (suscripción MP)
+router.post('/subscribe', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede activar el débito automático' });
+    const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
+    if (!biz) return res.status(404).json({ error: 'Negocio no encontrado' });
+
+    // El primer cobro automático arranca cuando termina el período ya pagado / la prueba
+    const now = new Date();
+    const trialEnds = new Date(new Date(biz.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+    let start = now;
+    if (biz.subscriptionExpires && new Date(biz.subscriptionExpires) > start) start = new Date(biz.subscriptionExpires);
+    if (trialEnds > start) start = trialEnds;
+    if (start <= now) start = new Date(now.getTime() + 10 * 60 * 1000); // MP exige fecha futura
+
+    const preapproval = new PreApproval(getMpClient());
+    const result = await preapproval.create({
+      body: {
+        reason: `Suscripción Gestumio — ${biz.name}`,
+        external_reference: biz.id,
+        payer_email: req.user.email,
+        back_url: `${APP_URL}/settings?sub=success`,
+        status: 'pending',
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: 'months',
+          transaction_amount: monthlyPriceFor(biz),
+          currency_id: 'ARS',
+          start_date: start.toISOString(),
+        },
+      },
+    });
+
+    await prisma.business.update({ where: { id: biz.id }, data: { mpPreapprovalId: String(result.id) } });
+    res.json({ init_point: result.init_point || result.sandbox_init_point });
+  } catch (e) {
+    console.error('[billing] subscribe error:', e?.message || e);
+    res.status(500).json({ error: 'No se pudo iniciar el débito automático' });
+  }
+});
+
+// POST /api/billing/unsubscribe — cancela el débito automático
+router.post('/unsubscribe', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'owner') return res.status(403).json({ error: 'Solo el propietario puede cancelar el débito automático' });
+    const biz = await prisma.business.findUnique({ where: { id: req.user.businessId } });
+    if (!biz) return res.status(404).json({ error: 'Negocio no encontrado' });
+    if (biz.mpPreapprovalId) {
+      try {
+        await new PreApproval(getMpClient()).update({ id: biz.mpPreapprovalId, body: { status: 'cancelled' } });
+      } catch (e) { console.warn('[billing] cancelar preapproval:', e?.message); }
+    }
+    await prisma.business.update({ where: { id: biz.id }, data: { autoDebit: false, mpPreapprovalId: null } });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[billing] unsubscribe error:', e?.message || e);
+    res.status(500).json({ error: 'No se pudo cancelar' });
+  }
+});
 
 // GET /api/billing/public-checkout — sin auth, crea preferencia y redirige a MP
 router.get('/public-checkout', async (req, res) => {
@@ -190,7 +262,38 @@ router.post('/webhook', express.json(), async (req, res) => {
     res.sendStatus(200); // responder rápido a MP
 
     const { type, data } = req.body;
-    if (type !== 'payment' || !data?.id) return;
+    const topic = type || req.body.topic;
+    if (!data?.id) return;
+
+    // ── Suscripción: cambios de estado de la adhesión (preapproval) ──
+    if (topic === 'subscription_preapproval') {
+      const pa = await fetch(`https://api.mercadopago.com/preapproval/${data.id}`, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } }).then(r => r.json()).catch(() => null);
+      const bizId = pa && pa.external_reference;
+      if (bizId) {
+        const active = pa.status === 'authorized';
+        await prisma.business.update({ where: { id: bizId }, data: { autoDebit: active, mpPreapprovalId: String(data.id) } }).catch(() => {});
+        console.log(`[billing] preapproval ${data.id} negocio ${bizId} → ${pa.status}`);
+      }
+      return;
+    }
+
+    // ── Suscripción: cobro recurrente autorizado ──
+    if (topic === 'subscription_authorized_payment') {
+      const ap = await fetch(`https://api.mercadopago.com/authorized_payments/${data.id}`, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } }).then(r => r.json()).catch(() => null);
+      if (!ap) return;
+      const bizId = ap.external_reference;
+      const paidOk = ap.status === 'processed' || ap.payment?.status === 'approved';
+      const payId = ap.payment?.id ? String(ap.payment.id) : `ap_${data.id}`;
+      if (!bizId || !paidOk) return;
+      try {
+        await prisma.mpPayment.create({ data: { id: payId, businessId: bizId, cycle: 'monthly' } });
+      } catch (dup) { return; } // duplicado
+      const exp = await extendSubscription(bizId, PLAN_DAYS);
+      console.log(`[billing] débito automático OK negocio ${bizId} — activo hasta ${exp.toISOString()}`);
+      return;
+    }
+
+    if (topic !== 'payment' || !data?.id) return;
 
     const client = getMpClient();
     const paymentClient = new Payment(client);

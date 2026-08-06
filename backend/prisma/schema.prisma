@@ -22,6 +22,8 @@ model Business {
   subscriptionStatus   String   @default("trial")
   subscriptionExpires  DateTime?
   bonificado           Boolean  @default(false)
+  autoDebit            Boolean  @default(false)   // débito automático de la suscripción (MP)
+  mpPreapprovalId      String?                    // id de la suscripción en Mercado Pago
 
   approved   Boolean   @default(true)
   approvedAt DateTime?

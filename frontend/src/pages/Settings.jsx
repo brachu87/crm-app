@@ -1105,6 +1105,25 @@ function BillingCard({ billing, onRefresh }) {
     }
   }
 
+  const autoDebit = billing?.autoDebit === true;
+  async function handleSubscribe() {
+    setLoading(true); setError('');
+    try {
+      const res = await api.post('/billing/subscribe');
+      window.location.href = res.data.init_point;
+    } catch (e) {
+      setError(e.response?.data?.error || 'No se pudo activar el débito automático');
+      setLoading(false);
+    }
+  }
+  async function handleUnsubscribe() {
+    if (!window.confirm('¿Cancelar el débito automático? Vas a tener que pagar manualmente cada mes.')) return;
+    setLoading(true); setError('');
+    try { await api.post('/billing/unsubscribe'); onRefresh(); }
+    catch (e) { setError(e.response?.data?.error || 'No se pudo cancelar'); }
+    finally { setLoading(false); }
+  }
+
   return (
     <div className="card" style={{ marginTop: 24 }}>
       <h2 style={{ fontSize: 16, margin: '0 0 16px', fontWeight: 700 }}>💳 Facturación</h2>
@@ -1217,6 +1236,23 @@ function BillingCard({ billing, onRefresh }) {
         <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
           Serás redirigido a Mercado Pago para completar el pago de forma segura.
         </span>
+      </div>
+
+      {/* Débito automático */}
+      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>🔄 Débito automático</div>
+        {autoDebit ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, color: '#065f46', background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 20, padding: '4px 12px', fontWeight: 600 }}>Activo ✓</span>
+            <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>La cuota se cobra sola todos los meses.</span>
+            <button className="btn btn-secondary btn-sm" onClick={handleUnsubscribe} disabled={loading} style={{ color: '#b91c1c' }}>Cancelar</button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <button className="btn btn-secondary" onClick={handleSubscribe} disabled={loading}>{loading ? 'Generando…' : '🔄 Activar débito automático'}</button>
+            <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Adherí tu tarjeta una vez y la suscripción se cobra sola cada mes. Podés cancelarlo cuando quieras.</span>
+          </div>
+        )}
       </div>
     </div>
   );
